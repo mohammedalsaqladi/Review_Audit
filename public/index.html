@@ -6,8 +6,6 @@
 <title>تمام | نظام المراجعة والتدقيق</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config.js"></script>
 <style>
   :root{
     --ink:#12232E;
@@ -623,21 +621,22 @@
 
       <div class="field">
         <label>رمز المكتب</label>
-        <input type="text" placeholder="مثال: ETQAN" value="ETQAN" style="text-transform:uppercase;">
+        <input type="text" id="login-company-code" placeholder="مثال: ETQAN" value="ETQAN" style="text-transform:uppercase;">
       </div>
       <div class="field">
         <label>اسم المستخدم</label>
-        <input type="text" placeholder="mohammed" value="mohammed">
+        <input type="text" id="login-username" placeholder="mohammed" value="mohammed">
       </div>
       <div class="field">
         <label>كلمة المرور</label>
-        <input type="password" placeholder="••••••" value="123456">
+        <input type="password" id="login-password" placeholder="••••••" value="123456">
       </div>
+      <div id="login-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-bottom:14px;"></div>
       <div class="row-between">
         <label><input type="checkbox" checked style="accent-color:#AD8A3F;"> تذكرني</label>
         <a href="#">نسيت كلمة المرور؟</a>
       </div>
-      <button class="btn-primary" onclick="doLogin()">
+      <button class="btn-primary" id="login-submit-btn" onclick="doLogin()">
         دخول
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M14 5l7 7-7 7M21 12H3"/></svg>
       </button>
@@ -655,15 +654,16 @@
       <h1>إنشاء حساب مكتب جديد</h1>
       <p>سجّل مكتبك وابدأ فترة تجريبية على نظام المراجعة والتدقيق</p>
 
-      <div class="field"><label>اسم المكتب (عربي)</label><input placeholder="مثال: مكتب القحطاني وشركاه"></div>
-      <div class="field"><label>اسم المكتب (إنجليزي)</label><input placeholder="e.g. Alqahtani & Co."></div>
-      <div class="field"><label>رمز المكتب <span style="color:var(--brass); font-weight:400;">(يُستخدم لاحقًا عند الدخول)</span></label><input placeholder="مثال: ETQAN" style="text-transform:uppercase;"></div>
-      <div class="field"><label>البريد الإلكتروني الرسمي</label><input type="email" placeholder="info@officefirm.com"></div>
+      <div class="field"><label>اسم المكتب (عربي)</label><input id="signup-name-ar" placeholder="مثال: مكتب القحطاني وشركاه"></div>
+      <div class="field"><label>اسم المكتب (إنجليزي)</label><input id="signup-name-en" placeholder="e.g. Alqahtani & Co."></div>
+      <div class="field"><label>رمز المكتب <span style="color:var(--brass); font-weight:400;">(يُستخدم لاحقًا عند الدخول)</span></label><input id="signup-code" placeholder="مثال: ETQAN" style="text-transform:uppercase;"></div>
+      <div class="field"><label>البريد الإلكتروني الرسمي</label><input type="email" id="signup-email" placeholder="info@officefirm.com"></div>
       <div class="row-between" style="margin-bottom:6px;"><label style="font-size:12.5px; color:var(--text); font-weight:600;">بيانات الشريك المسؤول (المستخدم الأول)</label></div>
-      <div class="field"><label>الاسم الكامل</label><input placeholder="اسم الشريك المسؤول"></div>
-      <div class="field"><label>اسم المستخدم</label><input placeholder="مثال: mohammed"></div>
-      <div class="field"><label>كلمة المرور</label><input type="password" placeholder="••••••"></div>
-      <button class="btn-primary" onclick="alert('نموذج تصميمي — سيُربط بقاعدة البيانات لاحقًا')">إنشاء الحساب والمتابعة</button>
+      <div class="field"><label>الاسم الكامل</label><input id="signup-admin-name" placeholder="اسم الشريك المسؤول"></div>
+      <div class="field"><label>اسم المستخدم</label><input id="signup-admin-username" placeholder="مثال: mohammed"></div>
+      <div class="field"><label>كلمة المرور</label><input type="password" id="signup-admin-password" placeholder="••••••"></div>
+      <div id="signup-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-bottom:14px;"></div>
+      <button class="btn-primary" id="signup-submit-btn" onclick="doSignup()">إنشاء الحساب والمتابعة</button>
       <div class="login-foot">
         <a href="#" onclick="showLogin(); return false;" style="color:var(--brass); font-weight:700;">لديك حساب مسبقًا؟ تسجيل الدخول</a>
       </div>
@@ -2277,11 +2277,103 @@
 </div>
 
 <script>
-function doLogin(){
-  document.getElementById('login-screen').style.display='none';
-  const app=document.getElementById('app');
-  app.classList.add('active');
+/* ===== جلسة المستخدم الحالية (تُملأ فعليًا بعد تسجيل الدخول عبر /api/login) ===== */
+let SESSION = { token:null, companyId:null, companyName:null, userId:null, role:null, username:null };
+
+async function doLogin(){
+  const code = document.getElementById('login-company-code').value.trim();
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errBox = document.getElementById('login-error');
+  const btn = document.getElementById('login-submit-btn');
+  errBox.style.display = 'none';
+
+  if(!code || !username || !password){
+    errBox.textContent = 'عبّئ رمز المكتب واسم المستخدم وكلمة المرور';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.style.opacity = .6;
+  try{
+    const res = await fetch('/api/login', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ companyCode: code, username, password })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      errBox.textContent = data.message || 'تعذّر تسجيل الدخول';
+      errBox.style.display = 'block';
+      return;
+    }
+    SESSION = { token:data.token, companyId:data.companyId, companyName:data.companyName,
+                userId:data.userId, role:data.role, username:data.username };
+    sessionStorage.setItem('tamam_session', JSON.stringify(SESSION));
+
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('active');
+    document.querySelectorAll('.topbar-user .nm, .side-user .nm').forEach(el=>el.textContent = data.fullName || username);
+    document.querySelectorAll('.topbar-user .rl, .side-user .rl').forEach(el=>el.textContent = data.roleLabel || '');
+
+    loadChartOfAccountsLive();
+    loadWorkingPapersLive();
+  } catch(e){
+    errBox.textContent = 'تعذّر الاتصال بالسيرفر — تأكد أن السيرفر شغّال ومتصل بقاعدة البيانات';
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.style.opacity = 1;
+  }
 }
+
+async function doSignup(){
+  const payload = {
+    nameAr: document.getElementById('signup-name-ar').value.trim(),
+    nameEn: document.getElementById('signup-name-en').value.trim(),
+    code: document.getElementById('signup-code').value.trim(),
+    email: document.getElementById('signup-email').value.trim(),
+    adminName: document.getElementById('signup-admin-name').value.trim(),
+    adminUsername: document.getElementById('signup-admin-username').value.trim(),
+    adminPassword: document.getElementById('signup-admin-password').value,
+  };
+  const errBox = document.getElementById('signup-error');
+  const btn = document.getElementById('signup-submit-btn');
+  errBox.style.display = 'none';
+
+  if(!payload.nameAr || !payload.code || !payload.adminUsername || !payload.adminPassword){
+    errBox.textContent = 'عبّئ اسم المكتب ورمزه وبيانات الشريك المسؤول على الأقل';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.style.opacity = .6;
+  try{
+    const res = await fetch('/api/signup', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!res.ok){
+      errBox.textContent = data.message || 'تعذّر إنشاء الحساب';
+      errBox.style.display = 'block';
+      return;
+    }
+    SESSION = { token:data.token, companyId:data.companyId, companyName:data.companyName,
+                userId:data.userId, role:data.role, username:data.username };
+    sessionStorage.setItem('tamam_session', JSON.stringify(SESSION));
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('active');
+    loadChartOfAccountsLive();
+    loadWorkingPapersLive();
+  } catch(e){
+    errBox.textContent = 'تعذّر الاتصال بالسيرفر';
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.style.opacity = 1;
+  }
+}
+
 function showSignup(){
   document.getElementById('login-wrap').style.display='none';
   document.getElementById('signup-wrap').style.display='flex';
@@ -2624,42 +2716,39 @@ function selectWpMain(item, detailId){
 </script>
 <script>
 /* ============================================================================
-   طبقة الاتصال الحقيقي بقاعدة البيانات (Supabase)
-   عبّئ القيم الثلاث التالية بعد: (1) إنشاء مشروع Supabase
-   (2) تنفيذ database/schema.sql بالكامل في SQL Editor
-   (3) إضافة صف مكتبكم في جدول companies ونسخ الـ id
-   بدون تعبئتها، تبقى الصفحة تعمل بالبيانات التجريبية الثابتة كما هي.
+   طبقة الاتصال بالبيانات الحقيقية — عبر سيرفرنا (server.js) وليس مباشرة من
+   المتصفح إلى Supabase. هذا يسمح لمكتب واحد أو مئة مكتب بنفس الرابط، لأن
+   الشركة (company_id) تُحدَّد ديناميكيًا من جلسة الدخول (SESSION) لا من قيمة
+   ثابتة. كل طلب يُرسل رمز الجلسة SESSION.token في الترويسة Authorization.
    ============================================================================ */
-/* ============================================================================
-   طبقة الاتصال الحقيقي بقاعدة البيانات (Supabase)
-   القيم الآن تُقرأ من السيرفر (server.js) الذي يحقنها من متغيرات البيئة على
-   رندر (Render → Environment) عبر /config.js — لا تُكتب أي أسرار داخل الكود هنا.
-   أضف على رندر: SUPABASE_URL, SUPABASE_ANON_KEY, COMPANY_ID
-   ============================================================================ */
-const cfg = window.APP_CONFIG || {};
-const SUPABASE_URL       = cfg.SUPABASE_URL || '';
-const SUPABASE_ANON_KEY  = cfg.SUPABASE_ANON_KEY || '';
-const CURRENT_COMPANY_ID = cfg.COMPANY_ID || '';
+function isLiveDataMode(){ return !!SESSION.token; }
 
-let sb = null;
-if (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase) {
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-} else {
-  console.warn('تمام: لم يتم ضبط متغيرات البيئة (SUPABASE_URL / SUPABASE_ANON_KEY) على السيرفر بعد — الواجهة تعمل بالبيانات التجريبية.');
+async function apiFetch(path, options={}){
+  const headers = Object.assign({'Content-Type':'application/json'}, options.headers || {});
+  if(SESSION.token) headers['Authorization'] = 'Bearer ' + SESSION.token;
+  const res = await fetch(path, Object.assign({}, options, {headers}));
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.message || ('خطأ (' + res.status + ')'));
+  return data;
 }
-function isLiveDataMode(){ return !!sb; }
+
+/* استرجاع الجلسة إن كانت محفوظة (تحديث الصفحة لا يسجّل خروج المستخدم) */
+(function restoreSession(){
+  try{
+    const saved = sessionStorage.getItem('tamam_session');
+    if(saved) SESSION = JSON.parse(saved);
+  }catch(e){}
+})();
 
 /* ---------------- دليل الحسابات: تحميل حقيقي ---------------- */
 async function loadChartOfAccountsLive(){
   if(!isLiveDataMode()) return;
-  const {data, error} = await sb.from('chart_of_accounts')
-    .select('id,code,name_ar,level,parent_id,language,deposit_account_id,statement_code,is_active')
-    .eq('company_id', CURRENT_COMPANY_ID)
-    .order('code');
-  if(error){ console.error(error); showToast('تعذّر تحميل دليل الحسابات: '+error.message); return; }
-  coaData.length = 0;
-  data.forEach(a => coaData.push({id:a.id, code:a.code, name:a.name_ar, level:a.level, parent:a.parent_id}));
-  renderCoaTreeLive(data);
+  try{
+    const rows = await apiFetch('/api/chart-of-accounts');
+    coaData.length = 0;
+    rows.forEach(a => coaData.push({id:a.id, code:a.code, name:a.name_ar, level:a.level, parent:a.parent_id}));
+    renderCoaTreeLive(rows);
+  }catch(e){ console.error(e); showToast('تعذّر تحميل دليل الحسابات: '+e.message); }
 }
 function renderCoaTreeLive(rows){
   const tbody = document.querySelector('#page-coa .tree-table tbody');
@@ -2678,7 +2767,7 @@ function renderCoaTreeLive(rows){
         <td>${r.language==='ar'?'عربي':r.language==='en'?'إنجليزي':'عربي/إنجليزي'}</td>
         <td>${r.deposit_account_id ? 'مرتبط' : '—'}</td>
         <td>${r.statement_code || '—'}</td>
-        <td>مكتبكم</td>
+        <td>${SESSION.companyName || 'مكتبكم'}</td>
         <td><span class="badge ${r.is_active?'ok':'neutral'}">${r.is_active?'فعّال':'غير فعّال'}</span></td>
       </tr>`;
       if(hasChildren) walk(r.id, depth+1);
@@ -2696,15 +2785,15 @@ async function saveAccountFromForm(){
     is_active: document.querySelector('input[name="accStatus"]:checked').value === '1',
   };
   if(!payload.code || !payload.name_ar){ showToast('رمز الحساب واسمه بالعربي إلزاميان'); return; }
-  if(!isLiveDataMode()){ showToast('وضع تجريبي — لن يُحفظ فعليًا حتى يُربط النظام بـ Supabase'); closeModal('modal-addaccount'); return; }
-  payload.company_id = CURRENT_COMPANY_ID;
+  if(!isLiveDataMode()){ showToast('وضع تجريبي — سجّل الدخول فعليًا لحفظ البيانات في قاعدة البيانات'); closeModal('modal-addaccount'); return; }
   const parentSelectVal = document.getElementById('acc-parent').value;
   const parentMatch = coaData.find(a => `${a.code} — ${a.name}` === parentSelectVal);
   if(parentMatch) payload.parent_id = parentMatch.id;
-  const {error} = await sb.from('chart_of_accounts').insert(payload);
-  if(error){ showToast('خطأ أثناء الحفظ: '+error.message); return; }
-  closeModal('modal-addaccount');
-  loadChartOfAccountsLive();
+  try{
+    await apiFetch('/api/chart-of-accounts', {method:'POST', body: JSON.stringify(payload)});
+    closeModal('modal-addaccount');
+    loadChartOfAccountsLive();
+  }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
 
 /* ---------------- أوراق العمل: تحميل حقيقي ---------------- */
@@ -2713,15 +2802,13 @@ let addSubTargetMainId   = null;   // آخر ورقة رئيسية ضُغط في
 
 async function loadWorkingPapersLive(){
   if(!isLiveDataMode()) return;
-  const [{data: groups, error: e1}, {data: mains, error: e2}] = await Promise.all([
-    sb.from('wp_groups').select('*').eq('company_id', CURRENT_COMPANY_ID).order('code'),
-    sb.from('wp_main_items').select('*').eq('company_id', CURRENT_COMPANY_ID).order('code'),
-  ]);
-  if(e1 || e2){ console.error(e1, e2); showToast('تعذّر تحميل أوراق العمل'); return; }
-  renderWorkingPapersLive(groups, mains);
+  try{
+    const data = await apiFetch('/api/working-papers');
+    renderWorkingPapersLive(data.groups, data.mains);
+  }catch(e){ console.error(e); showToast('تعذّر تحميل أوراق العمل: '+e.message); }
 }
 function renderWorkingPapersLive(groups, mains){
-  const listCol = document.querySelector('.wp-list-col');
+  const listCol = document.querySelector('#page-workpapers .wp-list-col');
   if(!listCol) return;
   listCol.innerHTML = groups.map(g=>{
     const groupMains = mains.filter(m => m.group_id === g.id);
@@ -2741,14 +2828,15 @@ function renderWorkingPapersLive(groups, mains){
   }).join('') || '<div class="empty-hint">لا توجد مجموعات بعد</div>';
 }
 async function selectWpMainLive(item, mainId){
-  document.querySelectorAll('.wp-main-item').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('#page-workpapers .wp-main-item').forEach(i=>i.classList.remove('active'));
   item.classList.add('active');
   addSubTargetMainId = mainId;
-  const [{data: subs}, {data: mainRow}] = await Promise.all([
-    sb.from('wp_sub_items').select('*').eq('main_item_id', mainId).order('sort_order'),
-    sb.from('wp_main_items').select('*').eq('id', mainId).single(),
-  ]);
-  const detailCol = document.querySelector('.wp-detail-col');
+  let data;
+  try{
+    data = await apiFetch('/api/wp-main-items/' + mainId);
+  }catch(e){ showToast('تعذّر تحميل الورقة: '+e.message); return; }
+  const { main: mainRow, subs } = data;
+  const detailCol = document.querySelector('#page-workpapers .wp-detail-col');
   detailCol.innerHTML = `
     <div class="wp-detail active">
       <div class="profile-head" style="margin-bottom:18px;">
@@ -2776,18 +2864,18 @@ async function saveGroupFromForm(){
   if(isLinked){
     const sel = document.getElementById('grp-coa-account');
     const [code, ...rest] = sel.options[sel.selectedIndex].text.split(' — ');
-    payload = { code: code.trim(), name: rest.join(' — ').trim() };
+    payload = { code: code.trim(), name: rest.join(' — ').trim(), coa_code: code.trim() };
   } else {
     payload = { code: document.getElementById('grp-code').value.trim(), name: document.getElementById('grp-name').value.trim() };
   }
   payload.visibility = document.querySelector('input[name="visGroup"]:checked').value;
   if(!payload.code || !payload.name){ showToast('رمز المجموعة واسمها إلزاميان'); return; }
-  if(!isLiveDataMode()){ showToast('وضع تجريبي — لن يُحفظ فعليًا حتى يُربط النظام بـ Supabase'); closeModal('modal-addgroup'); return; }
-  payload.company_id = CURRENT_COMPANY_ID;
-  const {error} = await sb.from('wp_groups').insert(payload);
-  if(error){ showToast('خطأ أثناء الحفظ: '+error.message); return; }
-  closeModal('modal-addgroup');
-  loadWorkingPapersLive();
+  if(!isLiveDataMode()){ showToast('وضع تجريبي — سجّل الدخول فعليًا لحفظ البيانات في قاعدة البيانات'); closeModal('modal-addgroup'); return; }
+  try{
+    await apiFetch('/api/wp-groups', {method:'POST', body: JSON.stringify(payload)});
+    closeModal('modal-addgroup');
+    loadWorkingPapersLive();
+  }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
 async function saveMainFromForm(){
   const payload = {
@@ -2799,13 +2887,13 @@ async function saveMainFromForm(){
   };
   if(!payload.title){ showToast('اسم ورقة العمل إلزامي'); return; }
   if(!addMainTargetGroupId){ showToast('اختر المجموعة أولًا من زر "+ رئيسي" داخلها'); return; }
-  if(!isLiveDataMode()){ showToast('وضع تجريبي — لن يُحفظ فعليًا حتى يُربط النظام بـ Supabase'); closeModal('modal-addmain'); return; }
-  payload.company_id = CURRENT_COMPANY_ID;
+  if(!isLiveDataMode()){ showToast('وضع تجريبي — سجّل الدخول فعليًا لحفظ البيانات في قاعدة البيانات'); closeModal('modal-addmain'); return; }
   payload.group_id = addMainTargetGroupId;
-  const {error} = await sb.from('wp_main_items').insert(payload);
-  if(error){ showToast('خطأ أثناء الحفظ: '+error.message); return; }
-  closeModal('modal-addmain');
-  loadWorkingPapersLive();
+  try{
+    await apiFetch('/api/wp-main-items', {method:'POST', body: JSON.stringify(payload)});
+    closeModal('modal-addmain');
+    loadWorkingPapersLive();
+  }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
 async function saveSubFromForm(){
   const type = document.getElementById('sub-type').value;
@@ -2820,22 +2908,14 @@ async function saveSubFromForm(){
   if(type==='multi'){ payload.options = [...document.querySelectorAll('#multi-opt-chips .chip')].map(c=>c.textContent.replace('✕','').trim()); }
   if(!payload.label){ showToast('نص البند إلزامي'); return; }
   if(!addSubTargetMainId){ showToast('اختر ورقة العمل الرئيسية أولًا'); return; }
-  if(!isLiveDataMode()){ showToast('وضع تجريبي — لن يُحفظ فعليًا حتى يُربط النظام بـ Supabase'); closeModal('modal-addsub'); return; }
-  payload.company_id = CURRENT_COMPANY_ID;
+  if(!isLiveDataMode()){ showToast('وضع تجريبي — سجّل الدخول فعليًا لحفظ البيانات في قاعدة البيانات'); closeModal('modal-addsub'); return; }
   payload.main_item_id = addSubTargetMainId;
-  const {error} = await sb.from('wp_sub_items').insert(payload);
-  if(error){ showToast('خطأ أثناء الحفظ: '+error.message); return; }
-  closeModal('modal-addsub');
-  if(!addSubTargetMainId.startsWith('demo-')) selectWpMainLive(document.querySelector('.wp-main-item.active'), addSubTargetMainId);
+  try{
+    await apiFetch('/api/wp-sub-items', {method:'POST', body: JSON.stringify(payload)});
+    closeModal('modal-addsub');
+    if(!String(addSubTargetMainId).startsWith('demo-')) selectWpMainLive(document.querySelector('#page-workpapers .wp-main-item.active'), addSubTargetMainId);
+  }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
-
-/* عند تسجيل الدخول: إن كان النظام مربوطًا بـ Supabase فعليًا، حمّل البيانات الحقيقية فورًا */
-const _origDoLogin = doLogin;
-doLogin = function(){
-  _origDoLogin();
-  loadChartOfAccountsLive();
-  loadWorkingPapersLive();
-};
 </script>
 
 </body>
