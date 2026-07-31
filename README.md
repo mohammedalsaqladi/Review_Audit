@@ -1,0 +1,2832 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تمام | نظام المراجعة والتدقيق</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#12232E;
+    --ink-2:#1B3040;
+    --ink-3:#26404F;
+    --paper:#F6F2E8;
+    --card:#FFFDF8;
+    --line:#E4DDC9;
+    --line-strong:#D3C9AC;
+    --brass:#AD8A3F;
+    --brass-light:#E4C77F;
+    --green:#2F6F4E;
+    --green-bg:#E7EFE5;
+    --red:#A6432E;
+    --red-bg:#F4E6E1;
+    --amber:#B8873A;
+    --amber-bg:#F6EDDC;
+    --text:#1E2A2F;
+    --muted:#6C7A78;
+    --muted-2:#94A19E;
+    --radius:10px;
+    --shadow: 0 1px 2px rgba(18,35,46,.06), 0 8px 24px -12px rgba(18,35,46,.18);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:'IBM Plex Sans Arabic', sans-serif;
+    background:var(--paper);
+    color:var(--text);
+    font-size:14.5px;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+  h1,h2,h3,.display{font-family:'Cairo', sans-serif;}
+  button, input, select, textarea{font-family:inherit; font-size:inherit;}
+  ::selection{background:var(--brass-light); color:var(--ink);}
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line-strong); border-radius:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+
+  /* ===== tick-mark signature system ===== */
+  .tick{
+    width:20px; height:20px; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    flex-shrink:0; position:relative;
+  }
+  .tick svg{width:11px; height:11px;}
+  .tick path{fill:none; stroke-width:2.4; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray:20; stroke-dashoffset:20; animation:tickdraw .5s ease forwards;}
+  .tick.ok{background:var(--green-bg);} .tick.ok path{stroke:var(--green);}
+  .tick.flag{background:var(--red-bg);} .tick.flag path{stroke:var(--red);}
+  .tick.pending{background:var(--amber-bg);}
+  .tick.pending::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--amber);}
+  @keyframes tickdraw{to{stroke-dashoffset:0;}}
+
+  /* ===== LOGIN ===== */
+  #login-screen{
+    position:fixed; inset:0; display:flex; z-index:50;
+    background:var(--ink);
+  }
+  .login-brand{
+    flex:1.05; position:relative; overflow:hidden;
+    background:radial-gradient(120% 140% at 15% 10%, var(--ink-3) 0%, var(--ink) 55%);
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding:56px 60px;
+  }
+  .login-brand::before{
+    content:""; position:absolute; inset:0;
+    background-image:repeating-linear-gradient(180deg, rgba(228,199,127,.05) 0px, rgba(228,199,127,.05) 1px, transparent 1px, transparent 42px);
+    pointer-events:none;
+  }
+  .brand-mark{display:flex; align-items:center; gap:14px; position:relative; z-index:2;}
+  .brand-mark .seal{
+    width:46px; height:46px; border-radius:50%; border:1.6px solid var(--brass-light);
+    display:flex; align-items:center; justify-content:center; position:relative; flex-shrink:0;
+  }
+  .brand-mark .seal::before{content:""; position:absolute; inset:5px; border:1px solid rgba(228,199,127,.45); border-radius:50%;}
+  .brand-mark .seal span{font-family:'Cairo'; font-weight:800; color:var(--brass-light); font-size:16px;}
+  .brand-mark .word{font-family:'Cairo'; font-weight:800; font-size:21px; color:#F3EFE2; letter-spacing:.5px;}
+  .brand-mark .sub{font-size:11px; color:var(--muted-2); margin-top:2px;}
+
+  .ledger-anim{position:relative; z-index:2; padding-inline-start:2px;}
+  .ledger-line{
+    display:flex; align-items:center; gap:14px; padding:13px 0;
+    border-bottom:1px solid rgba(228,199,127,.13);
+    opacity:0; animation:rise .55s ease forwards;
+  }
+  .ledger-line:nth-child(1){animation-delay:.15s;}
+  .ledger-line:nth-child(2){animation-delay:.32s;}
+  .ledger-line:nth-child(3){animation-delay:.49s;}
+  .ledger-line:nth-child(4){animation-delay:.66s;}
+  @keyframes rise{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  .ledger-line .tk{
+    width:22px; height:22px; border-radius:50%; border:1.4px solid var(--brass-light);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .ledger-line .tk svg{width:11px; height:11px;}
+  .ledger-line .tk path{fill:none; stroke:var(--brass-light); stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray:20; stroke-dashoffset:20; animation:tickdraw .5s ease forwards; animation-delay:inherit;}
+  .ledger-line b{color:#EDE7D4; font-weight:600; font-size:14.5px;}
+  .ledger-line span{color:var(--muted-2); font-size:12.5px;}
+
+  .login-quote{position:relative; z-index:2; border-top:1px solid rgba(228,199,127,.15); padding-top:20px;}
+  .login-quote p{color:#D9D2BC; font-size:13px; line-height:1.9; max-width:380px;}
+
+  .login-form-wrap{
+    flex:1; background:var(--paper); display:flex; align-items:center; justify-content:center; padding:40px;
+  }
+  .login-form{width:100%; max-width:360px;}
+  .login-form h1{font-size:24px; color:var(--ink); margin-bottom:6px;}
+  .login-form > p{color:var(--muted); font-size:13px; margin-bottom:32px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block; font-size:12.5px; color:var(--text); font-weight:600; margin-bottom:7px;}
+  .field input, .field select{
+    width:100%; padding:11px 13px; border:1.3px solid var(--line-strong); border-radius:8px;
+    background:var(--card); color:var(--text); transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus{outline:none; border-color:var(--brass);}
+  .row-between{display:flex; justify-content:space-between; align-items:center; margin:2px 0 22px;}
+  .row-between label{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); cursor:pointer;}
+  .row-between a{font-size:12.5px; color:var(--brass); text-decoration:none;}
+  .btn-primary{
+    width:100%; padding:12.5px; background:var(--ink); color:#F3EFE2; border:none; border-radius:8px;
+    font-weight:700; font-size:14px; cursor:pointer; transition:background .15s;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-primary:hover{background:var(--ink-3);}
+  .login-foot{margin-top:26px; font-size:11.5px; color:var(--muted-2); text-align:center;}
+
+  /* ===== APP SHELL ===== */
+  #app{display:none; height:100vh; width:100%;}
+  #app.active{display:flex;}
+  .sidebar{
+    width:250px; background:var(--ink); color:#EDE7D4; flex-shrink:0;
+    display:flex; flex-direction:column; height:100%;
+  }
+  .side-brand{display:flex; align-items:center; gap:11px; padding:20px 20px 16px;}
+  .side-brand .seal{width:34px; height:34px; border-radius:50%; border:1.4px solid var(--brass-light);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .side-brand .seal span{font-family:'Cairo'; font-weight:800; color:var(--brass-light); font-size:12.5px;}
+  .side-brand .word{font-family:'Cairo'; font-weight:800; font-size:16.5px; color:#F3EFE2;}
+  .side-brand .sub{font-size:10px; color:var(--muted-2);}
+
+  .side-scroll{flex:1; overflow-y:auto; padding:6px 12px 12px;}
+  .nav-group{margin-bottom:3px;}
+  .nav-item{
+    display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:8px;
+    cursor:pointer; color:#CFC9B4; font-size:13.5px; font-weight:500; transition:background .12s,color .12s;
+    position:relative;
+  }
+  .nav-item .ic{width:17px; height:17px; flex-shrink:0; opacity:.85;}
+  .nav-item:hover{background:var(--ink-2); color:#F3EFE2;}
+  .nav-item.active{background:var(--ink-2); color:#F3EFE2;}
+  .nav-item.active::before{content:""; position:absolute; right:-12px; top:8px; bottom:8px; width:3px; background:var(--brass-light); border-radius:3px 0 0 3px;}
+  .nav-item .chev{margin-inline-start:auto; width:12px; height:12px; opacity:.6; transition:transform .18s;}
+  .nav-group.open .nav-item.parent .chev{transform:rotate(90deg);}
+  .nav-sub{max-height:0; overflow:hidden; transition:max-height .22s ease;}
+  .nav-group.open .nav-sub{max-height:220px;}
+  .nav-sub .nav-item{padding-inline-start:42px; font-size:13px; color:#B8B196;}
+  .nav-sub .nav-item::after{content:""; position:absolute; right:auto; left:auto;}
+
+  .side-user{display:flex; align-items:center; gap:10px; padding:14px 18px; border-top:1px solid rgba(228,199,127,.1);}
+  .side-user .av{width:32px; height:32px; border-radius:50%; background:var(--brass); color:var(--ink);
+    display:flex; align-items:center; justify-content:center; font-family:'Cairo'; font-weight:700; font-size:12px; flex-shrink:0;}
+  .side-user .nm{font-size:12.5px; font-weight:600; color:#F3EFE2;}
+  .side-user .rl{font-size:10.5px; color:var(--brass-light);}
+
+  .main{flex:1; display:flex; flex-direction:column; min-width:0; height:100%;}
+  .topbar{
+    height:62px; flex-shrink:0; background:var(--card); border-bottom:1px solid var(--line);
+    display:flex; align-items:center; justify-content:space-between; padding:0 26px;
+  }
+  .topbar .search{
+    display:flex; align-items:center; gap:9px; background:var(--paper); border:1px solid var(--line);
+    border-radius:8px; padding:8px 13px; width:320px; color:var(--muted-2);
+  }
+  .topbar .search input{border:none; background:none; outline:none; width:100%; color:var(--text); font-size:13px;}
+  .topbar .search svg{width:15px; height:15px; flex-shrink:0;}
+  .topbar-right{display:flex; align-items:center; gap:18px;}
+  .icon-btn{width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    color:var(--muted); cursor:pointer; position:relative; transition:background .12s;}
+  .icon-btn:hover{background:var(--paper);}
+  .icon-btn svg{width:18px; height:18px;}
+  .icon-btn .dot{position:absolute; top:7px; left:8px; width:7px; height:7px; border-radius:50%; background:var(--red); border:1.5px solid var(--card);}
+  .topbar-user{display:flex; align-items:center; gap:9px; padding-inline-start:16px; border-inline-start:1px solid var(--line); cursor:pointer;}
+  .topbar-user .av{width:34px; height:34px; border-radius:50%; background:var(--ink); color:var(--brass-light);
+    display:flex; align-items:center; justify-content:center; font-family:'Cairo'; font-weight:700; font-size:12.5px;}
+  .topbar-user .nm{font-size:13px; font-weight:600;}
+  .topbar-user .rl{font-size:11px; color:var(--muted);}
+
+  .content{flex:1; overflow-y:auto; padding:26px 30px 60px;}
+  .page{display:none;}
+  .page.active{display:block; animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  .page-head{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:12px;}
+  .page-head h1{font-size:21px; color:var(--ink);}
+  .page-head .crumb{font-size:12px; color:var(--muted-2); margin-bottom:6px;}
+  .page-head p.desc{color:var(--muted); font-size:13px; margin-top:5px;}
+  .btn{padding:9px 16px; border-radius:8px; border:1.3px solid var(--line-strong); background:var(--card);
+    color:var(--text); font-weight:600; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:7px;}
+  .btn:hover{border-color:var(--brass);}
+  .btn.dark{background:var(--ink); color:#F3EFE2; border-color:var(--ink);}
+  .btn.dark:hover{background:var(--ink-3);}
+  .btn svg{width:14px; height:14px;}
+
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:26px;}
+  .stat-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px;}
+  .stat-card .lbl{font-size:12px; color:var(--muted); margin-bottom:10px;}
+  .stat-card .val{font-family:'Cairo'; font-size:26px; font-weight:800; color:var(--ink);}
+  .stat-card .delta{font-size:11.5px; margin-top:6px; color:var(--green);}
+  .stat-card .delta.down{color:var(--red);}
+
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:22px;}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--line);}
+  .panel-head h3{font-size:14.5px; color:var(--ink);}
+  .panel-head .link{font-size:12px; color:var(--brass); cursor:pointer; text-decoration:none;}
+
+  table{width:100%; border-collapse:collapse;}
+  th{text-align:right; font-size:11.5px; color:var(--muted); font-weight:600; padding:11px 20px; border-bottom:1px solid var(--line); background:#FBF8F0;}
+  td{padding:13px 20px; font-size:13px; border-bottom:1px solid var(--line); color:var(--text); vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#FBF8F1;}
+
+  .badge{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:20px; font-size:11.5px; font-weight:600;}
+  .badge.ok{background:var(--green-bg); color:var(--green);}
+  .badge.warn{background:var(--amber-bg); color:var(--amber);}
+  .badge.flag{background:var(--red-bg); color:var(--red);}
+  .badge.neutral{background:#EEEAE0; color:var(--muted);}
+  .badge::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor;}
+
+  .avatars{display:flex;}
+  .avatars .mini{width:26px; height:26px; border-radius:50%; background:var(--ink); color:var(--brass-light);
+    display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:'Cairo';
+    border:2px solid var(--card); margin-inline-start:-8px;}
+  .avatars .mini:first-child{margin-inline-start:0;}
+
+  .grid-2{display:grid; grid-template-columns:1.4fr 1fr; gap:20px;}
+  .grid-3col{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .grid-4col{display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
+
+  .req-item{display:flex; align-items:center; gap:13px; padding:14px 20px; border-bottom:1px solid var(--line);}
+  .req-item:last-child{border-bottom:none;}
+  .req-item .tick{margin-inline-end:2px;}
+  .req-item .body{flex:1; min-width:0;}
+  .req-item .ttl{font-size:13px; font-weight:600; color:var(--text);}
+  .req-item .meta{font-size:11.5px; color:var(--muted-2); margin-top:3px;}
+
+  .filters{display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+  .filters select, .filters input{padding:9px 13px; border:1.3px solid var(--line-strong); border-radius:8px; background:var(--card); font-size:12.5px; color:var(--text);}
+  .tab-strip{display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:20px;}
+  .tab{padding:10px 18px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px;}
+  .tab.active{color:var(--ink); border-bottom-color:var(--brass);}
+
+  .file-card{border:1px solid var(--line); border-radius:var(--radius); padding:16px; background:var(--card); display:flex; gap:12px; align-items:flex-start;}
+  .file-card .fi{width:38px; height:38px; border-radius:8px; background:var(--amber-bg); color:var(--amber); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .file-card .fi svg{width:18px; height:18px;}
+  .file-card .fn{font-size:13px; font-weight:600;}
+  .file-card .fm{font-size:11.5px; color:var(--muted-2); margin-top:4px;}
+
+  .upload-box{border:1.6px dashed var(--line-strong); border-radius:var(--radius); padding:36px; text-align:center; background:var(--card); margin-bottom:22px;}
+  .upload-box .ic{width:42px; height:42px; margin:0 auto 12px; color:var(--brass);}
+  .upload-box b{font-size:14px; display:block; margin-bottom:5px;}
+  .upload-box span{font-size:12px; color:var(--muted);}
+
+  /* chat */
+  .chat-shell{display:grid; grid-template-columns:290px 1fr; border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; background:var(--card); height:calc(100vh - 190px);}
+  .chat-list{border-inline-start:1px solid var(--line); overflow-y:auto;}
+  .chat-list .ch-item{display:flex; gap:11px; padding:13px 16px; border-bottom:1px solid var(--line); cursor:pointer;}
+  .chat-list .ch-item.active{background:#FBF8F0;}
+  .chat-list .av{width:36px; height:36px; border-radius:50%; background:var(--ink); color:var(--brass-light); display:flex; align-items:center; justify-content:center; font-family:'Cairo'; font-weight:700; font-size:12px; flex-shrink:0;}
+  .chat-list .cn{font-size:13px; font-weight:600;}
+  .chat-list .cl{font-size:11.5px; color:var(--muted-2); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .chat-window{display:flex; flex-direction:column;}
+  .chat-head{padding:14px 20px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;}
+  .chat-body{flex:1; padding:20px; overflow-y:auto; display:flex; flex-direction:column; gap:14px;}
+  .bubble{max-width:60%; padding:10px 14px; border-radius:12px; font-size:13px; line-height:1.7;}
+  .bubble.in{background:var(--paper); align-self:flex-start; border-bottom-right-radius:2px;}
+  .bubble.out{background:var(--ink); color:#F3EFE2; align-self:flex-end; border-bottom-left-radius:2px;}
+  .bubble .t{font-size:10px; color:var(--muted-2); margin-top:5px;}
+  .bubble.out .t{color:var(--muted-2);}
+  .chat-input{padding:14px 20px; border-top:1px solid var(--line); display:flex; gap:10px;}
+  .chat-input input{flex:1; border:1.3px solid var(--line-strong); border-radius:8px; padding:11px 14px;}
+
+  .coa-row{display:grid; grid-template-columns:90px 1fr 110px 130px; align-items:center; padding:11px 20px; border-bottom:1px solid var(--line); font-size:13px;}
+  .coa-row.head{background:#FBF8F0; font-size:11.5px; color:var(--muted); font-weight:600;}
+  .coa-indent1{padding-inline-start:18px;}
+  .coa-indent2{padding-inline-start:36px; color:var(--muted);}
+
+  .kpoint{border:1px solid var(--line); border-radius:var(--radius); background:var(--card); padding:16px 18px; margin-bottom:12px; display:flex; gap:14px;}
+  .kpoint .sev{width:4px; border-radius:4px; flex-shrink:0;}
+  .kpoint .sev.high{background:var(--red);} .kpoint .sev.med{background:var(--amber);} .kpoint .sev.low{background:var(--green);}
+  .kpoint .kb{flex:1;}
+  .kpoint .kh{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;}
+  .kpoint .kt{font-size:13.5px; font-weight:700;}
+  .kpoint .kd{font-size:12.5px; color:var(--muted); line-height:1.7; margin-bottom:10px;}
+  .kpoint .kf{display:flex; gap:16px; font-size:11.5px; color:var(--muted-2);}
+
+  .tpl-card{border:1px solid var(--line); border-radius:var(--radius); background:var(--card); overflow:hidden; cursor:pointer; transition:box-shadow .15s, transform .15s;}
+  .tpl-card:hover{box-shadow:var(--shadow); transform:translateY(-2px);}
+  .tpl-top{height:96px; background:linear-gradient(135deg,var(--ink),var(--ink-3)); display:flex; align-items:center; justify-content:center;}
+  .tpl-top svg{width:30px; height:30px; color:var(--brass-light);}
+  .tpl-body{padding:14px 16px;}
+  .tpl-body .tn{font-size:13px; font-weight:700; margin-bottom:4px;}
+  .tpl-body .td{font-size:11.5px; color:var(--muted);}
+
+  .contract-row td .amt{font-family:'Cairo'; font-weight:700;}
+
+  .empty-hint{font-size:12px; color:var(--muted-2); padding:20px; text-align:center;}
+
+  /* ===== client profile & forms ===== */
+  .back-link{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); cursor:pointer; margin-bottom:14px;}
+  .back-link:hover{color:var(--brass);}
+  .back-link svg{width:13px; height:13px;}
+
+  .profile-head{display:flex; align-items:center; gap:16px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 24px; margin-bottom:20px; flex-wrap:wrap;}
+  .profile-head .seal2{width:52px; height:52px; border-radius:12px; background:var(--ink); color:var(--brass-light);
+    display:flex; align-items:center; justify-content:center; font-family:'Cairo'; font-weight:800; font-size:18px; flex-shrink:0;}
+  .profile-head .pn{font-size:18px; font-weight:800; font-family:'Cairo'; color:var(--ink);}
+  .profile-head .pm{font-size:12px; color:var(--muted); margin-top:6px; display:flex; gap:14px; flex-wrap:wrap; align-items:center;}
+  .profile-stats{display:flex; gap:26px; margin-inline-start:auto;}
+  .profile-stats .ps{text-align:center;}
+  .profile-stats .ps b{display:block; font-family:'Cairo'; font-size:18px; color:var(--ink);}
+  .profile-stats .ps span{font-size:11px; color:var(--muted);}
+
+  .profile-tabs{display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:22px;}
+  .ptab{display:none;}
+  .ptab.active{display:block; animation:fadein .25s ease;}
+
+  .notice{background:var(--amber-bg); color:var(--amber); border:1px solid #E8D6A8; padding:11px 16px; border-radius:8px;
+    font-size:12.5px; margin-bottom:18px; display:flex; gap:9px; align-items:flex-start; line-height:1.7;}
+  .notice svg{width:15px; height:15px; flex-shrink:0; margin-top:1px;}
+
+  .form-section{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-bottom:16px;}
+  .form-section-title{font-size:12.5px; font-weight:700; color:var(--brass); margin-bottom:16px; padding-bottom:10px; border-bottom:1px dashed var(--line);}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px 18px;}
+  .form-grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
+  .form-field.full{grid-column:1/-1;}
+  .form-field label{display:flex; align-items:center; font-size:12.5px; color:var(--text); font-weight:600; margin-bottom:7px;}
+  .form-field label .req{color:var(--red); margin-inline-start:2px;}
+  .form-field label .add-inline{margin-inline-start:auto; font-size:11px; color:var(--brass); cursor:pointer; font-weight:600;}
+  .form-field input, .form-field select{
+    width:100%; padding:10px 13px; border:1.3px solid var(--line-strong); border-radius:8px;
+    background:var(--paper); color:var(--text);
+  }
+  .form-field input:focus, .form-field select:focus{outline:none; border-color:var(--brass); background:var(--card);}
+  .inline-add-box{display:none; gap:8px; margin-top:9px;}
+  .inline-add-box.active{display:flex;}
+  .inline-add-box input{flex:1; padding:8px 11px; border:1.3px dashed var(--line-strong); border-radius:7px; background:var(--card); font-size:12.5px;}
+  .inline-add-box button{padding:8px 13px; font-size:11.5px; white-space:nowrap;}
+
+  .radio-group{display:flex; gap:18px; padding:10px 2px;}
+  .radio-group label{display:flex; align-items:center; gap:7px; font-size:13px; cursor:pointer; color:var(--text);}
+
+  .chips-row{display:flex; flex-wrap:wrap; margin-top:10px;}
+  .chip{display:inline-flex; align-items:center; gap:7px; background:var(--paper); border:1px solid var(--line-strong);
+    padding:6px 11px; border-radius:20px; font-size:12px; margin:0 0 6px 8px;}
+  .chip .x{cursor:pointer; color:var(--muted-2); font-weight:700;}
+  .add-row-inline{display:flex; gap:10px; align-items:flex-end; margin-bottom:10px; flex-wrap:wrap;}
+  .add-row-inline > div{flex:1; min-width:140px;}
+  .branch-row{display:flex; gap:10px; align-items:center; margin-bottom:9px;}
+  .branch-row input{flex:1;}
+  .branch-row .rm{width:32px; height:32px; border-radius:7px; background:var(--red-bg); color:var(--red); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;}
+  .branch-row .rm svg{width:13px; height:13px;}
+
+  /* ===== modal ===== */
+  .modal-overlay{position:fixed; inset:0; background:rgba(18,35,46,.55); display:none; align-items:flex-start; justify-content:center; z-index:100; padding:40px 24px; overflow-y:auto;}
+  .modal-overlay.active{display:flex;}
+  .modal-box{background:var(--paper); border-radius:12px; max-width:600px; width:100%; box-shadow:var(--shadow); margin:auto;}
+  .modal-head{padding:18px 24px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; background:var(--card); border-radius:12px 12px 0 0;}
+  .modal-head h3{font-size:15.5px; color:var(--ink);}
+  .modal-head span{font-size:11.5px; color:var(--muted); display:block; margin-top:3px; font-weight:400; font-family:'IBM Plex Sans Arabic';}
+  .modal-close{cursor:pointer; color:var(--muted); width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center;}
+  .modal-close:hover{background:var(--paper); color:var(--red);}
+  .modal-close svg{width:16px; height:16px;}
+  .modal-body{padding:22px 24px;}
+  .modal-foot{padding:16px 24px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:10px;}
+
+  /* ===== systems hub (landing before login) ===== */
+  #systems-hub{position:fixed; inset:0; background:radial-gradient(120% 140% at 50% 0%, var(--ink-3) 0%, var(--ink) 60%);
+    z-index:60; display:none; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center;}
+  #systems-hub.active{display:flex;}
+  .hub-mark{display:flex; flex-direction:column; align-items:center; gap:14px; margin-bottom:8px;}
+  .hub-mark .seal{width:52px; height:52px; border-radius:50%; border:1.6px solid var(--brass-light); display:flex; align-items:center; justify-content:center;}
+  .hub-mark .seal span{font-family:'Cairo'; font-weight:800; color:var(--brass-light); font-size:19px;}
+  .hub-mark h1{font-family:'Cairo'; font-size:22px; color:#F3EFE2; font-weight:800;}
+  .hub-mark p{font-size:13px; color:var(--muted-2); max-width:420px;}
+  .hub-grid{display:grid; grid-template-columns:repeat(3,208px); gap:16px; margin-top:34px;}
+  .hub-card{background:rgba(255,255,255,.03); border:1px solid rgba(228,199,127,.16); border-radius:14px;
+    padding:24px 18px; cursor:pointer; transition:transform .15s, border-color .15s, background .15s; text-align:center;}
+  .hub-card:hover{transform:translateY(-4px); border-color:var(--brass-light); background:rgba(255,255,255,.05);}
+  .hub-card .hi{width:42px; height:42px; border-radius:11px; background:rgba(228,199,127,.13); display:flex;
+    align-items:center; justify-content:center; margin:0 auto 13px; color:var(--brass-light);}
+  .hub-card .hi svg{width:21px; height:21px;}
+  .hub-card b{display:block; font-family:'Cairo'; font-size:13.5px; color:#F3EFE2; margin-bottom:5px;}
+  .hub-card span{font-size:10.5px; color:var(--muted-2); line-height:1.6;}
+  .hub-card.primary{border-color:var(--brass-light); background:linear-gradient(135deg, rgba(228,199,127,.18), rgba(255,255,255,.03));}
+  @media (max-width:760px){ .hub-grid{grid-template-columns:repeat(2,1fr);} }
+
+  .toast{position:fixed; bottom:28px; left:50%; transform:translateX(-50%); background:var(--ink); color:#F3EFE2;
+    padding:12px 24px; border-radius:9px; font-size:12.5px; box-shadow:var(--shadow); z-index:300; opacity:0; pointer-events:none; transition:opacity .2s;}
+  .toast.show{opacity:1;}
+
+  .upload-mini{border:1.6px dashed var(--line-strong); border-radius:10px; padding:18px; text-align:center; background:var(--paper);}
+  .upload-mini .ic{width:26px; height:26px; margin:0 auto 8px; color:var(--brass);}
+  .upload-mini b{font-size:12.5px; display:block; margin-bottom:3px;}
+  .upload-mini span{font-size:11px; color:var(--muted);}
+
+  /* ===== tree views (COA & Working Papers) ===== */
+  .tree-table{width:100%; border-collapse:collapse;}
+  .tree-table th{background:#FBF8F0; font-size:10.8px; color:var(--muted); font-weight:700; padding:10px 12px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap;}
+  .tree-table td{padding:9px 12px; border-bottom:1px solid var(--line); font-size:12.5px; vertical-align:middle;}
+  .tree-table tr:hover td{background:#FBF8F1;}
+  .tree-cell{display:flex; align-items:center; gap:7px;}
+  .tree-toggle{width:18px; height:18px; border-radius:5px; background:var(--paper); border:1px solid var(--line-strong);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; font-size:10px; color:var(--muted);
+    transition:transform .15s; user-select:none;}
+  .tree-toggle.open{transform:rotate(90deg);}
+  .tree-toggle.leaf{visibility:hidden;}
+  .lvl-badge{font-size:10px; padding:2px 8px; border-radius:10px; font-weight:700; white-space:nowrap;}
+  .lvl-badge.l1{background:var(--ink); color:#F3EFE2;}
+  .lvl-badge.l2{background:var(--brass-light); color:var(--ink);}
+  .lvl-badge.l3{background:var(--amber-bg); color:var(--amber);}
+  .lvl-badge.l4{background:var(--green-bg); color:var(--green);}
+  .add-child-btn{font-size:11px; color:var(--brass); cursor:pointer; font-weight:600; white-space:nowrap;}
+  .mini-actions{display:flex; gap:10px; align-items:center;}
+
+  .vis-special{display:none; margin-top:12px;}
+  .vis-special select[multiple]{height:96px;}
+  .type-config{display:none; background:var(--paper); border:1px dashed var(--line-strong); border-radius:8px; padding:14px; margin-top:12px;}
+  .type-config.show{display:block;}
+  .coa-link-box{display:none;}
+  .coa-link-box.show{display:block;}
+
+  /* ===== working papers: master list + detail panel ===== */
+  .wp-shell{display:grid; grid-template-columns:250px 1fr; gap:16px; align-items:start;}
+  .wp-list-col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; max-height:calc(100vh - 200px); overflow-y:auto;}
+  .wp-group-head{display:flex; align-items:center; gap:8px; padding:12px 14px; background:#FBF8F0; border-bottom:1px solid var(--line); cursor:pointer; font-size:12.8px; font-weight:700; color:var(--ink);}
+  .wp-group-head .add-child-btn{margin-inline-start:auto; font-size:10.5px;}
+  .wp-mains{}
+  .wp-mains.collapsed{display:none;}
+  .wp-main-item{display:flex; align-items:center; gap:8px; padding:10px 14px 10px 14px; padding-inline-start:30px; font-size:12.3px;
+    cursor:pointer; border-bottom:1px solid var(--line); color:var(--text);}
+  .wp-main-item:hover{background:#FBF8F1;}
+  .wp-main-item.active{background:var(--paper); border-inline-start:3px solid var(--brass); font-weight:700; padding-inline-start:27px;}
+  .wp-main-item .badge{margin-inline-start:auto;}
+  .wp-detail-col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; min-height:420px;}
+  .wp-detail{display:none;}
+  .wp-detail.active{display:block; animation:fadein .2s ease;}
+  .wp-empty{display:flex; flex-direction:column; align-items:center; justify-content:center; height:360px; color:var(--muted-2); text-align:center; gap:8px;}
+  .wp-empty svg{width:34px; height:34px; opacity:.5;}
+
+  /* ===== custom multi-select dropdown (نوع العميل / قطاع العميل) ===== */
+  .ms-dd{position:relative;}
+  .ms-trigger{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 13px;
+    border:1.3px solid var(--line-strong); border-radius:8px; background:var(--paper); cursor:pointer; font-size:12.5px; color:var(--text);}
+  .ms-trigger .chev{width:14px; height:14px; color:var(--muted); flex-shrink:0;}
+  .ms-panel{display:none; position:absolute; top:calc(100% + 5px); right:0; left:0; background:var(--card);
+    border:1px solid var(--line-strong); border-radius:8px; box-shadow:var(--shadow); z-index:30; max-height:220px; overflow-y:auto; padding:6px;}
+  .ms-panel.open{display:block;}
+  .ms-opt{display:flex; align-items:center; gap:8px; padding:8px 10px; font-size:12.3px; cursor:pointer; border-radius:6px;}
+  .ms-opt:hover{background:var(--paper);}
+  .ms-opt.ms-all{border-bottom:1px solid var(--line); margin-bottom:4px; padding-bottom:9px; font-weight:700; color:var(--brass);}
+  .ms-opt input{accent-color:#AD8A3F;}
+
+  /* ===== ملف التدقيق: إحصائيات الاكتمال ===== */
+  .completion-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px;}
+  .completion-card{border-radius:10px; padding:16px 18px; text-align:center;}
+  .completion-card .num{font-family:'Cairo'; font-size:26px; font-weight:800;}
+  .completion-card .lbl{font-size:12px; margin-top:4px;}
+  .completion-card.done{background:var(--green-bg); color:var(--green);}
+  .completion-card.progress{background:#DCEAF5; color:#2E6C99;}
+  .completion-card.notstarted{background:var(--amber-bg); color:var(--amber);}
+  .match-tag{font-size:9.5px; padding:2px 7px; border-radius:8px; font-weight:700; white-space:nowrap;}
+  .match-tag.linked{background:var(--green-bg); color:var(--green);}
+  .match-tag.always{background:#EEEAE0; color:var(--muted);}
+
+  /* ===== شريط نسبة الإنجاز ===== */
+  .progress-wrap{display:flex; align-items:center; gap:9px;}
+  .progress-wrap span{font-size:11.5px; font-weight:700; color:var(--text); min-width:32px;}
+  .progress-bar{flex:1; max-width:90px; height:8px; border-radius:6px; background:#EEEAE0; overflow:hidden;}
+  .progress-bar .fill{height:100%; border-radius:6px;}
+
+  /* ===== بطاقة إجراء داخل ورقة العمل الفعلية (ملف التدقيق) ===== */
+  .proc-item{border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:14px; background:var(--card);}
+  .proc-item .proc-num{display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%;
+    background:var(--ink); color:#F3EFE2; font-size:11px; font-weight:700; margin-inline-end:8px; flex-shrink:0;}
+  .proc-item .proc-q{font-size:13.5px; font-weight:700; color:var(--ink); margin-bottom:12px; display:flex; align-items:flex-start;}
+  .proc-options label{display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:9px; cursor:pointer; color:var(--text);}
+  .proc-options input{width:17px; height:17px; accent-color:#2F6F4E; flex-shrink:0;}
+  .yn-row{display:flex; gap:22px; margin-bottom:12px;}
+  .yn-row label{display:flex; align-items:center; gap:7px; font-size:13px; cursor:pointer;}
+  .notes-label{font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:6px; display:block;}
+  .big-notes{width:100%; min-height:90px; padding:11px 13px; border:1.3px solid var(--line-strong); border-radius:8px;
+    background:var(--paper); font-family:inherit; font-size:13px; resize:vertical; line-height:1.7;}
+  .big-notes:focus{outline:none; border-color:var(--brass); background:var(--card);}
+  .signoff-row{display:flex; gap:22px; flex-wrap:wrap; font-size:13px; margin-bottom:4px;}
+  .signoff-row label{display:flex; align-items:center; gap:7px; cursor:pointer;}
+  .signoff-row input{width:17px; height:17px; accent-color:#2F6F4E;}
+
+  /* ===== الاستجابة للجوال ===== */
+  .menu-toggle{display:none; width:36px; height:36px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; color:var(--text); flex-shrink:0;}
+  .menu-toggle svg{width:20px; height:20px;}
+  .sidebar-backdrop{display:none; position:fixed; inset:0; background:rgba(18,35,46,.5); z-index:70;}
+  .sidebar-backdrop.show{display:block;}
+  @media (max-width: 900px){
+    .menu-toggle{display:flex;}
+    .sidebar{position:fixed; top:0; bottom:0; right:0; z-index:80; transform:translateX(100%); transition:transform .25s ease; box-shadow:-14px 0 34px rgba(0,0,0,.25);}
+    .sidebar.mobile-open{transform:translateX(0);}
+    .topbar .search{display:none;}
+    .topbar{padding:0 14px;}
+    .content{padding:16px 14px 50px;}
+    .stat-grid{grid-template-columns:repeat(2,1fr);}
+    .grid-2, .grid-3col, .grid-4col{grid-template-columns:1fr;}
+    .wp-shell{grid-template-columns:1fr;}
+    .wp-list-col{max-height:220px;}
+    .chat-shell{grid-template-columns:1fr;}
+    .login-brand{display:none;}
+    .login-form-wrap{flex:1;}
+    .modal-box{max-width:100%;}
+    .form-grid, .form-grid.cols-3{grid-template-columns:1fr;}
+  }
+  @media (max-width:1100px){
+    .stat-grid{grid-template-columns:repeat(2,1fr);}
+    .grid-2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<!-- =============== SYSTEMS HUB (قبل الدخول) =============== -->
+<div id="systems-hub" class="active">
+  <div class="hub-mark">
+    <div class="seal"><span>ت</span></div>
+    <h1>مكتب القحطاني وشركاه</h1>
+    <p>اختر النظام الذي تريد الدخول إليه. كل نظام له صلاحياته وبياناته المستقلة داخل مكتبكم.</p>
+  </div>
+
+  <div class="hub-grid">
+    <div class="hub-card" onclick="openSystem('admin')">
+      <div class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 01-4 0v-.09A1.7 1.7 0 008.5 19a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.14 15a1.7 1.7 0 00-1.55-1H2.5a2 2 0 010-4h.09A1.7 1.7 0 004 8.5a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 008.5 4.14 1.7 1.7 0 009.5 2.59V2.5a2 2 0 014 0v.09c0 .69.4 1.32 1 1.55.6.25 1.35.14 1.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.4 8.5c.23.6.86 1 1.55 1h.09a2 2 0 010 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg></div>
+      <b>نظام الإدارة</b><span>إدارة الأنظمة والمكاتب</span>
+    </div>
+
+    <div class="hub-card primary" onclick="openSystem('audit')">
+      <div class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+      <b>نظام المراجعة والتدقيق</b><span>العملاء، الملفات، ونقاط المراجعة</span>
+    </div>
+
+    <div class="hub-card" onclick="openSystem('local')">
+      <div class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 010 20 15 15 0 010-20z"/></svg></div>
+      <b>نظام المحتوى المحلي</b><span>متطلبات المحتوى المحلي</span>
+    </div>
+
+    <div class="hub-card" onclick="openSystem('quality')">
+      <div class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="6"/><path d="M8.2 13.5L6 22l6-3 6 3-2.2-8.5"/></svg></div>
+      <b>نظام إدارة الجودة</b><span>الرقابة على جودة الأداء</span>
+    </div>
+
+    <div class="hub-card" onclick="openSystem('map')">
+      <div class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+      <b>نظام البيع على الخارطة</b><span>إدارة المبيعات الميدانية</span>
+    </div>
+
+    <div class="hub-card" onclick="openSystem('books')">
+      <div class="hi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V2H6.5A2.5 2.5 0 004 4.5v15z"/></svg></div>
+      <b>نظام مسك الدفاتر</b><span>المحاسبة والقيود اليومية</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">هذا النظام قيد الإنشاء — سنبنيه في مرحلة لاحقة</div>
+
+<!-- =============== LOGIN SCREEN =============== -->
+<div id="login-screen" style="display:none;">
+  <div class="login-brand">
+    <div class="brand-mark">
+      <div class="seal"><span>ت</span></div>
+      <div>
+        <div class="word">تمام</div>
+        <div class="sub">منصّة المراجعة والتدقيق</div>
+      </div>
+    </div>
+
+    <div class="ledger-anim">
+      <div class="ledger-line">
+        <div class="tk"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <div><b>إدارة كاملة لملفات العملاء</b><br><span>عميل واحد بعدة مراجعين، وموزّع صلاحيات دقيق</span></div>
+      </div>
+      <div class="ledger-line">
+        <div class="tk"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <div><b>مسار اعتماد هرمي</b><br><span>مراجع ← مدير مراجعة ← جودة ← شريك</span></div>
+      </div>
+      <div class="ledger-line">
+        <div class="tk"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <div><b>نقاط مراجعة وأوراق عمل موحّدة</b><br><span>موثّقة، قابلة للتتبع، ومرتبطة بكل عميل</span></div>
+      </div>
+      <div class="ledger-line">
+        <div class="tk"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></div>
+        <div><b>عروض وعقود من أول تواصل</b><br><span>حتى تسليم تقرير المراجع</span></div>
+      </div>
+    </div>
+
+    <div class="login-quote">
+      <p>"العلامة الصغيرة بجانب كل رقم هي أثر المراجعة نفسها — تصميم تمام مبني على هذا المبدأ: كل تدقيق يترك أثرًا واضحًا يمكن الرجوع إليه."</p>
+    </div>
+  </div>
+
+  <div class="login-form-wrap" id="login-wrap">
+    <div class="login-form">
+      <h1>تسجيل الدخول</h1>
+      <p>ادخل إلى مساحة عمل مكتبك في نظام المراجعة والتدقيق</p>
+
+      <div class="field">
+        <label>رمز المكتب</label>
+        <input type="text" placeholder="مثال: ETQAN" value="ETQAN" style="text-transform:uppercase;">
+      </div>
+      <div class="field">
+        <label>اسم المستخدم</label>
+        <input type="text" placeholder="mohammed" value="mohammed">
+      </div>
+      <div class="field">
+        <label>كلمة المرور</label>
+        <input type="password" placeholder="••••••" value="123456">
+      </div>
+      <div class="row-between">
+        <label><input type="checkbox" checked style="accent-color:#AD8A3F;"> تذكرني</label>
+        <a href="#">نسيت كلمة المرور؟</a>
+      </div>
+      <button class="btn-primary" onclick="doLogin()">
+        دخول
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M14 5l7 7-7 7M21 12H3"/></svg>
+      </button>
+      <div class="login-foot">جميع الجلسات مرتبطة بصلاحيات مكتبك ودور كل مستخدم فيه</div>
+      <div style="text-align:center; margin-top:18px; padding-top:18px; border-top:1px solid var(--line);">
+        <span style="font-size:12.5px; color:var(--muted);">مكتب جديد على النظام؟</span>
+        <a href="#" onclick="showSignup(); return false;" style="font-size:12.5px; color:var(--brass); font-weight:700; margin-inline-start:5px;">إنشاء حساب جديد لمكتبك</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- شاشة إنشاء حساب مكتب جديد -->
+  <div class="login-form-wrap" id="signup-wrap" style="display:none;">
+    <div class="login-form" style="max-width:400px;">
+      <h1>إنشاء حساب مكتب جديد</h1>
+      <p>سجّل مكتبك وابدأ فترة تجريبية على نظام المراجعة والتدقيق</p>
+
+      <div class="field"><label>اسم المكتب (عربي)</label><input placeholder="مثال: مكتب القحطاني وشركاه"></div>
+      <div class="field"><label>اسم المكتب (إنجليزي)</label><input placeholder="e.g. Alqahtani & Co."></div>
+      <div class="field"><label>رمز المكتب <span style="color:var(--brass); font-weight:400;">(يُستخدم لاحقًا عند الدخول)</span></label><input placeholder="مثال: ETQAN" style="text-transform:uppercase;"></div>
+      <div class="field"><label>البريد الإلكتروني الرسمي</label><input type="email" placeholder="info@officefirm.com"></div>
+      <div class="row-between" style="margin-bottom:6px;"><label style="font-size:12.5px; color:var(--text); font-weight:600;">بيانات الشريك المسؤول (المستخدم الأول)</label></div>
+      <div class="field"><label>الاسم الكامل</label><input placeholder="اسم الشريك المسؤول"></div>
+      <div class="field"><label>اسم المستخدم</label><input placeholder="مثال: mohammed"></div>
+      <div class="field"><label>كلمة المرور</label><input type="password" placeholder="••••••"></div>
+      <button class="btn-primary" onclick="alert('نموذج تصميمي — سيُربط بقاعدة البيانات لاحقًا')">إنشاء الحساب والمتابعة</button>
+      <div class="login-foot">
+        <a href="#" onclick="showLogin(); return false;" style="color:var(--brass); font-weight:700;">لديك حساب مسبقًا؟ تسجيل الدخول</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============== APP SHELL =============== -->
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="side-brand">
+      <div class="seal"><span>ت</span></div>
+      <div><div class="word">تمام</div><div class="sub">مكتب القحطاني وشركاه</div></div>
+    </div>
+
+    <nav class="side-scroll">
+      <div class="nav-group">
+        <div class="nav-item active" data-page="home">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>
+          الرئيسية
+        </div>
+      </div>
+
+      <div class="nav-group" id="grp-clients">
+        <div class="nav-item parent" onclick="toggleGroup('grp-clients')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          إدارة العملاء
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+        <div class="nav-sub">
+          <div class="nav-item" data-page="clients">العملاء</div>
+          <div class="nav-item" data-page="clientfiles">ملفات التدقيق</div>
+          <div class="nav-item" data-page="trialbalance">رفع موازين المراجعة</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item" data-page="chats">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          الدردشات
+        </div>
+      </div>
+
+      <div class="nav-group" id="grp-setup">
+        <div class="nav-item parent" onclick="toggleGroup('grp-setup')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 01-4 0v-.09A1.7 1.7 0 008.5 19a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.14 15a1.7 1.7 0 00-1.55-1H2.5a2 2 0 010-4h.09A1.7 1.7 0 004 8.5a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 008.5 4.14 1.7 1.7 0 009.5 2.59V2.5a2 2 0 014 0v.09c0 .69.4 1.32 1 1.55.6.25 1.35.14 1.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.4 8.5c.23.6.86 1 1.55 1h.09a2 2 0 010 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg>
+          تهيئة النظام
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+        <div class="nav-sub">
+          <div class="nav-item" data-page="coa">دليل الحسابات</div>
+          <div class="nav-item" data-page="policies">السياسات</div>
+          <div class="nav-item" data-page="workpapers">أوراق العمل</div>
+          <div class="nav-item" data-page="auditorreport">تقرير المراجع</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item" data-page="staff">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          المستخدمون
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item" data-page="company">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
+          بيانات المكتب
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item" data-page="reviewpoints">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          نقاط المراجعة
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item" data-page="templates">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>
+          النماذج الجاهزة
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item" data-page="contracts">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 15h6M9 11h3"/></svg>
+          العروض والعقود
+        </div>
+      </div>
+    </nav>
+
+    <div class="side-user" style="cursor:pointer" onclick="openProfilePage()">
+      <div class="av">س ق</div>
+      <div>
+        <div class="nm">سلطان القحطاني</div>
+        <div class="rl">شريك — صلاحيات كاملة</div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="menu-toggle" onclick="toggleSidebar()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input placeholder="ابحث عن عميل، ملف، أو نقطة مراجعة…">
+      </div>
+      <div class="topbar-right">
+        <div class="icon-btn"><span class="dot"></span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></svg>
+        </div>
+        <div class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a3 3 0 00-3 3v1.06A7 7 0 006 12v4l-1.4 1.4a1 1 0 00.7 1.6h13.4a1 1 0 00.7-1.6L18 16v-4a7 7 0 00-3-5.94V5a3 3 0 00-3-3z"/></svg>
+        </div>
+        <div class="topbar-user" style="cursor:pointer" onclick="openProfilePage()">
+          <div class="av">س ق</div>
+          <div><div class="nm">سلطان القحطاني</div><div class="rl">شريك</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ========== الرئيسية ========== -->
+      <div class="page active" id="page-home">
+        <div class="page-head">
+          <div><div class="crumb">مساحة العمل</div><h1>الرئيسية</h1></div>
+          <button class="btn dark">+ طلب جديد</button>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card"><div class="lbl">العملاء النشطون</div><div class="val">37</div><div class="delta">+3 هذا الشهر</div></div>
+          <div class="stat-card"><div class="lbl">ملفات قيد المراجعة</div><div class="val">52</div><div class="delta">14 مستحقة هذا الأسبوع</div></div>
+          <div class="stat-card"><div class="lbl">نقاط مراجعة مفتوحة</div><div class="val">21</div><div class="delta down">6 عالية الأهمية</div></div>
+          <div class="stat-card"><div class="lbl">عقود بانتظار التوقيع</div><div class="val">4</div><div class="delta">بقيمة 386,000 ر.س</div></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head"><h3>الطلبات والمهام</h3><span class="link">عرض الكل</span></div>
+            <div>
+              <div class="req-item">
+                <div class="tick pending"></div>
+                <div class="body"><div class="ttl">مراجعة ميزان مراجعة — شركة الرواد التجارية</div><div class="meta">مطلوب من: نورة السبيعي · تُسلَّم غدًا</div></div>
+                <span class="badge warn">قيد التنفيذ</span>
+              </div>
+              <div class="req-item">
+                <div class="tick flag"></div>
+                <div class="body"><div class="ttl">اعتماد نقطة مراجعة عالية — مصنع الخليج للبلاستيك</div><div class="meta">بانتظار: عبدالله الحربي (مدير مراجعة)</div></div>
+                <span class="badge flag">يحتاج قرار</span>
+              </div>
+              <div class="req-item">
+                <div class="tick ok"></div>
+                <div class="body"><div class="ttl">توقيع تقرير المراجع — مؤسسة النخبة للمقاولات</div><div class="meta">تم الاعتماد من الجودة اليوم 09:40 ص</div></div>
+                <span class="badge ok">مكتمل</span>
+              </div>
+              <div class="req-item">
+                <div class="tick pending"></div>
+                <div class="body"><div class="ttl">تحديث دليل الحسابات — شركة أفق للاستثمار</div><div class="meta">مطلوب من: بندر العتيبي · بعد 3 أيام</div></div>
+                <span class="badge neutral">مجدول</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>نشاط الفريق</h3></div>
+            <div>
+              <div class="req-item"><div class="tick ok"></div><div class="body"><div class="ttl">نورة السبيعي رفعت ميزان مراجعة جديد</div><div class="meta">شركة الرواد التجارية · منذ 20 دقيقة</div></div></div>
+              <div class="req-item"><div class="tick flag"></div><div class="body"><div class="ttl">عبدالله الحربي أضاف نقطة مراجعة عالية الخطورة</div><div class="meta">مصنع الخليج للبلاستيك · منذ ساعة</div></div></div>
+              <div class="req-item"><div class="tick ok"></div><div class="body"><div class="ttl">إدارة الجودة اعتمدت تقرير المراجع</div><div class="meta">مؤسسة النخبة للمقاولات · اليوم</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== العملاء ========== -->
+      <div class="page" id="page-clients">
+        <div class="page-head">
+          <div><div class="crumb">إدارة العملاء</div><h1>العملاء</h1><p class="desc">كل عميل قد يرتبط بأكثر من مراجع، وكل مراجع قد يخدم أكثر من عميل — انقر على أي عميل لعرض بياناته وموظفيه وملفاته</p></div>
+          <button class="btn dark" onclick="openModal('modal-addclient')">+ عميل جديد</button>
+        </div>
+        <div class="filters">
+          <select><option>كل المراجعين</option><option>نورة السبيعي</option><option>بندر العتيبي</option></select>
+          <select><option>كل الحالات</option><option>نشط</option><option>متوقف</option></select>
+          <input placeholder="بحث باسم العميل">
+        </div>
+        <div class="panel">
+          <table>
+            <thead><tr><th>العميل</th><th>النشاط</th><th>المراجعون المرتبطون</th><th>مدير المراجعة</th><th>الحالة</th><th>آخر تحديث</th></tr></thead>
+            <tbody>
+              <tr style="cursor:pointer" onclick="openClientProfile('شركة الرواد التجارية')"><td><b>شركة الرواد التجارية</b></td><td>تجارة تجزئة</td><td><div class="avatars"><div class="mini">ن.س</div><div class="mini">ب.ع</div></div></td><td>عبدالله الحربي</td><td><span class="badge ok">نشط</span></td><td>قبل 20 دقيقة</td></tr>
+              <tr style="cursor:pointer" onclick="openClientProfile('مصنع الخليج للبلاستيك')"><td><b>مصنع الخليج للبلاستيك</b></td><td>صناعي</td><td><div class="avatars"><div class="mini">ع.ح</div></div></td><td>عبدالله الحربي</td><td><span class="badge warn">مراجعة جارية</span></td><td>قبل ساعة</td></tr>
+              <tr style="cursor:pointer" onclick="openClientProfile('مؤسسة النخبة للمقاولات')"><td><b>مؤسسة النخبة للمقاولات</b></td><td>مقاولات</td><td><div class="avatars"><div class="mini">ن.س</div></div></td><td>فهد الدوسري</td><td><span class="badge ok">نشط</span></td><td>اليوم 09:40</td></tr>
+              <tr style="cursor:pointer" onclick="openClientProfile('شركة أفق للاستثمار')"><td><b>شركة أفق للاستثمار</b></td><td>استثمار</td><td><div class="avatars"><div class="mini">ب.ع</div><div class="mini">م.ق</div><div class="mini">ن.س</div></div></td><td>فهد الدوسري</td><td><span class="badge neutral">بانتظار البدء</span></td><td>أمس</td></tr>
+              <tr style="cursor:pointer" onclick="openClientProfile('مجموعة الساحل للأغذية')"><td><b>مجموعة الساحل للأغذية</b></td><td>مواد غذائية</td><td><div class="avatars"><div class="mini">م.ق</div></div></td><td>عبدالله الحربي</td><td><span class="badge flag">متوقف مؤقتًا</span></td><td>قبل 4 أيام</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== ملفات التدقيق (كل ملفات التدقيق عبر كل العملاء) ========== -->
+      <div class="page" id="page-clientfiles">
+        <div class="page-head">
+          <div><div class="crumb">إدارة العملاء</div><h1>ملفات التدقيق</h1><p class="desc">كل ملفات التدقيق لجميع العملاء في مكان واحد — انقر على اسم الملف لفتحه، أو على اسم العميل لفتح ملفه الشخصي</p></div>
+        </div>
+        <div class="filters">
+          <select><option>كل العملاء</option><option>شركة الرواد التجارية</option><option>مصنع الخليج للبلاستيك</option><option>مؤسسة النخبة للمقاولات</option></select>
+          <select><option>كل البوابات</option><option>مراجعة سنوية</option><option>مراجعة ربعية</option><option>زكاة وضريبة</option></select>
+          <select><option>كل الحالات</option><option>مفتوح</option><option>مقفل</option></select>
+          <input placeholder="بحث باسم الملف">
+        </div>
+        <div class="panel">
+          <table>
+            <thead><tr><th>اسم الملف</th><th>العميل</th><th>نهاية الفترة</th><th>البوابة</th><th>نسبة الإنجاز</th><th>الحالة</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b class="link" style="cursor:pointer; color:#AD8A3F;" onclick="openFileFromGlobalList('مؤسسة النخبة للمقاولات','مراجعة سنوية 2025','31/12/2025','مراجعة سنوية')">مراجعة سنوية 2025</b></td>
+                <td><span class="link" style="color:#AD8A3F; cursor:pointer;" onclick="openClientProfile('مؤسسة النخبة للمقاولات')">مؤسسة النخبة للمقاولات</span></td>
+                <td>31/12/2025</td><td>مراجعة سنوية</td>
+                <td><div class="progress-wrap"><div class="progress-bar"><div class="fill" style="width:92%; background:var(--green);"></div></div><span>92%</span></div></td>
+                <td><span class="badge ok">جاهز للشريك</span></td>
+              </tr>
+              <tr>
+                <td><b class="link" style="cursor:pointer; color:#AD8A3F;" onclick="openFileFromGlobalList('شركة الرواد التجارية','مراجعة الربع الثاني 2026','30/06/2026','مراجعة ربعية')">مراجعة الربع الثاني 2026</b></td>
+                <td><span class="link" style="color:#AD8A3F; cursor:pointer;" onclick="openClientProfile('شركة الرواد التجارية')">شركة الرواد التجارية</span></td>
+                <td>30/06/2026</td><td>مراجعة ربعية</td>
+                <td><div class="progress-wrap"><div class="progress-bar"><div class="fill" style="width:15%; background:var(--amber);"></div></div><span>15%</span></div></td>
+                <td><span class="badge neutral">قيد الإعداد</span></td>
+              </tr>
+              <tr>
+                <td><b class="link" style="cursor:pointer; color:#AD8A3F;" onclick="openFileFromGlobalList('مصنع الخليج للبلاستيك','مراجعة سنوية 2025','31/12/2025','مراجعة سنوية')">مراجعة سنوية 2025</b></td>
+                <td><span class="link" style="color:#AD8A3F; cursor:pointer;" onclick="openClientProfile('مصنع الخليج للبلاستيك')">مصنع الخليج للبلاستيك</span></td>
+                <td>31/12/2025</td><td>مراجعة سنوية</td>
+                <td><div class="progress-wrap"><div class="progress-bar"><div class="fill" style="width:48%; background:var(--amber);"></div></div><span>48%</span></div></td>
+                <td><span class="badge flag">بانتظار نقاط المراجعة</span></td>
+              </tr>
+              <tr>
+                <td><b class="link" style="cursor:pointer; color:#AD8A3F;" onclick="openFileFromGlobalList('شركة أفق للاستثمار','إقرار الزكاة والضريبة 2025','31/12/2025','زكاة وضريبة')">إقرار الزكاة والضريبة 2025</b></td>
+                <td><span class="link" style="color:#AD8A3F; cursor:pointer;" onclick="openClientProfile('شركة أفق للاستثمار')">شركة أفق للاستثمار</span></td>
+                <td>31/12/2025</td><td>زكاة وضريبة</td>
+                <td><div class="progress-wrap"><div class="progress-bar"><div class="fill" style="width:100%; background:var(--green);"></div></div><span>100%</span></div></td>
+                <td><span class="badge ok">مقفل</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== الملف الشخصي للعميل ========== -->
+      <div class="page" id="page-clientprofile">
+        <div class="back-link" onclick="backToClients()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          الرجوع إلى العملاء
+        </div>
+
+        <div class="profile-head">
+          <div class="seal2" id="profile-seal">ش.ن</div>
+          <div>
+            <div class="pn" id="profile-name">شركة النسمة الرائعة التجارية</div>
+            <div class="pm">
+              <span class="badge ok">نشط</span>
+              <span>رمز العميل: CL-1042</span>
+              <span>مدير المراجعة: عبدالله الحربي</span>
+              <span>المراجعون: <span class="avatars" style="display:inline-flex; vertical-align:middle;"><span class="mini">ن.س</span><span class="mini">ب.ع</span></span></span>
+            </div>
+          </div>
+          <div class="profile-stats">
+            <div class="ps"><b>2</b><span>ملفات تدقيق</span></div>
+            <div class="ps"><b>4</b><span>موظفو العميل</span></div>
+            <div class="ps"><b>2</b><span>مراجعون مرتبطون</span></div>
+          </div>
+        </div>
+
+        <div class="profile-tabs">
+          <div class="tab active" onclick="switchProfileTab(this,'contact')">بيانات الاتصال</div>
+          <div class="tab" onclick="switchProfileTab(this,'employees')">الموظفين</div>
+          <div class="tab" onclick="switchProfileTab(this,'extra')">معلومات إضافية</div>
+          <div class="tab" onclick="switchProfileTab(this,'files')">ملفات التدقيق</div>
+        </div>
+
+        <!-- تبويب: بيانات الاتصال -->
+        <div class="ptab active" id="ptab-contact">
+          <div class="form-section">
+            <div class="form-section-title">اتصال رئيسي</div>
+            <div class="form-grid">
+              <div class="form-field full"><label>اسم العميل <span class="req">*</span></label><input value="شركة النسمة الرائعة التجارية"></div>
+              <div class="form-field"><label>رمز العميل</label><input placeholder="يُنشأ تلقائيًا" disabled value="CL-1042"></div>
+              <div class="form-field"><label>رمز العميل المخصص</label><input placeholder="اختياري"></div>
+              <div class="form-field"><label>البريد الإلكتروني <span class="req">*</span></label><input placeholder="info@client.com"></div>
+              <div class="form-field"><label>الموقع الإلكتروني</label><input placeholder="www.client.com"></div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">أرقام الاتصال</div>
+            <div class="form-grid cols-3">
+              <div class="form-field"><label>الهاتف</label><input placeholder="05xxxxxxxx"></div>
+              <div class="form-field"><label>رقم التحويلة</label><input placeholder="اختياري"></div>
+              <div class="form-field"><label>الفاكس</label><input placeholder="اختياري"></div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">العنوان البريدي</div>
+            <div class="form-grid">
+              <div class="form-field full"><label>الشارع <span class="req">*</span></label><input value="شارع عقبة بن عامر بن سعد رضي الله عنه"></div>
+              <div class="form-field full"><label>عنوان إضافي</label><input placeholder="اختياري"></div>
+              <div class="form-field"><label>رقم المبنى <span class="req">*</span></label><input value="8878"></div>
+              <div class="form-field"><label>الرقم الإضافي</label><input placeholder="اختياري"></div>
+              <div class="form-field"><label>المدينة <span class="req">*</span></label><input value="مكة المكرمة"></div>
+              <div class="form-field"><label>الحي <span class="req">*</span></label><input value="الشوقية"></div>
+              <div class="form-field"><label>صندوق البريد</label><input placeholder="اختياري"></div>
+              <div class="form-field"><label>الرمز البريدي <span class="req">*</span></label><input placeholder="00000"></div>
+            </div>
+          </div>
+          <button class="btn dark">حفظ بيانات الاتصال</button>
+        </div>
+
+        <!-- تبويب: الموظفين -->
+        <div class="ptab" id="ptab-employees">
+          <div class="notice">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.86L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.86a2 2 0 00-3.4 0z"/></svg>
+            هؤلاء موظفو العميل نفسه (جهات الاتصال لديه) — وليسوا مراجعين تابعين لمكتبكم.
+          </div>
+          <div class="page-head" style="margin-bottom:14px;">
+            <div></div>
+            <button class="btn dark">+ إضافة موظف</button>
+          </div>
+          <div class="panel">
+            <table>
+              <thead><tr><th>الاسم</th><th>المسمى الوظيفي</th><th>البريد الإلكتروني</th><th>الهاتف</th><th>الحالة</th></tr></thead>
+              <tbody>
+                <tr><td><b>محمد آل سعيد</b></td><td>المدير المالي</td><td>m.alsaeed@nasama.com</td><td>0501112222</td><td><span class="badge ok">جهة اتصال رئيسية</span></td></tr>
+                <tr><td><b>هند العمري</b></td><td>محاسب أول</td><td>h.alamri@nasama.com</td><td>0502223333</td><td><span class="badge neutral">نشط</span></td></tr>
+                <tr><td><b>خالد الزهراني</b></td><td>مراقب مخزون</td><td>k.alzahrani@nasama.com</td><td>0503334444</td><td><span class="badge neutral">نشط</span></td></tr>
+                <tr><td><b>سارة القرني</b></td><td>مسؤولة الموارد البشرية</td><td>s.alqarni@nasama.com</td><td>0504445555</td><td><span class="badge neutral">نشط</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- تبويب: معلومات إضافية -->
+        <div class="ptab" id="ptab-extra">
+          <div class="form-section">
+            <div class="form-section-title">السجل والمعاملة الضريبية</div>
+            <div class="form-grid">
+              <div class="form-field"><label>رقم السجل التجاري</label><input placeholder="1010xxxxxx"></div>
+              <div class="form-field"><label>تاريخ التسجيل</label><input type="date"></div>
+              <div class="form-field full">
+                <label>المعاملة الضريبية <span class="req">*</span></label>
+                <div class="radio-group">
+                  <label><input type="radio" name="tax" checked style="accent-color:#AD8A3F;"> نعم</label>
+                  <label><input type="radio" name="tax" style="accent-color:#AD8A3F;"> لا</label>
+                </div>
+              </div>
+              <div class="form-field full"><label>الرقم الضريبي <span class="req">*</span></label><input placeholder="3xxxxxxxxxxxxxx"></div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">تصنيف العميل</div>
+            <div class="form-grid">
+              <div class="form-field">
+                <label>نوع العميل <span class="add-inline" onclick="toggleInline('add-ctype')">+ إضافة نوع عميل</span></label>
+                <select id="sel-ctype">
+                  <option>شركة ذات مسؤولية محدودة</option>
+                  <option>مؤسسة فردية</option>
+                  <option>شركة مساهمة مقفلة</option>
+                  <option>شركة مساهمة عامة</option>
+                  <option>شركة تضامن</option>
+                  <option>جمعية أهلية غير ربحية</option>
+                </select>
+                <div class="inline-add-box" id="add-ctype">
+                  <input placeholder="اسم نوع العميل الجديد" id="in-ctype">
+                  <button class="btn" onclick="addOption('sel-ctype','in-ctype','add-ctype')">إضافة</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>قطاع العميل <span class="add-inline" onclick="toggleInline('add-sector')">+ إضافة قطاع</span></label>
+                <select id="sel-sector">
+                  <option>تجارة تجزئة وجملة</option>
+                  <option>صناعة وتصنيع</option>
+                  <option>مقاولات وإنشاءات</option>
+                  <option>عقارات</option>
+                  <option>خدمات مالية واستثمار</option>
+                  <option>تقنية المعلومات</option>
+                  <option>رعاية صحية</option>
+                  <option>تعليم</option>
+                  <option>مواد غذائية</option>
+                  <option>نقل ولوجستيات</option>
+                </select>
+                <div class="inline-add-box" id="add-sector">
+                  <input placeholder="اسم القطاع الجديد" id="in-sector">
+                  <button class="btn" onclick="addOption('sel-sector','in-sector','add-sector')">إضافة</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>المناطق <span class="req">*</span> <span class="add-inline" onclick="toggleInline('add-region')">+ إضافة منطقة</span></label>
+                <select id="sel-region">
+                  <option>الرياض</option><option>مكة المكرمة</option><option>المدينة المنورة</option>
+                  <option>المنطقة الشرقية</option><option>عسير</option><option>تبوك</option>
+                  <option>حائل</option><option>القصيم</option><option>جازان</option>
+                  <option>نجران</option><option>الباحة</option><option>الجوف</option><option>الحدود الشمالية</option>
+                </select>
+                <div class="inline-add-box" id="add-region">
+                  <input placeholder="اسم المنطقة الجديدة" id="in-region">
+                  <button class="btn" onclick="addOption('sel-region','in-region','add-region')">إضافة</button>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>موقع المكتب <span class="req">*</span></label>
+                <select><option>الرياض — المقر الرئيسي</option><option>جدة — فرع</option><option>الدمام — فرع</option><option>مكة المكرمة — فرع</option></select>
+              </div>
+            </div>
+          </div>
+          <button class="btn dark">حفظ المعلومات الإضافية</button>
+        </div>
+
+        <!-- تبويب: ملفات التدقيق -->
+        <div class="ptab" id="ptab-files">
+          <div class="notice">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.86L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.86a2 2 0 00-3.4 0z"/></svg>
+            قبل إنشاء ملف تدقيق جديد، تأكد من استكمال بيانات الاتصال وإضافة موظفي العميل في التبويبات السابقة.
+          </div>
+          <div class="page-head" style="margin-bottom:14px;">
+            <div></div>
+            <button class="btn dark">+ إنشاء ملف تدقيق جديد</button>
+          </div>
+          <div class="panel">
+            <table>
+              <thead><tr><th>الاسم</th><th>نهاية الفترة</th><th>البوابة</th><th>نسبة الإنجاز</th></tr></thead>
+              <tbody>
+                <tr style="cursor:pointer" onclick="openClientFileDetail('مراجعة الربع الثاني 2026','30/06/2026','مراجعة ربعية')">
+                  <td><b>مراجعة الربع الثاني 2026</b></td><td>30/06/2026</td><td>مراجعة ربعية</td>
+                  <td><div class="progress-wrap"><div class="progress-bar"><div class="fill" style="width:15%; background:var(--amber);"></div></div><span>15%</span></div></td>
+                </tr>
+                <tr style="cursor:pointer" onclick="openClientFileDetail('مراجعة سنوية 2025','31/12/2025','مراجعة سنوية')">
+                  <td><b>مراجعة سنوية 2025</b></td><td>31/12/2025</td><td>مراجعة سنوية</td>
+                  <td><div class="progress-wrap"><div class="progress-bar"><div class="fill" style="width:100%; background:var(--green);"></div></div><span>100%</span></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== تفاصيل ملف التدقيق: تهيئة الميزان + أوراق العمل ========== -->
+      <div class="page" id="page-clientfiledetail">
+        <div class="back-link" onclick="backToClientProfile()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          الرجوع إلى ملف العميل
+        </div>
+
+        <div class="profile-head">
+          <div class="seal2" id="cfd-seal">م.ت</div>
+          <div>
+            <div class="pn" id="cfd-title">مراجعة الربع الثاني 2026</div>
+            <div class="pm"><span id="cfd-period">نهاية الفترة: 30/06/2026</span><span id="cfd-gate">مراجعة ربعية</span></div>
+          </div>
+        </div>
+
+        <div class="tab-strip">
+          <div class="tab active" onclick="switchCfdTab(this,'tb')">تهيئة الميزان</div>
+          <div class="tab" onclick="switchCfdTab(this,'wp')">أوراق العمل</div>
+        </div>
+
+        <!-- تبويب: تهيئة الميزان -->
+        <div class="ptab active" id="cfd-tb">
+          <div class="upload-box" id="tb-upload-box" onclick="document.getElementById('tb-file-input').click()">
+            <input type="file" id="tb-file-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleTrialBalanceUpload(this)">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+            <b>اسحب ملف الإكسل هنا أو اضغط للاختيار</b>
+            <span>الأعمدة المطلوبة بالترتيب: رقم الحساب — اسم الحساب — رصيد أول الفترة — مدين الحركة — دائن الحركة — رصيد آخر الفترة</span>
+            <div style="margin-top:16px;"><button class="btn dark" type="button">اختيار ملف</button></div>
+          </div>
+
+          <div class="notice">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.86L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.86a2 2 0 00-3.4 0z"/></svg>
+            كل رقم حساب في الميزان يُطابَق تلقائيًا برقم حساب مطابق في دليل حسابات المكتب. الحسابات غير المطابقة تظهر أدناه لتربطها يدويًا.
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>بنود الميزان — إصدار v3 (رُفع اليوم 09:41 ص)</h3><span class="link" style="color:var(--brass); cursor:pointer;">رفع نسخة جديدة</span></div>
+            <table id="tb-table">
+              <thead><tr><th>رقم الحساب</th><th>اسم الحساب</th><th>رصيد أول الفترة</th><th>مدين الحركة</th><th>دائن الحركة</th><th>رصيد آخر الفترة</th><th>الربط بالدليل</th></tr></thead>
+              <tbody>
+                <tr><td>1111</td><td>نقدية الصندوق</td><td>12,400.00</td><td>85,000.00</td><td>79,300.00</td><td>18,100.00</td><td><span class="badge ok">مطابَق تلقائيًا</span></td></tr>
+                <tr><td>1112</td><td>نقدية بنك الراجحي</td><td>340,200.00</td><td>1,240,500.00</td><td>1,180,900.00</td><td>399,800.00</td><td><span class="badge ok">مطابَق تلقائيًا</span></td></tr>
+                <tr><td>1120</td><td>الذمم المدينة</td><td>512,000.00</td><td>96,000.00</td><td>140,000.00</td><td>468,000.00</td><td><span class="badge ok">مطابَق تلقائيًا</span></td></tr>
+                <tr><td>2100</td><td>الخصوم المتداولة</td><td>210,000.00</td><td>40,000.00</td><td>55,000.00</td><td>225,000.00</td><td><span class="badge ok">مطابَق تلقائيًا</span></td></tr>
+                <tr><td>4450</td><td>عهد نثرية متنوعة</td><td>7,000.00</td><td>3,200.00</td><td>2,900.00</td><td>7,300.00</td><td><span class="badge flag">بدون مطابقة — اربطه يدويًا</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- تبويب: أوراق العمل -->
+        <div class="ptab" id="cfd-wp">
+          <div class="page-head" style="margin-bottom:16px;">
+            <div></div>
+            <button class="btn dark" onclick="refreshWorkingPapersForFile()">↻ تحديث أوراق العمل</button>
+          </div>
+
+          <div class="completion-stats">
+            <div class="completion-card done"><div class="num">0</div><div class="lbl">اكتملت</div></div>
+            <div class="completion-card progress"><div class="num">0</div><div class="lbl">في تقدم</div></div>
+            <div class="completion-card notstarted"><div class="num" id="cfd-notstarted-count">4</div><div class="lbl">لم تبدأ</div></div>
+          </div>
+
+          <div class="wp-shell">
+            <!-- ===== القائمة: المجموعات + الأوراق الرئيسية (بدون أي تفاصيل ربط بالدليل) ===== -->
+            <div class="wp-list-col">
+              <div class="wp-group">
+                <div class="wp-group-head" onclick="toggleWpGroup(this)">
+                  <span class="tree-toggle open">▸</span><span>1000 — الملف الدائم</span>
+                </div>
+                <div class="wp-mains">
+                  <div class="wp-main-item active" onclick="selectCfdMain(this,'cfd-m1')"><span>1002 — فهم المنشأة</span><span class="badge neutral">لم تبدأ</span></div>
+                  <div class="wp-main-item" onclick="selectCfdMain(this,'cfd-m2')"><span>1004 — الأنظمة الرقابية</span><span class="badge neutral">لم تبدأ</span></div>
+                </div>
+              </div>
+              <div class="wp-group">
+                <div class="wp-group-head" onclick="toggleWpGroup(this)"><span class="tree-toggle open">▸</span><span>5000 — النقد والبنوك</span></div>
+                <div class="wp-mains">
+                  <div class="wp-main-item" onclick="selectCfdMain(this,'cfd-m3')"><span>5001 — برنامج مراجعة النقد والبنوك</span><span class="badge neutral">لم تبدأ</span></div>
+                </div>
+              </div>
+              <div class="wp-group">
+                <div class="wp-group-head" onclick="toggleWpGroup(this)"><span class="tree-toggle open">▸</span><span>6000 — المدينين والمبيعات</span></div>
+                <div class="wp-mains">
+                  <div class="wp-main-item" onclick="selectCfdMain(this,'cfd-m4')"><span>6001 — برنامج مراجعة المدينين</span><span class="badge neutral">لم تبدأ</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== لوحة التفاصيل: السؤال والإجابة الفعلية لهذا الملف ===== -->
+            <div class="wp-detail-col">
+
+              <div class="wp-detail active" id="cfd-m1">
+                <div class="profile-head" style="margin-bottom:18px;">
+                  <div class="seal2">1002</div>
+                  <div><div class="pn">فهم المنشأة</div></div>
+                </div>
+
+                <div class="form-section">
+                  <div class="signoff-row">
+                    <label><input type="checkbox"> أعدت بواسطة</label>
+                    <label><input type="checkbox"> روجعت بواسطة</label>
+                    <label><input type="checkbox"> خدثت بواسطة</label>
+                    <label><input type="checkbox"> اعتمدت بواسطة</label>
+                  </div>
+                </div>
+
+                <div class="form-section">
+                  <div class="form-section-title">الهدف</div>
+                  <div style="font-size:13px; color:var(--text); line-height:1.8;">فهم طبيعة نشاط المنشأة وبيئة الرقابة العامة لديها</div>
+                </div>
+
+                <div class="proc-item">
+                  <div class="proc-q"><span class="proc-num">1</span> هل يوجد هيكل تنظيمي للمنشأة؟</div>
+                  <div class="yn-row">
+                    <label><input type="radio" name="p1-1"> نعم</label>
+                    <label><input type="radio" name="p1-1"> لا</label>
+                  </div>
+                  <label class="notes-label">ملاحظات</label>
+                  <textarea class="big-notes" placeholder="اكتب ملاحظاتك هنا بالتفصيل..."></textarea>
+                </div>
+
+                <div class="proc-item">
+                  <div class="proc-q"><span class="proc-num">2</span> هل توجد لوائح وسياسات مكتوبة ومعتمدة؟</div>
+                  <div class="yn-row">
+                    <label><input type="radio" name="p1-2"> نعم</label>
+                    <label><input type="radio" name="p1-2"> لا</label>
+                  </div>
+                  <label class="notes-label">ملاحظات</label>
+                  <textarea class="big-notes" placeholder="اكتب ملاحظاتك هنا بالتفصيل..."></textarea>
+                </div>
+
+                <button class="btn dark" style="margin-top:6px;">حفظ الإجابات</button>
+              </div>
+
+              <div class="wp-detail" id="cfd-m2">
+                <div class="profile-head" style="margin-bottom:18px;">
+                  <div class="seal2">1004</div>
+                  <div><div class="pn">الأنظمة الرقابية</div></div>
+                </div>
+
+                <div class="form-section">
+                  <div class="signoff-row">
+                    <label><input type="checkbox"> أعدت بواسطة</label>
+                    <label><input type="checkbox"> روجعت بواسطة</label>
+                    <label><input type="checkbox"> خدثت بواسطة</label>
+                    <label><input type="checkbox"> اعتمدت بواسطة</label>
+                  </div>
+                </div>
+
+                <div class="proc-item">
+                  <div class="proc-q"><span class="proc-num">1</span> يرجى إرفاق المستندات المؤيدة لتقييم الأنظمة الرقابية</div>
+                  <div class="upload-mini" style="margin-bottom:12px;">
+                    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+                    <b>إرفاق مستند</b><span>PDF أو صورة أو ملف Excel</span>
+                  </div>
+                  <label class="notes-label">ملاحظات</label>
+                  <textarea class="big-notes" placeholder="اكتب ملاحظاتك هنا بالتفصيل..."></textarea>
+                </div>
+
+                <button class="btn dark">حفظ الإجابات</button>
+              </div>
+
+              <div class="wp-detail" id="cfd-m3">
+                <div class="profile-head" style="margin-bottom:18px;">
+                  <div class="seal2">5001</div>
+                  <div><div class="pn">برنامج مراجعة النقد والبنوك</div></div>
+                </div>
+
+                <div class="form-section">
+                  <div class="signoff-row">
+                    <label><input type="checkbox"> أعدت بواسطة</label>
+                    <label><input type="checkbox"> روجعت بواسطة</label>
+                    <label><input type="checkbox"> خدثت بواسطة</label>
+                    <label><input type="checkbox"> اعتمدت بواسطة</label>
+                  </div>
+                </div>
+
+                <div class="form-section">
+                  <div class="form-section-title">الهدف</div>
+                  <div style="font-size:13px; color:var(--text); line-height:1.8;">التحقق من اكتمال ودقة أرصدة النقد والبنوك الظاهرة في الميزان</div>
+                </div>
+
+                <!-- نوع: خيارات متعددة يتم تفعيلها -->
+                <div class="proc-item">
+                  <div class="proc-q"><span class="proc-num">1</span> إجراءات المطابقة البنكية المنفَّذة فعليًا — فعّل ما تم تنفيذه فقط</div>
+                  <div class="proc-options">
+                    <label><input type="checkbox" checked> تسوية بنكية مطابقة</label>
+                    <label><input type="checkbox" checked> مصادقة من البنك</label>
+                    <label><input type="checkbox"> مطابقة كشف حساب البنك بدفتر الأستاذ</label>
+                    <label><input type="checkbox"> فحص آخر ثلاث شيكات صادرة قبل نهاية الفترة</label>
+                  </div>
+                  <label class="notes-label">ملاحظات</label>
+                  <textarea class="big-notes" placeholder="اكتب ملاحظاتك هنا بالتفصيل..."></textarea>
+                </div>
+
+                <!-- نوع: نعم أو لا -->
+                <div class="proc-item">
+                  <div class="proc-q"><span class="proc-num">2</span> هل تم مراجعة التسويات البنكية؟</div>
+                  <div class="yn-row">
+                    <label><input type="radio" name="p3-2"> نعم</label>
+                    <label><input type="radio" name="p3-2"> لا</label>
+                  </div>
+                  <label class="notes-label">ملاحظات</label>
+                  <textarea class="big-notes" placeholder="اكتب ملاحظاتك هنا بالتفصيل..."></textarea>
+                </div>
+
+                <!-- نوع: إجابة مع مرفقات -->
+                <div class="proc-item">
+                  <div class="proc-q"><span class="proc-num">3</span> يرجى إرفاق الكشف البنكي</div>
+                  <div class="upload-mini" style="margin-bottom:12px;">
+                    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+                    <b>إرفاق الكشف البنكي</b><span>PDF أو صورة</span>
+                  </div>
+                  <label class="notes-label">تعليق</label>
+                  <textarea class="big-notes" placeholder="أي ملاحظة على الكشف المرفق..."></textarea>
+                </div>
+
+                <!-- نوع: سؤال وإجابة (نص طويل) -->
+                <div class="proc-item">
+                  <div class="proc-q"><span class="proc-num">4</span> متى آخر مرة تمت مراجعة التسوية البنكية؟ وما آلية عملها؟ الرجاء الشرح</div>
+                  <textarea class="big-notes" style="min-height:130px;" placeholder="اكتب الشرح التفصيلي هنا..."></textarea>
+                </div>
+
+                <button class="btn dark" style="margin-top:6px;">حفظ الإجابات</button>
+              </div>
+
+              <div class="wp-detail" id="cfd-m4">
+                <div class="profile-head" style="margin-bottom:18px;">
+                  <div class="seal2">6001</div>
+                  <div><div class="pn">برنامج مراجعة المدينين</div></div>
+                </div>
+
+                <div class="form-section">
+                  <div class="signoff-row">
+                    <label><input type="checkbox"> أعدت بواسطة</label>
+                    <label><input type="checkbox"> روجعت بواسطة</label>
+                    <label><input type="checkbox"> خدثت بواسطة</label>
+                    <label><input type="checkbox"> اعتمدت بواسطة</label>
+                  </div>
+                </div>
+
+                <div class="form-section">
+                  <div class="form-section-title">الهدف</div>
+                  <div style="font-size:13px; color:var(--text); line-height:1.8;">التحقق من صحة أرصدة الذمم المدينة وقابليتها للتحصيل</div>
+                </div>
+
+                <div class="proc-item">
+                  <div class="proc-q"><span class="proc-num">1</span> هل تم إرسال مصادقات مباشرة لعينة من العملاء المدينين؟</div>
+                  <div class="yn-row">
+                    <label><input type="radio" name="p4-1"> نعم</label>
+                    <label><input type="radio" name="p4-1"> لا</label>
+                  </div>
+                  <label class="notes-label">ملاحظات</label>
+                  <textarea class="big-notes" placeholder="اكتب ملاحظاتك هنا بالتفصيل..."></textarea>
+                </div>
+
+                <div class="proc-item">
+                  <div class="proc-q"><span class="proc-num">2</span> مراجعة أعمار الديون وكفاية مخصص الديون المشكوك فيها — الرجاء الشرح</div>
+                  <textarea class="big-notes" style="min-height:130px;" placeholder="اكتب الشرح التفصيلي هنا..."></textarea>
+                </div>
+
+                <button class="btn dark" style="margin-top:6px;">حفظ الإجابات</button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="page" id="page-trialbalance">
+        <div class="page-head">
+          <div><div class="crumb">إدارة العملاء</div><h1>رفع موازين المراجعة</h1></div>
+        </div>
+        <div class="upload-box">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+          <b>اسحب ملف ميزان المراجعة هنا أو اخترْه من جهازك</b>
+          <span>يدعم النظام صيغ Excel وCSV — ويربط الملف تلقائيًا بالعميل والفترة المحددة</span>
+          <div style="margin-top:16px;"><button class="btn dark">اختيار ملف</button></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>الموازين المرفوعة</h3></div>
+          <table>
+            <thead><tr><th>العميل</th><th>الفترة</th><th>رفع بواسطة</th><th>الإصدار</th><th>الحالة</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><b>شركة الرواد التجارية</b></td><td>الربع الثاني 2026</td><td>نورة السبيعي</td><td>v3</td><td><span class="badge ok">مطابَق</span></td><td><span class="link" style="color:#AD8A3F; cursor:pointer;">فتح</span></td></tr>
+              <tr><td><b>مصنع الخليج للبلاستيك</b></td><td>الربع الثاني 2026</td><td>عبدالله الحربي</td><td>v1</td><td><span class="badge warn">قيد المطابقة</span></td><td><span class="link" style="color:#AD8A3F; cursor:pointer;">فتح</span></td></tr>
+              <tr><td><b>مؤسسة النخبة للمقاولات</b></td><td>السنوي 2025</td><td>نورة السبيعي</td><td>v5</td><td><span class="badge ok">مطابَق</span></td><td><span class="link" style="color:#AD8A3F; cursor:pointer;">فتح</span></td></tr>
+              <tr><td><b>شركة أفق للاستثمار</b></td><td>الربع الأول 2026</td><td>بندر العتيبي</td><td>v2</td><td><span class="badge flag">فروقات غير مفسّرة</span></td><td><span class="link" style="color:#AD8A3F; cursor:pointer;">فتح</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== الدردشات ========== -->
+      <div class="page" id="page-chats">
+        <div class="page-head"><div><div class="crumb">التواصل</div><h1>الدردشات</h1></div></div>
+        <div class="chat-shell">
+          <div class="chat-list">
+            <div class="ch-item active"><div class="av">ن.س</div><div><div class="cn">نورة السبيعي</div><div class="cl">تم رفع ميزان المراجعة النهائي ✓</div></div></div>
+            <div class="ch-item"><div class="av">ع.ح</div><div><div class="cn">عبدالله الحربي</div><div class="cl">أحتاج توضيح بخصوص نقطة المخزون</div></div></div>
+            <div class="ch-item"><div class="av">ر.ت</div><div><div class="cn">شركة الرواد — فريق العميل</div><div class="cl">أرسلنا المستخلص البنكي المطلوب</div></div></div>
+            <div class="ch-item"><div class="av">ف.د</div><div><div class="cn">فهد الدوسري</div><div class="cl">وافقتُ على التقرير، جاهز للشريك</div></div></div>
+          </div>
+          <div class="chat-window">
+            <div class="chat-head"><b>نورة السبيعي — مراجع</b><span class="badge ok">متصلة الآن</span></div>
+            <div class="chat-body">
+              <div class="bubble in">صباح الخير، رفعت ميزان المراجعة لشركة الرواد التجارية للربع الثاني<div class="t">09:12 ص</div></div>
+              <div class="bubble out">تمام، راجعته وفيه فرق بسيط في حساب الذمم المدينة، تحققي منه<div class="t">09:20 ص</div></div>
+              <div class="bubble in">تم التحقق، كان خطأ ترحيل بسيط وصححته، رفعت الإصدار v3<div class="t">09:41 ص</div></div>
+              <div class="bubble out">ممتاز، معتمد من طرفي ✓<div class="t">09:44 ص</div></div>
+            </div>
+            <div class="chat-input"><input placeholder="اكتب رسالتك…"><button class="btn dark">إرسال</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== دليل الحسابات ========== -->
+      <div class="page" id="page-coa">
+        <div class="page-head">
+          <div><div class="crumb">تهيئة النظام</div><h1>دليل الحسابات</h1><p class="desc">شجرة حسابات بـ4 مستويات — تُستخدم كأساس لتصنيف موازين المراجعة ومجموعات أوراق العمل</p></div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg> استيراد</button>
+            <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg> تصدير</button>
+            <button class="btn dark" onclick="openModal('modal-addaccount'); populateParentSelect();">+ إضافة حساب</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <table class="tree-table">
+            <thead><tr>
+              <th style="width:34%;">الحساب</th><th>المستوى</th><th>اللغة</th><th>حساب بند الإيداع</th><th>كود القوائم</th><th>الشركة</th><th>الحالة</th>
+            </tr></thead>
+            <tbody>
+              <tr class="tree-row" data-id="r1">
+                <td><div class="tree-cell"><span class="tree-toggle open" onclick="toggleTree(this,'r1')">▸</span><b>1000 — الأصول</b></div></td>
+                <td><span class="lvl-badge l1">مستوى 1</span></td><td>عربي/إنجليزي</td><td>—</td><td class="empty-hint" style="padding:0;">—</td><td>مكتب القحطاني</td><td><span class="badge ok">فعّال</span></td>
+              </tr>
+              <tr class="tree-row" data-id="r2" data-parent="r1">
+                <td><div class="tree-cell" style="padding-inline-start:22px;"><span class="tree-toggle open" onclick="toggleTree(this,'r2')">▸</span>1100 — الأصول المتداولة</div></td>
+                <td><span class="lvl-badge l2">مستوى 2</span></td><td>عربي/إنجليزي</td><td>—</td><td>—</td><td>مكتب القحطاني</td><td><span class="badge ok">فعّال</span></td>
+              </tr>
+              <tr class="tree-row" data-id="r3" data-parent="r2">
+                <td><div class="tree-cell" style="padding-inline-start:44px;"><span class="tree-toggle open" onclick="toggleTree(this,'r3')">▸</span>1110 — النقدية وما في حكمها</div></td>
+                <td><span class="lvl-badge l3">مستوى 3</span></td><td>عربي/إنجليزي</td><td>—</td><td>—</td><td>مكتب القحطاني</td><td><span class="badge ok">فعّال</span></td>
+              </tr>
+              <tr class="tree-row" data-parent="r3">
+                <td><div class="tree-cell" style="padding-inline-start:66px;"><span class="tree-toggle leaf">▸</span>1111 — نقدية الصندوق</div></td>
+                <td><span class="lvl-badge l4">مستوى 4</span></td><td>عربي</td><td>الصندوق الرئيسي</td><td>—</td><td>مكتب القحطاني</td><td><span class="badge ok">فعّال</span></td>
+              </tr>
+              <tr class="tree-row" data-parent="r3">
+                <td><div class="tree-cell" style="padding-inline-start:66px;"><span class="tree-toggle leaf">▸</span>1112 — نقدية بنك الراجحي</div></td>
+                <td><span class="lvl-badge l4">مستوى 4</span></td><td>عربي/إنجليزي</td><td>بنك الراجحي — حساب تشغيلي</td><td>—</td><td>مكتب القحطاني</td><td><span class="badge ok">فعّال</span></td>
+              </tr>
+              <tr class="tree-row" data-parent="r2">
+                <td><div class="tree-cell" style="padding-inline-start:44px;"><span class="tree-toggle leaf">▸</span>1120 — الذمم المدينة</div></td>
+                <td><span class="lvl-badge l3">مستوى 3</span></td><td>عربي/إنجليزي</td><td>—</td><td>—</td><td>مكتب القحطاني</td><td><span class="badge ok">فعّال</span></td>
+              </tr>
+
+              <tr class="tree-row" data-id="r4">
+                <td><div class="tree-cell"><span class="tree-toggle open" onclick="toggleTree(this,'r4')">▸</span><b>2000 — الخصوم</b></div></td>
+                <td><span class="lvl-badge l1">مستوى 1</span></td><td>عربي/إنجليزي</td><td>—</td><td>—</td><td>مكتب القحطاني</td><td><span class="badge ok">فعّال</span></td>
+              </tr>
+              <tr class="tree-row" data-parent="r4">
+                <td><div class="tree-cell" style="padding-inline-start:22px;"><span class="tree-toggle leaf">▸</span>2100 — الخصوم المتداولة</div></td>
+                <td><span class="lvl-badge l2">مستوى 2</span></td><td>عربي/إنجليزي</td><td>—</td><td>—</td><td>مكتب القحطاني</td><td><span class="badge ok">فعّال</span></td>
+              </tr>
+
+              <tr class="tree-row" data-id="r5">
+                <td><div class="tree-cell"><span class="tree-toggle leaf">▸</span><b>3000 — حقوق الملكية</b></div></td>
+                <td><span class="lvl-badge l1">مستوى 1</span></td><td>عربي/إنجليزي</td><td>—</td><td>—</td><td>مكتب القحطاني</td><td><span class="badge neutral">غير مستخدم</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== السياسات ========== -->
+      <div class="page" id="page-policies">
+        <div class="page-head"><div><div class="crumb">تهيئة النظام</div><h1>السياسات</h1></div><button class="btn">+ سياسة جديدة</button></div>
+        <div class="panel">
+          <table>
+            <thead><tr><th>السياسة</th><th>القسم</th><th>آخر مراجعة</th><th>الحالة</th></tr></thead>
+            <tbody>
+              <tr><td><b>سياسة استقلالية المراجع</b></td><td>حوكمة</td><td>يناير 2026</td><td><span class="badge ok">سارية</span></td></tr>
+              <tr><td><b>سياسة قبول العملاء الجدد</b></td><td>إدارة المخاطر</td><td>مارس 2026</td><td><span class="badge ok">سارية</span></td></tr>
+              <tr><td><b>سياسة الرقابة على الجودة</b></td><td>الجودة</td><td>ديسمبر 2025</td><td><span class="badge warn">قيد التحديث</span></td></tr>
+              <tr><td><b>سياسة الاحتفاظ بالمستندات</b></td><td>حوكمة</td><td>يونيو 2025</td><td><span class="badge ok">سارية</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== أوراق العمل ========== -->
+      <div class="page" id="page-workpapers">
+        <div class="page-head">
+          <div><div class="crumb">تهيئة النظام</div><h1>أوراق العمل</h1><p class="desc">اختر ورقة عمل رئيسية من القائمة لعرض تفاصيلها وبنودها الفرعية</p></div>
+          <button class="btn dark" onclick="openModal('modal-addgroup')">+ إضافة مجموعة</button>
+        </div>
+
+        <div class="wp-shell">
+          <!-- ===== القائمة: المجموعات + البنود الرئيسية ===== -->
+          <div class="wp-list-col">
+            <div class="wp-group">
+              <div class="wp-group-head" onclick="toggleWpGroup(this)">
+                <span class="tree-toggle open">▸</span><span>1000 — الملف الدائم</span>
+                <span class="add-child-btn" onclick="event.stopPropagation(); addMainTargetGroupId='demo-g1'; openModal('modal-addmain')">+ رئيسي</span>
+              </div>
+              <div class="wp-mains">
+                <div class="wp-main-item active" onclick="selectWpMain(this,'wp-m1')">
+                  <span>1002 — فهم المنشأة</span><span class="badge ok">عام</span>
+                </div>
+                <div class="wp-main-item" onclick="selectWpMain(this,'wp-m2')">
+                  <span>1004 — الأنظمة الرقابية</span><span class="badge flag">خاص</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="wp-group">
+              <div class="wp-group-head" onclick="toggleWpGroup(this)">
+                <span class="tree-toggle open">▸</span><span>2000 — تخطيط المراجعة</span>
+                <span class="add-child-btn" onclick="event.stopPropagation(); addMainTargetGroupId='demo-g2'; openModal('modal-addmain')">+ رئيسي</span>
+              </div>
+              <div class="wp-mains">
+                <div class="wp-main-item" onclick="selectWpMain(this,'wp-m3')">
+                  <span>2002 — احتساب الأهمية النسبية</span><span class="badge ok">عام</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="wp-group">
+              <div class="wp-group-head" onclick="toggleWpGroup(this)">
+                <span class="tree-toggle open">▸</span><span>5000 — النقد والبنوك</span>
+                <span class="badge neutral" style="font-size:9.5px;">مرتبطة بدليل الحسابات</span>
+                <span class="add-child-btn" onclick="event.stopPropagation(); addMainTargetGroupId='demo-g3'; openModal('modal-addmain')">+ رئيسي</span>
+              </div>
+              <div class="wp-mains">
+                <div class="wp-main-item" onclick="selectWpMain(this,'wp-m4')">
+                  <span>5001 — برنامج مراجعة النقد والبنوك</span><span class="badge flag">خاص</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ===== لوحة التفاصيل (تشبه عرض ملف العميل) ===== -->
+          <div class="wp-detail-col">
+
+            <div class="wp-detail active" id="wp-m1">
+              <div class="profile-head" style="margin-bottom:18px;">
+                <div class="seal2">1002</div>
+                <div><div class="pn">فهم المنشأة</div><div class="pm"><span class="badge ok">عام — تظهر لكل العملاء</span><span>ضمن مجموعة: 1000 — الملف الدائم</span></div></div>
+                <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='wp-m1'; openModal('modal-addsub')">+ إضافة فرعي</button>
+              </div>
+              <div class="form-section">
+                <div class="form-section-title">الهدف والملاحظات</div>
+                <div class="form-grid">
+                  <div class="form-field full"><label>الهدف</label><input value="فهم طبيعة نشاط المنشأة وبيئة الرقابة العامة لديها" disabled></div>
+                  <div class="form-field full"><label>ملاحظات</label><input value="يُراجَع سنويًا مع أي تغييرات جوهرية في نشاط العميل" disabled></div>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-head"><h3>البنود الفرعية</h3></div>
+                <table>
+                  <thead><tr><th>البند</th><th>النوع</th><th>الظهور</th><th>الحالة</th></tr></thead>
+                  <tbody>
+                    <tr><td>هل يوجد هيكل تنظيمي للمنشأة؟</td><td><span class="badge warn">سؤال وإجابة</span></td><td><span class="badge ok">عام</span></td><td><span class="badge ok">فعّال</span></td></tr>
+                    <tr><td>هل توجد لوائح وسياسات مكتوبة ومعتمدة؟</td><td><span class="badge warn">سؤال وإجابة</span></td><td><span class="badge ok">عام</span></td><td><span class="badge ok">فعّال</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="wp-detail" id="wp-m2">
+              <div class="profile-head" style="margin-bottom:18px;">
+                <div class="seal2">1004</div>
+                <div><div class="pn">الأنظمة الرقابية</div><div class="pm"><span class="badge flag">خاص — الشركات ذات المسؤولية المحدودة فقط</span><span>ضمن مجموعة: 1000 — الملف الدائم</span></div></div>
+                <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='wp-m2'; openModal('modal-addsub')">+ إضافة فرعي</button>
+              </div>
+              <div class="form-section">
+                <div class="form-section-title">الهدف والملاحظات</div>
+                <div class="form-grid">
+                  <div class="form-field full"><label>الهدف</label><input value="تقييم للرقابة الداخلية" disabled></div>
+                  <div class="form-field full"><label>ملاحظات</label><input value="—" disabled></div>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-head"><h3>البنود الفرعية</h3></div>
+                <table>
+                  <thead><tr><th>البند</th><th>النوع</th><th>الظهور</th><th>الحالة</th></tr></thead>
+                  <tbody>
+                    <tr><td>أعدت / روجعت / خدثت / اعتمدت بواسطة</td><td><span class="badge neutral">خيارات متعددة تُفعّل</span></td><td><span class="badge ok">عام</span></td><td><span class="badge ok">فعّال</span></td></tr>
+                    <tr><td>المستندات المؤيدة</td><td><span class="badge neutral">إجابة مع مرفقات</span></td><td><span class="badge ok">عام</span></td><td><span class="badge ok">فعّال</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="wp-detail" id="wp-m3">
+              <div class="profile-head" style="margin-bottom:18px;">
+                <div class="seal2">2002</div>
+                <div><div class="pn">احتساب الأهمية النسبية</div><div class="pm"><span class="badge ok">عام — تظهر لكل العملاء</span><span>ضمن مجموعة: 2000 — تخطيط المراجعة</span></div></div>
+                <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='wp-m3'; openModal('modal-addsub')">+ إضافة فرعي</button>
+              </div>
+              <div class="form-section">
+                <div class="form-section-title">الهدف والملاحظات</div>
+                <div class="form-grid">
+                  <div class="form-field full"><label>الهدف</label><input value="تحديد مستوى الأهمية النسبية للتخطيط للمراجعة" disabled></div>
+                  <div class="form-field full"><label>ملاحظات</label><input value="—" disabled></div>
+                </div>
+              </div>
+              <div class="panel"><div class="empty-hint">لا توجد بنود فرعية بعد</div></div>
+            </div>
+
+            <div class="wp-detail" id="wp-m4">
+              <div class="profile-head" style="margin-bottom:18px;">
+                <div class="seal2">5001</div>
+                <div><div class="pn">برنامج مراجعة النقد والبنوك</div><div class="pm"><span class="badge flag">خاص — قطاع الخدمات المالية فقط</span><span>ضمن مجموعة: 5000 — النقد والبنوك</span></div></div>
+                <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='wp-m4'; openModal('modal-addsub')">+ إضافة فرعي</button>
+              </div>
+              <div class="form-section">
+                <div class="form-section-title">الهدف والملاحظات</div>
+                <div class="form-grid">
+                  <div class="form-field full"><label>الهدف</label><input value="التحقق من اكتمال ودقة أرصدة النقد والبنوك" disabled></div>
+                  <div class="form-field full"><label>ملاحظات</label><input value="يتطلب مصادقات بنكية مباشرة" disabled></div>
+                </div>
+              </div>
+              <div class="panel"><div class="empty-hint">لا توجد بنود فرعية بعد</div></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== تقرير المراجع ========== -->
+      <div class="page" id="page-auditorreport">
+        <div class="page-head"><div><div class="crumb">تهيئة النظام</div><h1>تقرير المراجع</h1></div><button class="btn">+ إعداد تقرير</button></div>
+        <div class="panel">
+          <table>
+            <thead><tr><th>العميل</th><th>الفترة</th><th>نوع الرأي</th><th>مرحلة الاعتماد</th><th>الحالة</th></tr></thead>
+            <tbody>
+              <tr><td><b>مؤسسة النخبة للمقاولات</b></td><td>السنوي 2025</td><td>غير متحفظ</td><td>معتمد من الجودة</td><td><span class="badge ok">جاهز للشريك</span></td></tr>
+              <tr><td><b>شركة الرواد التجارية</b></td><td>الربع الثاني 2026</td><td>—</td><td>مسودة أولى</td><td><span class="badge neutral">قيد الإعداد</span></td></tr>
+              <tr><td><b>مصنع الخليج للبلاستيك</b></td><td>السنوي 2025</td><td>متحفظ محتمل</td><td>مدير المراجعة</td><td><span class="badge flag">بانتظار نقاط المراجعة</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== نقاط المراجعة ========== -->
+      <div class="page" id="page-reviewpoints">
+        <div class="page-head">
+          <div><div class="crumb">المراجعة</div><h1>نقاط المراجعة</h1></div>
+          <button class="btn dark">+ نقطة مراجعة</button>
+        </div>
+        <div class="filters">
+          <select><option>كل العملاء</option><option>شركة الرواد التجارية</option><option>مصنع الخليج للبلاستيك</option></select>
+          <select><option>كل مستويات الخطورة</option><option>عالية</option><option>متوسطة</option><option>منخفضة</option></select>
+          <select><option>كل الحالات</option><option>مفتوحة</option><option>معالَجة</option><option>مغلقة</option></select>
+        </div>
+
+        <div class="kpoint"><div class="sev high"></div><div class="kb">
+          <div class="kh"><div class="kt">فروقات غير مفسَّرة في رصيد المخزون</div><span class="badge flag">عالية</span></div>
+          <div class="kd">فرق مقداره 84,000 ر.س بين سجلات المخزون الدفترية والجرد الفعلي، يحتاج تفسيرًا من إدارة العميل قبل إقفال المراجعة.</div>
+          <div class="kf"><span>العميل: مصنع الخليج للبلاستيك</span><span>مكلَّف: عبدالله الحربي</span><span>فتحت: قبل يومين</span></div>
+        </div></div>
+
+        <div class="kpoint"><div class="sev med"></div><div class="kb">
+          <div class="kh"><div class="kt">ضعف في التوثيق المستندي للمصروفات النثرية</div><span class="badge warn">متوسطة</span></div>
+          <div class="kd">عدد من فواتير المصروفات النثرية غير مرفق لها إيصالات أصلية، يوصى بتحسين إجراءات التوثيق الداخلي.</div>
+          <div class="kf"><span>العميل: شركة الرواد التجارية</span><span>مكلَّف: نورة السبيعي</span><span>فتحت: قبل 5 أيام</span></div>
+        </div></div>
+
+        <div class="kpoint"><div class="sev low"></div><div class="kb">
+          <div class="kh"><div class="kt">تحديث بيانات التواصل مع الموردين</div><span class="badge ok">منخفضة</span></div>
+          <div class="kd">بعض بيانات التواصل مع الموردين في السجلات قديمة، ملاحظة إدارية لا تؤثر على الرأي.</div>
+          <div class="kf"><span>العميل: مؤسسة النخبة للمقاولات</span><span>مكلَّف: فهد الدوسري</span><span>مغلقة</span></div>
+        </div></div>
+      </div>
+
+      <!-- ========== النماذج الجاهزة ========== -->
+      <div class="page" id="page-templates">
+        <div class="page-head"><div><div class="crumb">المكتبة</div><h1>النماذج الجاهزة</h1></div><button class="btn">+ رفع نموذج</button></div>
+        <div class="grid-4col">
+          <div class="tpl-card"><div class="tpl-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="tpl-body"><div class="tn">خطاب تكليف مراجعة</div><div class="td">Word · قالب موحّد</div></div></div>
+          <div class="tpl-card"><div class="tpl-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="tpl-body"><div class="tn">مذكرة تخطيط المراجعة</div><div class="td">Word · قالب موحّد</div></div></div>
+          <div class="tpl-card"><div class="tpl-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="tpl-body"><div class="tn">نموذج تقييم المخاطر</div><div class="td">Excel · قالب موحّد</div></div></div>
+          <div class="tpl-card"><div class="tpl-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="tpl-body"><div class="tn">خطاب مصادقة بنكية</div><div class="td">Word · قالب موحّد</div></div></div>
+          <div class="tpl-card"><div class="tpl-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="tpl-body"><div class="tn">قائمة تدقيق ختامية</div><div class="td">Excel · قالب موحّد</div></div></div>
+          <div class="tpl-body" style="display:none;"></div>
+          <div class="tpl-card"><div class="tpl-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="tpl-body"><div class="tn">تقرير المراجع — رأي غير متحفظ</div><div class="td">Word · قالب موحّد</div></div></div>
+          <div class="tpl-card"><div class="tpl-top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div><div class="tpl-body"><div class="tn">إقرار إدارة العميل</div><div class="td">Word · قالب موحّد</div></div></div>
+        </div>
+      </div>
+
+      <!-- ========== العروض والعقود ========== -->
+      <div class="page" id="page-contracts">
+        <div class="page-head"><div><div class="crumb">الأعمال</div><h1>العروض والعقود</h1></div><button class="btn dark">+ عرض جديد</button></div>
+        <div class="tab-strip">
+          <div class="tab active">الكل</div>
+          <div class="tab">مسودة</div>
+          <div class="tab">مرسل للعميل</div>
+          <div class="tab">موقّع</div>
+        </div>
+        <div class="panel">
+          <table>
+            <thead><tr><th>العميل</th><th>نوع الوثيقة</th><th>القيمة</th><th>مسؤول العرض</th><th>الحالة</th><th>تاريخ الإرسال</th></tr></thead>
+            <tbody>
+              <tr class="contract-row"><td><b>شركة الجودة الحديثة</b></td><td>عرض مراجعة سنوية</td><td class="amt">65,000 ر.س</td><td>سلطان القحطاني</td><td><span class="badge warn">مرسل للعميل</span></td><td>28 يوليو 2026</td></tr>
+              <tr class="contract-row"><td><b>مصنع الخليج للبلاستيك</b></td><td>عقد مراجعة + ضريبة</td><td class="amt">142,000 ر.س</td><td>فهد الدوسري</td><td><span class="badge ok">موقّع</span></td><td>10 يونيو 2026</td></tr>
+              <tr class="contract-row"><td><b>مجموعة تلال العقارية</b></td><td>عرض مراجعة أولية</td><td class="amt">98,000 ر.س</td><td>سلطان القحطاني</td><td><span class="badge neutral">مسودة</span></td><td>—</td></tr>
+              <tr class="contract-row"><td><b>شركة أفق للاستثمار</b></td><td>تجديد عقد سنوي</td><td class="amt">181,000 ر.س</td><td>فهد الدوسري</td><td><span class="badge ok">موقّع</span></td><td>2 مايو 2026</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== المستخدمون (موظفو المكتب) ========== -->
+      <div class="page" id="page-staff">
+        <div class="page-head">
+          <div><div class="crumb">تهيئة النظام</div><h1>المستخدمون</h1><p class="desc">فريق المكتب وأدواره — الشريك، الجودة، مدير المراجعة، والمراجعون</p></div>
+          <button class="btn dark" onclick="openModal('modal-adduser')">+ إضافة مستخدم</button>
+        </div>
+        <div class="filters">
+          <select><option>كل الأدوار</option><option>شريك</option><option>فاحص جودة ارتباط</option><option>مدير مراجعة</option><option>مراجع حسابات أول</option><option>مراجع حسابات</option><option>مساعد إداري</option></select>
+          <select><option>كل الفروع</option><option>فرع الرياض</option><option>فرع جدة</option></select>
+          <input placeholder="بحث بالاسم">
+        </div>
+        <div class="panel">
+          <table>
+            <thead><tr><th>الاسم</th><th>الدور</th><th>الفرع</th><th>البريد الإلكتروني</th><th>الجوال</th><th>مندوب مبيعات</th><th>الحالة</th></tr></thead>
+            <tbody>
+              <tr><td><b>سلطان القحطاني</b></td><td><span class="badge ok">شريك</span></td><td>الرياض</td><td>s.alqahtani@officefirm.com</td><td>0550001111</td><td><span class="badge neutral">لا</span></td><td><span class="badge ok">نشط</span></td></tr>
+              <tr><td><b>منى القحطاني</b></td><td><span class="badge warn">فاحص جودة ارتباط</span></td><td>الرياض</td><td>m.alqahtani@officefirm.com</td><td>0550002222</td><td><span class="badge neutral">لا</span></td><td><span class="badge ok">نشط</span></td></tr>
+              <tr><td><b>عبدالله الحربي</b></td><td><span class="badge neutral">مدير مراجعة</span></td><td>الرياض</td><td>a.alharbi@officefirm.com</td><td>0550003333</td><td><span class="badge neutral">لا</span></td><td><span class="badge ok">نشط</span></td></tr>
+              <tr><td><b>فهد الدوسري</b></td><td><span class="badge neutral">مدير مراجعة</span></td><td>جدة</td><td>f.aldosari@officefirm.com</td><td>0550004444</td><td><span class="badge neutral">لا</span></td><td><span class="badge ok">نشط</span></td></tr>
+              <tr><td><b>نورة السبيعي</b></td><td><span class="badge neutral">مراجع حسابات أول</span></td><td>الرياض</td><td>n.alsubaie@officefirm.com</td><td>0550005555</td><td><span class="badge neutral">لا</span></td><td><span class="badge ok">نشط</span></td></tr>
+              <tr><td><b>بندر العتيبي</b></td><td><span class="badge neutral">مراجع حسابات</span></td><td>جدة</td><td>b.alotaibi@officefirm.com</td><td>0550006666</td><td><span class="badge neutral">لا</span></td><td><span class="badge ok">نشط</span></td></tr>
+              <tr><td><b>ريما الشهري</b></td><td><span class="badge neutral">مساعد إداري</span></td><td>الرياض</td><td>r.alshahri@officefirm.com</td><td>0550007777</td><td><span class="badge ok">نعم</span></td><td><span class="badge ok">نشط</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ========== الملف الشخصي (للمستخدم الحالي) ========== -->
+      <div class="page" id="page-profile">
+        <div class="page-head"><div><div class="crumb">حسابي</div><h1>ملفي الشخصي</h1></div></div>
+
+        <div class="profile-head">
+          <div class="seal2">س.ق</div>
+          <div>
+            <div class="pn">سلطان القحطاني</div>
+            <div class="pm"><span class="badge ok">شريك</span><span>فرع الرياض</span><span>ينضم منذ 2019</span></div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">معلومات شخصية</div>
+          <div class="form-grid">
+            <div class="form-field"><label>الاسم الأول (عربي)</label><input value="سلطان"></div>
+            <div class="form-field"><label>الاسم الأخير (عربي)</label><input value="القحطاني"></div>
+            <div class="form-field"><label>الاسم الأول (إنجليزي)</label><input value="Sultan"></div>
+            <div class="form-field"><label>الاسم الأخير (إنجليزي)</label><input value="Alqahtani"></div>
+            <div class="form-field"><label>رقم الجوال</label><input value="0550001111"></div>
+            <div class="form-field"><label>الجنس</label>
+              <div class="radio-group"><label><input type="radio" name="pgender" checked style="accent-color:#AD8A3F;"> ذكر</label><label><input type="radio" name="pgender" style="accent-color:#AD8A3F;"> أنثى</label></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">معلومات العمل <span style="font-weight:400; color:var(--muted); font-size:11.5px;">(للاطّلاع فقط — يعدّلها مسؤول النظام)</span></div>
+          <div class="form-grid">
+            <div class="form-field"><label>الفرع</label><input value="الرياض — المقر الرئيسي" disabled></div>
+            <div class="form-field"><label>دور المستخدم</label><input value="شريك" disabled></div>
+            <div class="form-field"><label>المسمى الوظيفي (عربي)</label><input value="الشريك المسؤول" disabled></div>
+            <div class="form-field"><label>Job Title (English)</label><input value="Managing Partner" disabled></div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">معلومات الوصول</div>
+          <div class="form-grid">
+            <div class="form-field"><label>اسم المستخدم</label><input value="s.alqahtani"></div>
+            <div class="form-field"><label>البريد الإلكتروني</label><input value="s.alqahtani@officefirm.com"></div>
+            <div class="form-field"><label>كلمة المرور الحالية</label><input type="password" placeholder="••••••"></div>
+            <div class="form-field"><label>كلمة المرور الجديدة</label><input type="password" placeholder="اتركها فارغة إن لم ترغب بالتغيير"></div>
+          </div>
+        </div>
+        <button class="btn dark">حفظ التغييرات</button>
+      </div>
+
+      <!-- ========== بيانات المكتب ========== -->
+      <div class="page" id="page-company">
+        <div class="page-head"><div><div class="crumb">تهيئة النظام</div><h1>بيانات المكتب</h1><p class="desc">بيانات مكتبكم كما تظهر في تقارير المراجعة، وبيانات الدخول الخاصة بالمكتب</p></div></div>
+
+        <div class="form-section">
+          <div class="form-section-title">هوية المكتب</div>
+          <div class="form-grid">
+            <div class="form-field full"><label>اسم المكتب (عربي)</label><input value="مكتب القحطاني وشركاه لمراجعة الحسابات"></div>
+            <div class="form-field full"><label>اسم المكتب (إنجليزي)</label><input value="Alqahtani & Co. Chartered Accountants"></div>
+            <div class="form-field"><label>رمز المكتب <span class="req">*</span> <span style="font-weight:400; color:var(--muted); font-size:11px;">(يُستخدم عند تسجيل الدخول)</span></label><input value="ETQAN" style="text-transform:uppercase;"></div>
+            <div class="form-field"><label>رخصة مزاولة المهنة</label><input value="AUD-4471"></div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="align-items:start;">
+          <div class="form-section">
+            <div class="form-section-title">شعار المكتب</div>
+            <div class="upload-mini">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+              <b>رفع شعار المكتب</b><span>PNG بخلفية شفافة، بحد أقصى 2 ميجابايت</span>
+            </div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title">اكليشة التقارير</div>
+            <div class="upload-mini">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+              <b>رفع اكليشة تقرير المراجع</b><span>تظهر في ترويسة وتذييل جميع التقارير الصادرة</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">بيانات الاتصال والعنوان</div>
+          <div class="form-grid">
+            <div class="form-field"><label>البريد الإلكتروني الرسمي</label><input value="info@officefirm.com"></div>
+            <div class="form-field"><label>الموقع الإلكتروني</label><input value="www.officefirm.com"></div>
+            <div class="form-field"><label>الهاتف</label><input value="0114567890"></div>
+            <div class="form-field"><label>الفاكس</label><input placeholder="اختياري"></div>
+            <div class="form-field full"><label>الشارع</label><input value="طريق الملك فهد"></div>
+            <div class="form-field"><label>المدينة</label><input value="الرياض"></div>
+            <div class="form-field"><label>الرمز البريدي</label><input placeholder="00000"></div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">البيانات النظامية والضريبية</div>
+          <div class="form-grid">
+            <div class="form-field"><label>رقم السجل التجاري</label><input value="1010223344"></div>
+            <div class="form-field"><label>الرقم الضريبي</label><input value="300112233400003"></div>
+          </div>
+        </div>
+        <button class="btn dark">حفظ بيانات المكتب</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة إضافة عميل جديد (الخطوة السريعة الأولى) ===== -->
+<div class="modal-overlay" id="modal-addclient">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h3>إضافة عميل جديد</h3><span>الخطوة الأولى فقط — أكمل بقية بيانات العميل من ملفه الشخصي بعد الحفظ</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addclient')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="form-field full"><label>اسم العميل باللغة العربية <span class="req">*</span></label><input id="newclient-ar" placeholder="مثال: شركة النسمة الرائعة التجارية"></div>
+        <div class="form-field full"><label>اسم العميل باللغة الإنجليزية</label><input placeholder="e.g. Al Nasama Trading Co."></div>
+      </div>
+
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="form-field">
+          <label>المناطق <span class="req">*</span> <span class="add-inline" onclick="toggleInline('m-add-region')">+ إضافة منطقة</span></label>
+          <select id="m-sel-region"><option value="">— اختر —</option><option>الرياض</option><option>مكة المكرمة</option><option>المدينة المنورة</option><option>المنطقة الشرقية</option></select>
+          <div class="inline-add-box" id="m-add-region"><input placeholder="اسم منطقة جديدة" id="m-in-region"><button class="btn" onclick="addOption('m-sel-region','m-in-region','m-add-region')">إضافة</button></div>
+        </div>
+        <div class="form-field">
+          <label>نوع العميل <span class="add-inline" onclick="toggleInline('m-add-ctype')">+ إضافة نوع عميل</span></label>
+          <select id="m-sel-ctype"><option value="">— اختر —</option><option>شركة ذات مسؤولية محدودة</option><option>مؤسسة فردية</option><option>شركة مساهمة مقفلة</option></select>
+          <div class="inline-add-box" id="m-add-ctype"><input placeholder="نوع عميل جديد" id="m-in-ctype"><button class="btn" onclick="addOption('m-sel-ctype','m-in-ctype','m-add-ctype')">إضافة</button></div>
+        </div>
+        <div class="form-field full">
+          <label>قطاع العميل <span class="add-inline" onclick="toggleInline('m-add-sector')">+ إضافة قطاع</span></label>
+          <select id="m-sel-sector"><option value="">— اختر —</option><option>تجارة تجزئة وجملة</option><option>صناعة وتصنيع</option><option>مقاولات وإنشاءات</option><option>عقارات</option></select>
+          <div class="inline-add-box" id="m-add-sector"><input placeholder="قطاع جديد" id="m-in-sector"><button class="btn" onclick="addOption('m-sel-sector','m-in-sector','m-add-sector')">إضافة</button></div>
+        </div>
+      </div>
+
+      <div class="form-section" style="padding:16px 18px; margin-bottom:16px;">
+        <div class="form-section-title" style="margin-bottom:12px;">الفروع</div>
+        <div id="branches-list"></div>
+        <span class="add-inline" style="font-size:12px;" onclick="addBranchRow()">+ إضافة فرع</span>
+      </div>
+
+      <div class="form-section" style="padding:16px 18px; margin-bottom:4px;">
+        <div class="form-section-title" style="margin-bottom:12px;">المراجع المسؤول</div>
+        <div class="add-row-inline">
+          <div>
+            <select id="m-sel-reviewer">
+              <option value="">اختر من فضلك</option>
+              <option>نورة السبيعي — مراجع</option>
+              <option>بندر العتيبي — مراجع</option>
+              <option>عبدالله الحربي — مدير مراجعة</option>
+              <option>فهد الدوسري — مدير مراجعة</option>
+              <option>منى القحطاني — جودة</option>
+            </select>
+          </div>
+          <button class="btn" onclick="addReviewerChip()">+ إضافة مراجع</button>
+        </div>
+        <div class="chips-row" id="reviewer-chips"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addclient')">إلغاء</button>
+      <button class="btn dark" onclick="saveNewClient()">حفظ ومتابعة</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة إضافة مستخدم (موظف مكتب) ===== -->
+<div class="modal-overlay" id="modal-adduser">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="modal-head">
+      <div><h3>إضافة مستخدم</h3><span>موظف تابع لمكتبكم — يظهر ضمن سلّم الأدوار وصلاحياته</span></div>
+      <div class="modal-close" onclick="closeModal('modal-adduser')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+
+      <div class="form-section" style="padding:16px 18px; margin-bottom:14px;">
+        <div class="form-section-title" style="margin-bottom:12px;">معلومات الموظف</div>
+        <div class="form-grid">
+          <div class="form-field"><label>الاسم الأول (عربي) <span class="req">*</span></label><input placeholder="مثال: محمد"></div>
+          <div class="form-field"><label>الاسم الأخير (عربي) <span class="req">*</span></label><input placeholder="مثال: العتيبي"></div>
+          <div class="form-field"><label>الاسم الأول (إنجليزي)</label><input placeholder="e.g. Mohammed"></div>
+          <div class="form-field"><label>الاسم الأخير (إنجليزي)</label><input placeholder="e.g. Alotaibi"></div>
+          <div class="form-field"><label>رقم الجوال <span class="req">*</span></label><input placeholder="05xxxxxxxx"></div>
+          <div class="form-field">
+            <label>الجنس</label>
+            <div class="radio-group"><label><input type="radio" name="ugender" checked style="accent-color:#AD8A3F;"> ذكر</label><label><input type="radio" name="ugender" style="accent-color:#AD8A3F;"> أنثى</label></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section" style="padding:16px 18px; margin-bottom:14px;">
+        <div class="form-section-title" style="margin-bottom:12px;">معلومات العمل</div>
+        <div class="form-grid">
+          <div class="form-field"><label>نوع العمل</label><select><option>— اختر —</option><option>دوام كامل</option><option>دوام جزئي</option><option>عن بُعد</option></select></div>
+          <div class="form-field"><label>الفروع <span class="req">*</span></label><select><option>— اختر —</option><option>الرياض — المقر الرئيسي</option><option>جدة — فرع</option><option>الدمام — فرع</option></select></div>
+          <div class="form-field"><label>المسمى الوظيفي (عربي)</label><input placeholder="مثال: مراجع حسابات"></div>
+          <div class="form-field"><label>المسمى الوظيفي (إنجليزي)</label><input placeholder="e.g. Auditor"></div>
+          <div class="form-field full">
+            <label>دور المستخدم <span class="req">*</span></label>
+            <select>
+              <option>— حدد دور —</option>
+              <option>شريك</option>
+              <option>فاحص جودة ارتباط</option>
+              <option>مدير مراجعة</option>
+              <option>مدير</option>
+              <option>مراجع حسابات أول</option>
+              <option>مراجع حسابات</option>
+              <option>مساعد إداري</option>
+            </select>
+          </div>
+          <div class="form-field full">
+            <label>مندوب مبيعات؟</label>
+            <div class="radio-group"><label><input type="radio" name="uagent" style="accent-color:#AD8A3F;"> نعم</label><label><input type="radio" name="uagent" checked style="accent-color:#AD8A3F;"> لا</label></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section" style="padding:16px 18px; margin-bottom:4px;">
+        <div class="form-section-title" style="margin-bottom:12px;">معلومات وصول المستخدم</div>
+        <div class="form-grid">
+          <div class="form-field"><label>اسم المستخدم <span class="req">*</span></label><input placeholder="m.alotaibi"></div>
+          <div class="form-field"><label>البريد الإلكتروني <span class="req">*</span></label><input placeholder="m.alotaibi@officefirm.com"></div>
+        </div>
+        <div style="font-size:11.5px; color:var(--muted-2); margin-top:10px;">يدخل هذا المستخدم بصيغة: رمز المكتب + اسم المستخدم + كلمة مرور مبدئية تُرسل إليه.</div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-adduser')">إلغاء</button>
+      <button class="btn dark" onclick="closeModal('modal-adduser')">حفظ المستخدم</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة إضافة حساب (دليل الحسابات) ===== -->
+<div class="modal-overlay" id="modal-addaccount">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h3>إضافة حساب</h3><span>حتى 4 مستويات — اختر المستوى والحساب الأب إن وُجد</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addaccount')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:14px;">
+        <div class="form-field"><label>المستوى <span class="req">*</span></label>
+          <select id="acc-level" onchange="populateParentSelect()">
+            <option value="1">مستوى 1</option><option value="2">مستوى 2</option><option value="3">مستوى 3</option><option value="4" selected>مستوى 4</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>الحساب الأب <span id="acc-parent-hint" style="font-weight:400; color:var(--muted); font-size:11px;"></span></label>
+          <select id="acc-parent"></select>
+        </div>
+        <div class="form-field"><label>رمز الحساب <span class="req">*</span></label><input id="acc-code" placeholder="مثال: 1113"></div>
+        <div class="form-field"><label>اللغة</label><select id="acc-lang"><option value="ar">عربي فقط</option><option value="both" selected>عربي وإنجليزي</option><option value="en">إنجليزي فقط</option></select></div>
+        <div class="form-field full"><label>اسم الحساب (عربي) <span class="req">*</span></label><input id="acc-name-ar" placeholder="مثال: نقدية بنك الأهلي"></div>
+        <div class="form-field full"><label>اسم الحساب (إنجليزي)</label><input id="acc-name-en" placeholder="e.g. NCB Bank Cash"></div>
+        <div class="form-field"><label>حساب بند الإيداع</label><select id="acc-deposit"><option value="">— بدون —</option><option>الصندوق الرئيسي</option><option>بنك الراجحي — حساب تشغيلي</option></select></div>
+        <div class="form-field"><label>كود القوائم <span style="font-weight:400; color:var(--muted); font-size:11px;">(يُحدَّد لاحقًا)</span></label><input placeholder="—" disabled></div>
+        <div class="form-field"><label>الشركة</label><input value="مكتب القحطاني وشركاه" disabled></div>
+        <div class="form-field">
+          <label>الحالة</label>
+          <div class="radio-group"><label><input type="radio" name="accStatus" value="1" checked style="accent-color:#AD8A3F;"> فعّال</label><label><input type="radio" name="accStatus" value="0" style="accent-color:#AD8A3F;"> غير فعّال</label></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addaccount')">إلغاء</button>
+      <button class="btn dark" onclick="saveAccountFromForm()">حفظ الحساب</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة إضافة مجموعة (أوراق العمل) ===== -->
+<div class="modal-overlay" id="modal-addgroup">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h3>إضافة مجموعة</h3><span>المستوى الأول في شجرة أوراق العمل (مثال: 1000 — الملف الدائم)</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addgroup')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+    </div>
+    <div class="modal-body">
+      <div class="form-field full" style="margin-bottom:14px;">
+        <label>هل تتبع بند رئيسي في دليل الحسابات؟</label>
+        <div class="radio-group">
+          <label><input type="radio" name="coaLink" value="yes" onchange="toggleCoaLink(this)" style="accent-color:#AD8A3F;"> نعم</label>
+          <label><input type="radio" name="coaLink" value="no" checked onchange="toggleCoaLink(this)" style="accent-color:#AD8A3F;"> لا</label>
+        </div>
+      </div>
+
+      <div class="coa-link-box show" id="coaLinkNo">
+        <div class="form-grid" style="margin-bottom:14px;">
+          <div class="form-field"><label>رمز المجموعة <span class="req">*</span></label><input id="grp-code" placeholder="مثال: 1000"></div>
+          <div class="form-field"><label>اسم المجموعة <span class="req">*</span></label><input id="grp-name" placeholder="مثال: الملف الدائم"></div>
+        </div>
+      </div>
+      <div class="coa-link-box" id="coaLinkYes">
+        <div class="form-field full" style="margin-bottom:14px;">
+          <label>اختر الحساب (المستوى الثاني من دليل الحسابات)</label>
+          <select id="grp-coa-account">
+            <option value="1100">1100 — الأصول المتداولة</option>
+            <option value="2100">2100 — الخصوم المتداولة</option>
+            <option value="5000" selected>5000 — النقد والبنوك</option>
+            <option value="6000">6000 — المدينين والمبيعات</option>
+            <option value="7500">7500 — الاستثمارات</option>
+            <option value="8000">8000 — الذمم التجارية الدائنة</option>
+            <option value="11000">11000 — المخزون</option>
+          </select>
+          <div style="font-size:11px; color:var(--muted-2); margin-top:6px;">سيُستخدم رمز واسم الحساب المختار تلقائيًا كرمز واسم المجموعة</div>
+        </div>
+      </div>
+
+      <div class="form-section" style="padding:16px 18px;">
+        <div class="form-section-title" style="margin-bottom:12px;">لمن تظهر؟</div>
+        <div class="radio-group" style="margin-bottom:4px;">
+          <label><input type="radio" name="visGroup" value="general" checked onchange="toggleSpecialVisibility(this,'visSpecial-group')" style="accent-color:#AD8A3F;"> عام — تظهر لكل ملفات العملاء بدون استثناء</label>
+          <label><input type="radio" name="visGroup" value="special" onchange="toggleSpecialVisibility(this,'visSpecial-group')" style="accent-color:#AD8A3F;"> خاص — حسب نوع/قطاع عميل محدد</label>
+        </div>
+        <div class="form-grid vis-special" id="visSpecial-group">
+          <div class="form-field"><label>نوع العميل</label>
+            <div class="ms-dd">
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel">
+                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة ذات مسؤولية محدودة</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مؤسسة فردية</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة مقفلة</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة عامة</label>
+              </div>
+            </div>
+          </div>
+          <div class="form-field"><label>قطاع العميل</label>
+            <div class="ms-dd">
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel">
+                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> تجارة تجزئة وجملة</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> صناعة وتصنيع</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مقاولات وإنشاءات</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> خدمات مالية واستثمار</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addgroup')">إلغاء</button>
+      <button class="btn dark" onclick="saveGroupFromForm()">حفظ المجموعة</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة إضافة رئيسي (ورقة عمل داخل مجموعة) ===== -->
+<div class="modal-overlay" id="modal-addmain">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h3>إضافة رئيسي (ورقة عمل)</h3><span>يُضاف داخل مجموعة — يحتوي على أهداف وملاحظات وبنود فرعية</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addmain')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid" style="margin-bottom:14px;">
+        <div class="form-field"><label>رمز الورقة</label><input id="main-code" placeholder="مثال: 1004"></div>
+        <div class="form-field"><label>اسم ورقة العمل <span class="req">*</span></label><input id="main-title" placeholder="مثال: الأنظمة الرقابية"></div>
+        <div class="form-field full"><label>الهدف</label><textarea id="main-objective" rows="2" style="width:100%; padding:10px 13px; border:1.3px solid var(--line-strong); border-radius:8px; background:var(--paper); font-family:inherit;" placeholder="مثال: تقييم للرقابة الداخلية"></textarea></div>
+        <div class="form-field full"><label>ملاحظات</label><textarea id="main-notes" rows="2" style="width:100%; padding:10px 13px; border:1.3px solid var(--line-strong); border-radius:8px; background:var(--paper); font-family:inherit;" placeholder="ملاحظات إضافية لفريق المراجعة"></textarea></div>
+      </div>
+
+      <div class="form-section" style="padding:16px 18px;">
+        <div class="form-section-title" style="margin-bottom:12px;">لمن تظهر؟</div>
+        <div class="radio-group" style="margin-bottom:4px;">
+          <label><input type="radio" name="visMain" value="general" checked onchange="toggleSpecialVisibility(this,'visSpecial-main')" style="accent-color:#AD8A3F;"> عام — تظهر لكل ملفات العملاء بدون استثناء</label>
+          <label><input type="radio" name="visMain" value="special" onchange="toggleSpecialVisibility(this,'visSpecial-main')" style="accent-color:#AD8A3F;"> خاص — حسب نوع/قطاع عميل محدد</label>
+        </div>
+        <div class="form-grid vis-special" id="visSpecial-main">
+          <div class="form-field"><label>نوع العميل</label>
+            <div class="ms-dd">
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel">
+                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة ذات مسؤولية محدودة</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مؤسسة فردية</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة مقفلة</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة عامة</label>
+              </div>
+            </div>
+          </div>
+          <div class="form-field"><label>قطاع العميل</label>
+            <div class="ms-dd">
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel">
+                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> تجارة تجزئة وجملة</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> صناعة وتصنيع</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مقاولات وإنشاءات</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> خدمات مالية واستثمار</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addmain')">إلغاء</button>
+      <button class="btn dark" onclick="saveMainFromForm()">حفظ ورقة العمل</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة إضافة فرعي (بند داخل ورقة عمل) ===== -->
+<div class="modal-overlay" id="modal-addsub">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h3>إضافة بند فرعي</h3><span>سؤال أو حقل يظهر داخل ورقة العمل</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addsub')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+    </div>
+    <div class="modal-body">
+      <div class="form-field full" style="margin-bottom:14px;"><label>نص البند / السؤال <span class="req">*</span></label><input id="sub-label" placeholder="مثال: هل يوجد هيكل تنظيمي للمنشأة؟"></div>
+
+      <div class="form-field full" style="margin-bottom:4px;">
+        <label>نوع البند <span class="req">*</span></label>
+        <select id="sub-type" onchange="onSubTypeChange(this)">
+          <option value="qa" selected>سؤال وإجابة</option>
+          <option value="qa_attach">إجابة مع مرفقات</option>
+          <option value="yesno">نعم أو لا</option>
+          <option value="list">قائمة اختيارات (أحددها) + تعليق</option>
+          <option value="multi">خيارات متعددة يتم تفعيلها</option>
+        </select>
+      </div>
+
+      <div class="type-config show" id="cfg-qa">
+        <div style="font-size:12px; color:var(--muted);">يظهر للمستخدم حقل إجابة نصية حرة، بلا إعدادات إضافية.</div>
+      </div>
+
+      <div class="type-config" id="cfg-qa_attach">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" style="accent-color:#AD8A3F;"> إلزامي إرفاق ملف قبل حفظ الإجابة
+        </label>
+      </div>
+
+      <div class="type-config" id="cfg-yesno">
+        <div style="font-size:12px; color:var(--muted);">يظهر للمستخدم خيارا "نعم" و"لا" فقط، مع حقل تعليق اختياري.</div>
+      </div>
+
+      <div class="type-config" id="cfg-list">
+        <label style="font-size:12.5px; font-weight:600; margin-bottom:8px; display:block;">خيارات القائمة</label>
+        <div class="add-row-inline">
+          <div><input id="list-opt-input" placeholder="مثال: مطابق تمامًا"></div>
+          <button class="btn" onclick="addChipToList('list-opt-input','list-opt-chips')">+ إضافة خيار</button>
+        </div>
+        <div class="chips-row" id="list-opt-chips"></div>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; margin-top:10px;">
+          <input type="checkbox" checked style="accent-color:#AD8A3F;"> إظهار حقل تعليق بجانب الإجابة
+        </label>
+      </div>
+
+      <div class="type-config" id="cfg-multi">
+        <label style="font-size:12.5px; font-weight:600; margin-bottom:8px; display:block;">الخيارات القابلة للتفعيل (Checkboxes)</label>
+        <div class="add-row-inline">
+          <div><input id="multi-opt-input" placeholder="مثال: أعدت بواسطة"></div>
+          <button class="btn" onclick="addChipToList('multi-opt-input','multi-opt-chips')">+ إضافة خيار</button>
+        </div>
+        <div class="chips-row" id="multi-opt-chips">
+          <div class="chip">أعدت بواسطة <span class="x" onclick="this.parentElement.remove()">✕</span></div>
+          <div class="chip">روجعت بواسطة <span class="x" onclick="this.parentElement.remove()">✕</span></div>
+          <div class="chip">اعتمدت بواسطة <span class="x" onclick="this.parentElement.remove()">✕</span></div>
+        </div>
+      </div>
+
+      <div class="form-section" style="padding:16px 18px; margin-top:16px;">
+        <div class="form-section-title" style="margin-bottom:12px;">لمن تظهر؟</div>
+        <div class="radio-group" style="margin-bottom:4px;">
+          <label><input type="radio" name="visSub" value="general" checked onchange="toggleSpecialVisibility(this,'visSpecial-sub')" style="accent-color:#AD8A3F;"> عام — تظهر لكل ملفات العملاء بدون استثناء</label>
+          <label><input type="radio" name="visSub" value="special" onchange="toggleSpecialVisibility(this,'visSpecial-sub')" style="accent-color:#AD8A3F;"> خاص — حسب نوع/قطاع عميل محدد</label>
+        </div>
+        <div class="form-grid vis-special" id="visSpecial-sub">
+          <div class="form-field"><label>نوع العميل</label>
+            <div class="ms-dd">
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel">
+                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة ذات مسؤولية محدودة</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مؤسسة فردية</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة مقفلة</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة عامة</label>
+              </div>
+            </div>
+          </div>
+          <div class="form-field"><label>قطاع العميل</label>
+            <div class="ms-dd">
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel">
+                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> تجارة تجزئة وجملة</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> صناعة وتصنيع</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مقاولات وإنشاءات</label>
+                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> خدمات مالية واستثمار</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addsub')">إلغاء</button>
+      <button class="btn dark" onclick="saveSubFromForm()">حفظ البند</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function doLogin(){
+  document.getElementById('login-screen').style.display='none';
+  const app=document.getElementById('app');
+  app.classList.add('active');
+}
+function showSignup(){
+  document.getElementById('login-wrap').style.display='none';
+  document.getElementById('signup-wrap').style.display='flex';
+}
+function showLogin(){
+  document.getElementById('signup-wrap').style.display='none';
+  document.getElementById('login-wrap').style.display='flex';
+}
+
+/* ===== systems hub ===== */
+function openSystem(key){
+  if(key==='audit'){
+    document.getElementById('systems-hub').classList.remove('active');
+    document.getElementById('login-screen').style.display='flex';
+  } else {
+    showToast('هذا النظام قيد الإنشاء — سنبنيه في مرحلة لاحقة');
+  }
+}
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+/* ===== profile page ===== */
+function openProfilePage(){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-profile').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector('.content').scrollTop = 0;
+}
+
+function toggleGroup(id){
+  document.getElementById(id).classList.toggle('open');
+}
+
+/* ===== الشريط الجانبي على الجوال ===== */
+function toggleSidebar(){
+  document.querySelector('.sidebar').classList.toggle('mobile-open');
+  document.getElementById('sidebar-backdrop').classList.toggle('show');
+}
+
+document.querySelectorAll('.nav-item[data-page]').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+    item.classList.add('active');
+    const target=item.getAttribute('data-page');
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.getElementById('page-'+target).classList.add('active');
+    document.querySelector('.content').scrollTop=0;
+    if(document.querySelector('.sidebar').classList.contains('mobile-open')) toggleSidebar();
+  });
+});
+
+document.querySelectorAll('.tab-strip').forEach(strip=>{
+  strip.querySelectorAll('.tab').forEach(t=>{
+    t.addEventListener('click', ()=>{
+      strip.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+});
+
+document.querySelectorAll('.chat-list .ch-item').forEach(it=>{
+  it.addEventListener('click', ()=>{
+    document.querySelectorAll('.chat-list .ch-item').forEach(x=>x.classList.remove('active'));
+    it.classList.add('active');
+  });
+});
+
+/* ===== client profile navigation ===== */
+function openClientProfile(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-clientprofile').classList.add('active');
+  document.getElementById('profile-name').textContent = name;
+  document.getElementById('profile-seal').textContent = name.trim().split(' ').slice(0,2).map(w=>w[0]).join('');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector('.nav-item[data-page="clients"]').classList.add('active');
+  document.querySelectorAll('.profile-tabs .tab').forEach((t,i)=>t.classList.toggle('active', i===0));
+  document.querySelectorAll('.ptab').forEach((t,i)=>t.classList.toggle('active', i===0));
+  document.querySelector('.content').scrollTop = 0;
+}
+function backToClients(){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-clients').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelector('.nav-item[data-page="clients"]').classList.add('active');
+}
+
+/* ===== فتح ملف تدقيق مباشرة من قائمة "ملفات العملاء" العامة ===== */
+function openFileFromGlobalList(clientName, title, period, gate){
+  openClientProfile(clientName);
+  openClientFileDetail(title, period, gate);
+}
+
+/* ===== تفاصيل ملف التدقيق (تهيئة الميزان + أوراق العمل) ===== */
+let currentClientFileContext = null; // اسم العميل الحالي، للرجوع إليه
+function openClientFileDetail(title, period, gate){
+  currentClientFileContext = document.getElementById('profile-name').textContent;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-clientfiledetail').classList.add('active');
+  document.getElementById('cfd-title').textContent = title;
+  document.getElementById('cfd-period').textContent = 'نهاية الفترة: ' + period;
+  document.getElementById('cfd-gate').textContent = gate;
+  document.querySelectorAll('#page-clientfiledetail .tab-strip .tab').forEach((t,i)=>t.classList.toggle('active', i===0));
+  document.querySelectorAll('#page-clientfiledetail .ptab').forEach((t,i)=>t.classList.toggle('active', i===0));
+  document.querySelector('.content').scrollTop = 0;
+}
+function backToClientProfile(){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-clientprofile').classList.add('active');
+  if(currentClientFileContext) document.getElementById('profile-name').textContent = currentClientFileContext;
+}
+function switchCfdTab(el, key){
+  document.querySelectorAll('#page-clientfiledetail .tab-strip .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('#page-clientfiledetail .ptab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('cfd-'+key).classList.add('active');
+}
+
+function selectCfdMain(item, detailId){
+  document.querySelectorAll('#cfd-wp .wp-main-item').forEach(i=>i.classList.remove('active'));
+  item.classList.add('active');
+  document.querySelectorAll('#cfd-wp .wp-detail').forEach(d=>d.classList.remove('active'));
+  const detail = document.getElementById(detailId);
+  if(detail) detail.classList.add('active');
+}
+
+/* رفع ميزان المراجعة (نموذجي — في الوضع الحقيقي يُقرأ الإكسل عبر SheetJS ثم يُرفع لجدول trial_balance_lines) */
+function handleTrialBalanceUpload(input){
+  if(!input.files.length) return;
+  showToast('تم استلام الملف "'+input.files[0].name+'" — جارٍ مطابقة الحسابات بدليل الحسابات...');
+}
+
+/* "تحديث أوراق العمل": في الوضع التجريبي يعرض توضيحًا فقط، وفي وضع Supabase يستدعي fn_refresh_client_file_working_papers */
+async function refreshWorkingPapersForFile(){
+  if(!isLiveDataMode()){
+    showToast('وضع تجريبي — هذه قائمة توضيحية لآلية المطابقة، تُستبدل بالنتيجة الفعلية بعد الربط بـ Supabase');
+    return;
+  }
+  showToast('جارٍ التحديث من أوراق العمل...');
+  // مثال استدعاء فعلي بعد الربط: يتطلب تمرير معرّف ملف التدقيق الحقيقي بدل القيمة التجريبية
+  // const { data, error } = await sb.rpc('fn_refresh_client_file_working_papers', { p_client_file_id: CURRENT_CLIENT_FILE_ID });
+}
+
+function switchProfileTab(el, key){
+  document.querySelectorAll('.profile-tabs .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('ptab-'+key).classList.add('active');
+}
+
+/* ===== modal ===== */
+function openModal(id){ document.getElementById(id).classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+
+/* ===== inline "add option" for dropdowns (أنواع العملاء / القطاعات / المناطق) ===== */
+function toggleInline(id){ document.getElementById(id).classList.toggle('active'); }
+function addOption(selectId, inputId, boxId){
+  const input = document.getElementById(inputId);
+  const val = input.value.trim();
+  if(!val) return;
+  const select = document.getElementById(selectId);
+  const opt = document.createElement('option');
+  opt.value = val; opt.textContent = val;
+  select.appendChild(opt);
+  select.value = val;
+  input.value = '';
+  document.getElementById(boxId).classList.remove('active');
+}
+
+/* ===== branches (add-client modal) ===== */
+function addBranchRow(){
+  const wrap = document.getElementById('branches-list');
+  const row = document.createElement('div');
+  row.className = 'branch-row';
+  row.innerHTML = `
+    <input placeholder="اسم الفرع">
+    <input placeholder="المدينة">
+    <div class="rm" onclick="this.parentElement.remove()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </div>`;
+  wrap.appendChild(row);
+}
+
+/* ===== reviewers (add-client modal) ===== */
+function addReviewerChip(){
+  const sel = document.getElementById('m-sel-reviewer');
+  const val = sel.value;
+  if(!val) return;
+  const chips = document.getElementById('reviewer-chips');
+  if([...chips.children].some(c=>c.dataset.val===val)) return;
+  const chip = document.createElement('div');
+  chip.className = 'chip';
+  chip.dataset.val = val;
+  chip.innerHTML = `${val} <span class="x" onclick="this.parentElement.remove()">✕</span>`;
+  chips.appendChild(chip);
+  sel.value = '';
+}
+
+/* ===== save quick client, then jump into full profile ===== */
+function saveNewClient(){
+  const name = document.getElementById('newclient-ar').value.trim() || 'عميل جديد';
+  closeModal('modal-addclient');
+  openClientProfile(name);
+  switchProfileTab(document.querySelector('.profile-tabs .tab:nth-child(3)'), 'extra');
+}
+
+/* ===== tree toggle (COA & working papers) ===== */
+function toggleTree(el, id){
+  el.classList.toggle('open');
+  const show = el.classList.contains('open');
+  document.querySelectorAll('tr[data-parent="'+id+'"]').forEach(row=>{
+    row.style.display = show ? '' : 'none';
+    // إذا طُوي الأب، اطوِ كل الأبناء المتفرعين تحته أيضًا
+    if(!show){
+      const childToggle = row.querySelector('.tree-toggle');
+      if(childToggle && childToggle.classList.contains('open')){
+        toggleTree(childToggle, row.getAttribute('data-id'));
+      }
+    }
+  });
+}
+
+/* ===== "لمن تظهر؟" عام/خاص ===== */
+function toggleSpecialVisibility(radio, targetId){
+  document.getElementById(targetId).style.display = radio.value==='special' ? 'grid' : 'none';
+}
+
+/* ===== ربط مجموعة أوراق العمل بدليل الحسابات ===== */
+function toggleCoaLink(radio){
+  document.getElementById('coaLinkYes').classList.toggle('show', radio.value==='yes');
+  document.getElementById('coaLinkNo').classList.toggle('show', radio.value==='no');
+}
+
+/* ===== نوع البند الفرعي في أوراق العمل ===== */
+function onSubTypeChange(sel){
+  document.querySelectorAll('.type-config').forEach(c=>c.classList.remove('show'));
+  document.getElementById('cfg-'+sel.value).classList.add('show');
+}
+
+/* ===== إضافة خيار كـ chip ضمن قائمة (نوع البند: قائمة / خيارات متعددة) ===== */
+function addChipToList(inputId, listId){
+  const input = document.getElementById(inputId);
+  const val = input.value.trim();
+  if(!val) return;
+  const list = document.getElementById(listId);
+  const chip = document.createElement('div');
+  chip.className = 'chip';
+  chip.innerHTML = `${val} <span class="x" onclick="this.parentElement.remove()">✕</span>`;
+  list.appendChild(chip);
+  input.value = '';
+}
+
+/* ===== دليل الحسابات: تصفية "الحساب الأب" حسب المستوى المختار فقط ===== */
+const coaData = [
+  {code:'1000', name:'الأصول', level:1},
+  {code:'1100', name:'الأصول المتداولة', level:2},
+  {code:'1110', name:'النقدية وما في حكمها', level:3},
+  {code:'1111', name:'نقدية الصندوق', level:4},
+  {code:'1112', name:'نقدية بنك الراجحي', level:4},
+  {code:'1120', name:'الذمم المدينة', level:3},
+  {code:'2000', name:'الخصوم', level:1},
+  {code:'2100', name:'الخصوم المتداولة', level:2},
+  {code:'3000', name:'حقوق الملكية', level:1},
+];
+function populateParentSelect(){
+  const level = parseInt(document.getElementById('acc-level').value, 10);
+  const parentSelect = document.getElementById('acc-parent');
+  const hint = document.getElementById('acc-parent-hint');
+  parentSelect.innerHTML = '';
+  if(level === 1){
+    parentSelect.innerHTML = '<option>— بدون (حساب رئيسي مستوى 1) —</option>';
+    parentSelect.disabled = true;
+    hint.textContent = '(لا يوجد أب لمستوى 1)';
+    return;
+  }
+  parentSelect.disabled = false;
+  hint.textContent = `(يعرض فقط حسابات مستوى ${level - 1})`;
+  const options = coaData.filter(a => a.level === level - 1);
+  if(options.length === 0){
+    parentSelect.innerHTML = '<option>— لا توجد حسابات بهذا المستوى بعد —</option>';
+    return;
+  }
+  options.forEach(a=>{
+    const opt = document.createElement('option');
+    opt.textContent = `${a.code} — ${a.name}`;
+    parentSelect.appendChild(opt);
+  });
+}
+
+/* ===== قائمة منسدلة متعددة الاختيار (نوع العميل / قطاع العميل) مع "تحديد الكل" ===== */
+function toggleMs(trigger){
+  const panel = trigger.nextElementSibling;
+  const wasOpen = panel.classList.contains('open');
+  document.querySelectorAll('.ms-panel.open').forEach(p=>p.classList.remove('open'));
+  if(!wasOpen) panel.classList.add('open');
+}
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('.ms-dd')){
+    document.querySelectorAll('.ms-panel.open').forEach(p=>p.classList.remove('open'));
+  }
+});
+function msToggleAll(checkbox){
+  const panel = checkbox.closest('.ms-panel');
+  panel.querySelectorAll('.ms-opt:not(.ms-all) input').forEach(i => i.checked = checkbox.checked);
+  msUpdateTriggerText(panel);
+}
+function msUpdate(checkbox){
+  const panel = checkbox.closest('.ms-panel');
+  const all = panel.querySelectorAll('.ms-opt:not(.ms-all) input');
+  panel.querySelector('.ms-all input').checked = [...all].every(i=>i.checked);
+  msUpdateTriggerText(panel);
+}
+function msUpdateTriggerText(panel){
+  const trigger = panel.closest('.ms-dd').querySelector('.ms-trigger-text');
+  const all = panel.querySelectorAll('.ms-opt:not(.ms-all) input');
+  const checked = [...all].filter(i=>i.checked);
+  if(checked.length === 0) trigger.textContent = 'لا شيء محدد';
+  else if(checked.length === all.length) trigger.textContent = 'الكل';
+  else trigger.textContent = checked.length + ' محدد';
+}
+
+/* ===== أوراق العمل: القائمة (مجموعة+رئيسي) بجانب لوحة التفاصيل ===== */
+function toggleWpGroup(head){
+  const toggle = head.querySelector('.tree-toggle');
+  toggle.classList.toggle('open');
+  head.nextElementSibling.classList.toggle('collapsed', !toggle.classList.contains('open'));
+}
+function selectWpMain(item, detailId){
+  document.querySelectorAll('.wp-main-item').forEach(i=>i.classList.remove('active'));
+  item.classList.add('active');
+  document.querySelectorAll('.wp-detail').forEach(d=>d.classList.remove('active'));
+  const detail = document.getElementById(detailId);
+  if(detail) detail.classList.add('active');
+}
+</script>
+<script>
+/* ============================================================================
+   طبقة الاتصال الحقيقي بقاعدة البيانات (Supabase)
+   عبّئ القيم الثلاث التالية بعد: (1) إنشاء مشروع Supabase
+   (2) تنفيذ database/schema.sql بالكامل في SQL Editor
+   (3) إضافة صف مكتبكم في جدول companies ونسخ الـ id
+   بدون تعبئتها، تبقى الصفحة تعمل بالبيانات التجريبية الثابتة كما هي.
+   ============================================================================ */
+const SUPABASE_URL       = 'YOUR_SUPABASE_URL';       // مثال: https://xxxxx.supabase.co
+const SUPABASE_ANON_KEY  = 'YOUR_SUPABASE_ANON_KEY';
+const CURRENT_COMPANY_ID = 'YOUR_COMPANY_UUID';        // uuid صف مكتبكم في جدول companies
+
+let sb = null;
+if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && window.supabase) {
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+function isLiveDataMode(){ return !!sb; }
+
+/* ---------------- دليل الحسابات: تحميل حقيقي ---------------- */
+async function loadChartOfAccountsLive(){
+  if(!isLiveDataMode()) return;
+  const {data, error} = await sb.from('chart_of_accounts')
+    .select('id,code,name_ar,level,parent_id,language,deposit_account_id,statement_code,is_active')
+    .eq('company_id', CURRENT_COMPANY_ID)
+    .order('code');
+  if(error){ console.error(error); showToast('تعذّر تحميل دليل الحسابات: '+error.message); return; }
+  coaData.length = 0;
+  data.forEach(a => coaData.push({id:a.id, code:a.code, name:a.name_ar, level:a.level, parent:a.parent_id}));
+  renderCoaTreeLive(data);
+}
+function renderCoaTreeLive(rows){
+  const tbody = document.querySelector('#page-coa .tree-table tbody');
+  if(!tbody) return;
+  const byParent = {};
+  rows.forEach(r => { const k = r.parent_id || 'root'; (byParent[k] = byParent[k] || []).push(r); });
+  let html = '';
+  (function walk(parentKey, depth){
+    (byParent[parentKey] || []).forEach(r=>{
+      const hasChildren = !!byParent[r.id];
+      html += `<tr class="tree-row" data-id="${r.id}" data-parent="${r.parent_id || ''}">
+        <td><div class="tree-cell" style="padding-inline-start:${depth*22}px;">
+          <span class="tree-toggle ${hasChildren?'open':'leaf'}" ${hasChildren?`onclick="toggleTree(this,'${r.id}')"`:''}>▸</span>
+          ${r.code} — ${r.name_ar}</div></td>
+        <td><span class="lvl-badge l${r.level}">مستوى ${r.level}</span></td>
+        <td>${r.language==='ar'?'عربي':r.language==='en'?'إنجليزي':'عربي/إنجليزي'}</td>
+        <td>${r.deposit_account_id ? 'مرتبط' : '—'}</td>
+        <td>${r.statement_code || '—'}</td>
+        <td>مكتبكم</td>
+        <td><span class="badge ${r.is_active?'ok':'neutral'}">${r.is_active?'فعّال':'غير فعّال'}</span></td>
+      </tr>`;
+      if(hasChildren) walk(r.id, depth+1);
+    });
+  })('root', 0);
+  tbody.innerHTML = html || '<tr><td colspan="7" class="empty-hint">لا توجد حسابات بعد</td></tr>';
+}
+async function saveAccountFromForm(){
+  const payload = {
+    level: parseInt(document.getElementById('acc-level').value, 10),
+    code: document.getElementById('acc-code').value.trim(),
+    name_ar: document.getElementById('acc-name-ar').value.trim(),
+    name_en: document.getElementById('acc-name-en').value.trim() || null,
+    language: document.getElementById('acc-lang').value,
+    is_active: document.querySelector('input[name="accStatus"]:checked').value === '1',
+  };
+  if(!payload.code || !payload.name_ar){ showToast('رمز الحساب واسمه بالعربي إلزاميان'); return; }
+  if(!isLiveDataMode()){ showToast('وضع تجريبي — لن يُحفظ فعليًا حتى يُربط النظام بـ Supabase'); closeModal('modal-addaccount'); return; }
+  payload.company_id = CURRENT_COMPANY_ID;
+  const parentSelectVal = document.getElementById('acc-parent').value;
+  const parentMatch = coaData.find(a => `${a.code} — ${a.name}` === parentSelectVal);
+  if(parentMatch) payload.parent_id = parentMatch.id;
+  const {error} = await sb.from('chart_of_accounts').insert(payload);
+  if(error){ showToast('خطأ أثناء الحفظ: '+error.message); return; }
+  closeModal('modal-addaccount');
+  loadChartOfAccountsLive();
+}
+
+/* ---------------- أوراق العمل: تحميل حقيقي ---------------- */
+let addMainTargetGroupId = null;   // آخر مجموعة ضُغط فيها "+ رئيسي"
+let addSubTargetMainId   = null;   // آخر ورقة رئيسية ضُغط فيها "+ إضافة فرعي"
+
+async function loadWorkingPapersLive(){
+  if(!isLiveDataMode()) return;
+  const [{data: groups, error: e1}, {data: mains, error: e2}] = await Promise.all([
+    sb.from('wp_groups').select('*').eq('company_id', CURRENT_COMPANY_ID).order('code'),
+    sb.from('wp_main_items').select('*').eq('company_id', CURRENT_COMPANY_ID).order('code'),
+  ]);
+  if(e1 || e2){ console.error(e1, e2); showToast('تعذّر تحميل أوراق العمل'); return; }
+  renderWorkingPapersLive(groups, mains);
+}
+function renderWorkingPapersLive(groups, mains){
+  const listCol = document.querySelector('.wp-list-col');
+  if(!listCol) return;
+  listCol.innerHTML = groups.map(g=>{
+    const groupMains = mains.filter(m => m.group_id === g.id);
+    return `<div class="wp-group">
+      <div class="wp-group-head" onclick="toggleWpGroup(this)">
+        <span class="tree-toggle open">▸</span><span>${g.code} — ${g.name}</span>
+        ${g.coa_account_id ? '<span class="badge neutral" style="font-size:9.5px;">مرتبطة بدليل الحسابات</span>' : ''}
+        <span class="add-child-btn" onclick="event.stopPropagation(); addMainTargetGroupId='${g.id}'; openModal('modal-addmain')">+ رئيسي</span>
+      </div>
+      <div class="wp-mains">
+        ${groupMains.map(m=>`<div class="wp-main-item" onclick="selectWpMainLive(this,'${m.id}')">
+          <span>${m.code || ''} — ${m.title}</span>
+          <span class="badge ${m.visibility==='general'?'ok':'flag'}">${m.visibility==='general'?'عام':'خاص'}</span>
+        </div>`).join('') || '<div class="empty-hint">لا توجد أوراق عمل بعد</div>'}
+      </div>
+    </div>`;
+  }).join('') || '<div class="empty-hint">لا توجد مجموعات بعد</div>';
+}
+async function selectWpMainLive(item, mainId){
+  document.querySelectorAll('.wp-main-item').forEach(i=>i.classList.remove('active'));
+  item.classList.add('active');
+  addSubTargetMainId = mainId;
+  const [{data: subs}, {data: mainRow}] = await Promise.all([
+    sb.from('wp_sub_items').select('*').eq('main_item_id', mainId).order('sort_order'),
+    sb.from('wp_main_items').select('*').eq('id', mainId).single(),
+  ]);
+  const detailCol = document.querySelector('.wp-detail-col');
+  detailCol.innerHTML = `
+    <div class="wp-detail active">
+      <div class="profile-head" style="margin-bottom:18px;">
+        <div class="seal2">${mainRow.code || ''}</div>
+        <div><div class="pn">${mainRow.title}</div><div class="pm"><span class="badge ${mainRow.visibility==='general'?'ok':'flag'}">${mainRow.visibility==='general'?'عام':'خاص'}</span></div></div>
+        <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='${mainId}'; openModal('modal-addsub')">+ إضافة فرعي</button>
+      </div>
+      <div class="form-section">
+        <div class="form-section-title">الهدف والملاحظات</div>
+        <div class="form-grid">
+          <div class="form-field full"><label>الهدف</label><input value="${mainRow.objective || ''}" disabled></div>
+          <div class="form-field full"><label>ملاحظات</label><input value="${mainRow.notes || ''}" disabled></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>البنود الفرعية</h3></div>
+        <table><thead><tr><th>البند</th><th>النوع</th><th>الظهور</th><th>الحالة</th></tr></thead>
+        <tbody>${(subs||[]).map(s=>`<tr><td>${s.label}</td><td><span class="badge neutral">${s.item_type}</span></td><td><span class="badge ${s.visibility==='general'?'ok':'flag'}">${s.visibility==='general'?'عام':'خاص'}</span></td><td><span class="badge ${s.is_active?'ok':'neutral'}">${s.is_active?'فعّال':'غير فعّال'}</span></td></tr>`).join('') || '<tr><td colspan="4" class="empty-hint">لا توجد بنود فرعية بعد</td></tr>'}</tbody></table>
+      </div>
+    </div>`;
+}
+async function saveGroupFromForm(){
+  const isLinked = document.querySelector('input[name="coaLink"]:checked').value === 'yes';
+  let payload;
+  if(isLinked){
+    const sel = document.getElementById('grp-coa-account');
+    const [code, ...rest] = sel.options[sel.selectedIndex].text.split(' — ');
+    payload = { code: code.trim(), name: rest.join(' — ').trim() };
+  } else {
+    payload = { code: document.getElementById('grp-code').value.trim(), name: document.getElementById('grp-name').value.trim() };
+  }
+  payload.visibility = document.querySelector('input[name="visGroup"]:checked').value;
+  if(!payload.code || !payload.name){ showToast('رمز المجموعة واسمها إلزاميان'); return; }
+  if(!isLiveDataMode()){ showToast('وضع تجريبي — لن يُحفظ فعليًا حتى يُربط النظام بـ Supabase'); closeModal('modal-addgroup'); return; }
+  payload.company_id = CURRENT_COMPANY_ID;
+  const {error} = await sb.from('wp_groups').insert(payload);
+  if(error){ showToast('خطأ أثناء الحفظ: '+error.message); return; }
+  closeModal('modal-addgroup');
+  loadWorkingPapersLive();
+}
+async function saveMainFromForm(){
+  const payload = {
+    code: document.getElementById('main-code').value.trim() || null,
+    title: document.getElementById('main-title').value.trim(),
+    objective: document.getElementById('main-objective').value.trim() || null,
+    notes: document.getElementById('main-notes').value.trim() || null,
+    visibility: document.querySelector('input[name="visMain"]:checked').value,
+  };
+  if(!payload.title){ showToast('اسم ورقة العمل إلزامي'); return; }
+  if(!addMainTargetGroupId){ showToast('اختر المجموعة أولًا من زر "+ رئيسي" داخلها'); return; }
+  if(!isLiveDataMode()){ showToast('وضع تجريبي — لن يُحفظ فعليًا حتى يُربط النظام بـ Supabase'); closeModal('modal-addmain'); return; }
+  payload.company_id = CURRENT_COMPANY_ID;
+  payload.group_id = addMainTargetGroupId;
+  const {error} = await sb.from('wp_main_items').insert(payload);
+  if(error){ showToast('خطأ أثناء الحفظ: '+error.message); return; }
+  closeModal('modal-addmain');
+  loadWorkingPapersLive();
+}
+async function saveSubFromForm(){
+  const type = document.getElementById('sub-type').value;
+  const payload = {
+    label: document.getElementById('sub-label').value.trim(),
+    item_type: type,
+    visibility: document.querySelector('input[name="visSub"]:checked').value,
+    requires_attachment: type==='qa_attach' ? !!document.querySelector('#cfg-qa_attach input[type="checkbox"]')?.checked : false,
+    show_comment_field: type==='list' ? !!document.querySelector('#cfg-list input[type="checkbox"]')?.checked : true,
+  };
+  if(type==='list'){ payload.options = [...document.querySelectorAll('#list-opt-chips .chip')].map(c=>c.textContent.replace('✕','').trim()); }
+  if(type==='multi'){ payload.options = [...document.querySelectorAll('#multi-opt-chips .chip')].map(c=>c.textContent.replace('✕','').trim()); }
+  if(!payload.label){ showToast('نص البند إلزامي'); return; }
+  if(!addSubTargetMainId){ showToast('اختر ورقة العمل الرئيسية أولًا'); return; }
+  if(!isLiveDataMode()){ showToast('وضع تجريبي — لن يُحفظ فعليًا حتى يُربط النظام بـ Supabase'); closeModal('modal-addsub'); return; }
+  payload.company_id = CURRENT_COMPANY_ID;
+  payload.main_item_id = addSubTargetMainId;
+  const {error} = await sb.from('wp_sub_items').insert(payload);
+  if(error){ showToast('خطأ أثناء الحفظ: '+error.message); return; }
+  closeModal('modal-addsub');
+  if(!addSubTargetMainId.startsWith('demo-')) selectWpMainLive(document.querySelector('.wp-main-item.active'), addSubTargetMainId);
+}
+
+/* عند تسجيل الدخول: إن كان النظام مربوطًا بـ Supabase فعليًا، حمّل البيانات الحقيقية فورًا */
+const _origDoLogin = doLogin;
+doLogin = function(){
+  _origDoLogin();
+  loadChartOfAccountsLive();
+  loadWorkingPapersLive();
+};
+</script>
+
+</body>
+</html>
