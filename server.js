@@ -256,6 +256,257 @@ app.post('/api/wp-sub-items', requireAuth, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// القوائم المرجعية (لتعبئة القوائم المنسدلة بالواجهة)
+// ---------------------------------------------------------------------------
+app.get('/api/lookups', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const companyId = req.session.companyId;
+  const [{ data: branches }, { data: clientTypes }, { data: sectors }, { data: regions }, { data: roles }] = await Promise.all([
+    sb.from('branches').select('id,name,city,is_main').eq('company_id', companyId).order('name'),
+    sb.from('client_types').select('id,name').or(`company_id.eq.${companyId},company_id.is.null`).order('name'),
+    sb.from('sectors').select('id,name').or(`company_id.eq.${companyId},company_id.is.null`).order('name'),
+    sb.from('regions').select('id,name').or(`company_id.eq.${companyId},company_id.is.null`).order('name'),
+    sb.from('roles').select('id,code,name_ar,level').order('level'),
+  ]);
+  res.json({ branches: branches || [], clientTypes: clientTypes || [], sectors: sectors || [], regions: regions || [], roles: roles || [] });
+});
+
+// ---------------------------------------------------------------------------
+// العملاء
+// ---------------------------------------------------------------------------
+app.get('/api/clients', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('clients')
+    .select('id,name,client_code,status,client_type_id,sector_id,region_id,review_manager_id,created_at')
+    .eq('company_id', req.session.companyId)
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.post('/api/clients', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const payload = { ...req.body, company_id: req.session.companyId, created_by: req.session.userId };
+  const { data, error } = await sb.from('clients').insert(payload).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.get('/api/clients/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client, error } = await sb.from('clients').select('*')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (error) return res.status(500).json({ message: error.message });
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const [{ data: employees }, { data: files }, { data: reviewers }] = await Promise.all([
+    sb.from('client_employees').select('*').eq('client_id', client.id).order('created_at'),
+    sb.from('client_files').select('id,name,period_end,engagement_type,status,created_at').eq('client_id', client.id).order('created_at', { ascending: false }),
+    sb.from('client_reviewer_assignments').select('user_id, users(first_name_ar,last_name_ar)').eq('client_id', client.id),
+  ]);
+  res.json({ client, employees: employees || [], files: files || [], reviewers: reviewers || [] });
+});
+
+app.put('/api/clients/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { data, error } = await sb.from('clients').update(req.body).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.post('/api/clients/:id/employees', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { data, error } = await sb.from('client_employees').insert({ ...req.body, client_id: req.params.id }).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// ---------------------------------------------------------------------------
+// ملفات التدقيق (Engagement files)
+// ---------------------------------------------------------------------------
+app.get('/api/client-files', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  let query = sb.from('client_files')
+    .select('id,name,period_end,engagement_type,status,created_at,client_id,clients!inner(id,name,company_id)')
+    .eq('clients.company_id', req.session.companyId)
+    .order('created_at', { ascending: false });
+  if (req.query.clientId) query = query.eq('client_id', req.query.clientId);
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.post('/api/clients/:id/files', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const payload = { ...req.body, client_id: req.params.id, created_by: req.session.userId };
+  const { data, error } = await sb.from('client_files').insert(payload).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+async function assertFileInCompany(sb, fileId, companyId) {
+  const { data } = await sb.from('client_files')
+    .select('id, client_id, name, period_end, engagement_type, status, clients!inner(id,name,company_id)')
+    .eq('id', fileId).eq('clients.company_id', companyId).maybeSingle();
+  return data;
+}
+
+app.get('/api/client-files/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  res.json(file);
+});
+
+// ---------------------------------------------------------------------------
+// ميزان المراجعة (تهيئة الميزان)
+// ---------------------------------------------------------------------------
+app.get('/api/client-files/:id/trial-balance', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data: latest } = await sb.from('trial_balances').select('*').eq('client_file_id', req.params.id).order('version', { ascending: false }).limit(1).maybeSingle();
+  if (!latest) return res.json({ trialBalance: null, lines: [] });
+  const { data: lines, error } = await sb.from('trial_balance_lines').select('*').eq('trial_balance_id', latest.id).order('account_code');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ trialBalance: latest, lines });
+});
+
+// يحفظ نسخة جديدة كاملة من بنود الميزان (إصدار جديد في كل مرة، بدون حذف الإصدارات السابقة)
+app.post('/api/client-files/:id/trial-balance', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const lines = Array.isArray(req.body.lines) ? req.body.lines : [];
+
+  const { data: prev } = await sb.from('trial_balances').select('version').eq('client_file_id', req.params.id).order('version', { ascending: false }).limit(1).maybeSingle();
+  const nextVersion = prev ? prev.version + 1 : 1;
+
+  const { data: tb, error: tbErr } = await sb.from('trial_balances')
+    .insert({ client_file_id: req.params.id, version: nextVersion, status: 'matched', uploaded_by: req.session.userId, file_url: req.body.fileUrl || null })
+    .select().single();
+  if (tbErr) return res.status(500).json({ message: tbErr.message });
+
+  if (lines.length) {
+    const rows = lines.map(l => ({
+      trial_balance_id: tb.id,
+      account_code: l.account_code,
+      account_name: l.account_name || null,
+      coa_account_id: l.coa_account_id || null,
+      opening_balance: l.opening_balance || 0,
+      debit_movement: l.debit_movement || 0,
+      credit_movement: l.credit_movement || 0,
+      closing_balance: l.closing_balance || 0,
+    }));
+    const { error: linesErr } = await sb.from('trial_balance_lines').insert(rows);
+    if (linesErr) return res.status(500).json({ message: linesErr.message });
+  }
+  res.json({ trialBalance: tb });
+});
+
+// ---------------------------------------------------------------------------
+// تحديث أوراق العمل (المطابقة التلقائية بالميزان + دليل الحسابات)
+// ---------------------------------------------------------------------------
+app.post('/api/client-files/:id/refresh-working-papers', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { error } = await sb.rpc('fn_refresh_client_file_working_papers', { p_client_file_id: req.params.id });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
+});
+
+app.get('/api/client-files/:id/working-papers', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+
+  const { data: matched, error } = await sb.from('client_file_working_papers')
+    .select('id, include_reason, status, wp_main_item_id, wp_main_items(id, code, title, objective, group_id, wp_groups(id, code, name))')
+    .eq('client_file_id', req.params.id)
+    .eq('is_included', true);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(matched);
+});
+
+app.get('/api/client-files/:id/wp-main-items/:mainId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data: main } = await sb.from('wp_main_items').select('*').eq('id', req.params.mainId).maybeSingle();
+  if (!main) return res.status(404).json({ message: 'الورقة غير موجودة' });
+  const { data: subs } = await sb.from('wp_sub_items').select('*').eq('main_item_id', req.params.mainId).order('sort_order');
+  const { data: answers } = await sb.from('client_file_wp_answers').select('*').eq('client_file_id', req.params.id).in('wp_sub_item_id', (subs || []).map(s => s.id));
+  res.json({ main, subs: subs || [], answers: answers || [] });
+});
+
+app.post('/api/client-files/:id/wp-answers', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const answers = Array.isArray(req.body.answers) ? req.body.answers : [];
+  for (const a of answers) {
+    const payload = {
+      client_file_id: req.params.id, wp_sub_item_id: a.wp_sub_item_id,
+      answer_value: a.answer_value ?? null, comment: a.comment || null,
+      answered_by: req.session.userId, answered_at: new Date().toISOString(),
+    };
+    const { error } = await sb.from('client_file_wp_answers')
+      .upsert(payload, { onConflict: 'client_file_id,wp_sub_item_id' });
+    if (error) return res.status(500).json({ message: error.message });
+  }
+  // يحدّث حالة الورقة الرئيسية إلى "قيد التنفيذ" تلقائيًا عند أول إجابة
+  if (answers.length && req.body.mainItemId) {
+    await sb.from('client_file_working_papers')
+      .update({ status: 'in_progress' })
+      .eq('client_file_id', req.params.id).eq('wp_main_item_id', req.body.mainItemId).eq('status', 'not_started');
+  }
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// المستخدمون (موظفو المكتب)
+// ---------------------------------------------------------------------------
+app.get('/api/users', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('users')
+    .select('id, first_name_ar, last_name_ar, phone, email, job_title_ar, is_sales_agent, is_active, username, branch_id, role_id, roles(code, name_ar), branches(name)')
+    .eq('company_id', req.session.companyId)
+    .order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.post('/api/users', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const body = req.body || {};
+  if (!body.username || !body.first_name_ar || !body.last_name_ar || !body.role_id) {
+    return res.status(400).json({ message: 'الاسم واسم المستخدم والدور إلزامية' });
+  }
+  const tempPassword = body.password || Math.random().toString(36).slice(-8);
+  const passwordHash = await bcrypt.hash(tempPassword, 10);
+  const payload = {
+    company_id: req.session.companyId,
+    branch_id: body.branch_id || null, role_id: body.role_id,
+    first_name_ar: body.first_name_ar, last_name_ar: body.last_name_ar,
+    first_name_en: body.first_name_en || null, last_name_en: body.last_name_en || null,
+    phone: body.phone || null, gender: body.gender || null,
+    job_title_ar: body.job_title_ar || null, job_title_en: body.job_title_en || null,
+    employment_type: body.employment_type || null, is_sales_agent: !!body.is_sales_agent,
+    username: body.username, email: body.email || null,
+    password_hash: passwordHash, is_active: true,
+  };
+  const { data, error } = await sb.from('users').insert(payload).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ...data, temporaryPassword: body.password ? undefined : tempPassword });
+});
+
+// ---------------------------------------------------------------------------
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
