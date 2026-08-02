@@ -835,6 +835,60 @@ app.delete('/api/client-files/:id/requirements/:reqId', requireAuth, async (req,
 });
 
 // ---------------------------------------------------------------------------
+// الملاحظات — تعمل بنفس آلية المتطلبات (تبدأ بـ ! بالدردشة) لكن حالتها محلولة/غير محلولة
+// ---------------------------------------------------------------------------
+app.get('/api/client-files/:id/notes', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data, error } = await sb.from('wp_notes')
+    .select('*, wp_main_items(title), created:users!wp_notes_created_by_fkey(first_name_ar, last_name_ar)')
+    .eq('client_file_id', req.params.id).order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/client-files/:id/notes', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const b = req.body || {};
+  if (!b.body || !b.body.trim()) return res.status(400).json({ message: 'نص الملاحظة إلزامي' });
+  const payload = { client_file_id: req.params.id, wp_main_item_id: b.wp_main_item_id || null, body: b.body.trim(), created_by: req.session.userId };
+  const { data: note, error } = await sb.from('wp_notes').insert(payload).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+
+  const { data: msg } = await sb.from('chat_messages').insert({
+    company_id: req.session.companyId, client_id: file.client_id, client_file_id: req.params.id,
+    wp_main_item_id: b.wp_main_item_id || null, sender_user_id: req.session.userId,
+    body: '📝 ملاحظة: ' + note.body, note_id: note.id,
+  }).select('id').single();
+  if (msg) await sb.from('wp_notes').update({ chat_message_id: msg.id }).eq('id', note.id);
+
+  res.json(note);
+});
+
+app.post('/api/client-files/:id/notes/:noteId/resolve', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data, error } = await sb.from('wp_notes')
+    .update({ is_resolved: !!req.body.is_resolved, resolved_by: req.session.userId, resolved_at: new Date().toISOString() })
+    .eq('id', req.params.noteId).eq('client_file_id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.delete('/api/client-files/:id/notes/:noteId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { error } = await sb.from('wp_notes').delete().eq('id', req.params.noteId).eq('client_file_id', req.params.id);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
 // المرفقات — تجميع كل مرفق بالملف من أي مصدر (متطلبات، أوراق عمل، دردشات) بمكان واحد
 // ---------------------------------------------------------------------------
 app.get('/api/client-files/:id/attachments', requireAuth, async (req, res) => {
@@ -1030,6 +1084,73 @@ app.post('/api/client-files/:id/refresh-working-papers', requireAuth, async (req
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   const { error } = await sb.rpc('fn_refresh_client_file_working_papers', { p_client_file_id: req.params.id });
   if (error) return res.status(500).json({ message: error.message });
+  await autoMatchRequirementTemplates(sb, req.params.id, req.session.companyId, req.session.userId);
+  res.json({ ok: true });
+});
+
+// يطابق قوالب المتطلبات العامة مع حسابات الميزان الفعلية لهذا الملف ويضيف الناقص فقط (بدون تكرار)
+async function autoMatchRequirementTemplates(sb, clientFileId, companyId, userId) {
+  const { data: templates } = await sb.from('wp_requirement_templates').select('*').eq('company_id', companyId).eq('is_active', true);
+  if (!templates || !templates.length) return;
+  const { data: latestTb } = await sb.from('trial_balances').select('id').eq('client_file_id', clientFileId).order('version', { ascending: false }).limit(1).maybeSingle();
+  let tbAccountIds = new Set();
+  if (latestTb) {
+    const { data: lines } = await sb.from('trial_balance_lines').select('coa_account_id').eq('trial_balance_id', latestTb.id).not('coa_account_id', 'is', null);
+    (lines || []).forEach(l => tbAccountIds.add(l.coa_account_id));
+  }
+  const eligible = templates.filter(t => !t.coa_account_id || tbAccountIds.has(t.coa_account_id));
+  if (!eligible.length) return;
+  const { data: existing } = await sb.from('wp_requirements').select('template_id').eq('client_file_id', clientFileId).not('template_id', 'is', null);
+  const existingTplIds = new Set((existing || []).map(e => e.template_id));
+  const { data: file } = await sb.from('client_files').select('client_id').eq('id', clientFileId).maybeSingle();
+  for (const t of eligible) {
+    if (existingTplIds.has(t.id)) continue;
+    const { data: newReq } = await sb.from('wp_requirements').insert({
+      client_file_id: clientFileId, title: t.title, template_id: t.id, created_by: userId,
+    }).select().single();
+    if (newReq && file) {
+      const { data: msg } = await sb.from('chat_messages').insert({
+        company_id: companyId, client_id: file.client_id, client_file_id: clientFileId,
+        sender_user_id: userId, body: '📋 طلب مرفق (تلقائي): ' + t.title, requirement_id: newReq.id,
+      }).select('id').single();
+      if (msg) await sb.from('wp_requirements').update({ chat_message_id: msg.id }).eq('id', newReq.id);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// تهيئة قوالب المتطلبات التلقائية (شبيهة تمامًا بتهيئة أوراق العمل)
+// ---------------------------------------------------------------------------
+app.get('/api/requirement-templates', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('wp_requirement_templates').select('*, chart_of_accounts(code, name_ar)').eq('company_id', req.session.companyId).order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/requirement-templates', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.title || !b.title.trim()) return res.status(400).json({ message: 'اسم القالب إلزامي' });
+  const payload = { company_id: req.session.companyId, title: b.title.trim(), coa_account_id: b.coa_account_id || null, visibility: b.coa_account_id ? 'general' : 'general' };
+  const { data, error } = await sb.from('wp_requirement_templates').insert(payload).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.put('/api/requirement-templates/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const payload = { title: b.title, coa_account_id: b.coa_account_id || null, is_active: b.is_active !== false };
+  const { data, error } = await sb.from('wp_requirement_templates').update(payload).eq('id', req.params.id).eq('company_id', req.session.companyId).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.delete('/api/requirement-templates/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { error } = await sb.from('wp_requirement_templates').delete().eq('id', req.params.id).eq('company_id', req.session.companyId);
+  if (error) return res.status(500).json({ message: error.message });
   res.json({ ok: true });
 });
 
@@ -1039,11 +1160,32 @@ app.get('/api/client-files/:id/working-papers', requireAuth, async (req, res) =>
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
 
   const { data: matched, error } = await sb.from('client_file_working_papers')
-    .select('id, include_reason, status, wp_main_item_id, wp_main_items(id, code, title, objective, group_id, wp_groups(id, code, name))')
+    .select('id, include_reason, status, wp_main_item_id, wp_main_items(id, code, title, objective, group_id, wp_groups(id, code, name, coa_account_id))')
     .eq('client_file_id', req.params.id)
     .eq('is_included', true);
   if (error) return res.status(500).json({ message: error.message });
-  res.json(matched);
+
+  // نجيب آخر ميزان مراجعة ونربط كل ورقة رئيسية بمبلغ الحساب المرتبط بمجموعتها (إن وجد)
+  const { data: latestTb } = await sb.from('trial_balances').select('id').eq('client_file_id', req.params.id).order('version', { ascending: false }).limit(1).maybeSingle();
+  let amountByAccountId = {};
+  if (latestTb) {
+    const coaIds = [...new Set((matched || []).map(m => m.wp_main_items && m.wp_main_items.wp_groups && m.wp_main_items.wp_groups.coa_account_id).filter(Boolean))];
+    if (coaIds.length) {
+      const { data: coaRows } = await sb.from('chart_of_accounts').select('id, code').in('id', coaIds);
+      const codeById = {}; (coaRows || []).forEach(c => codeById[c.id] = c.code);
+      const codes = Object.values(codeById);
+      if (codes.length) {
+        const { data: lines } = await sb.from('trial_balance_lines').select('account_code, closing_balance').eq('trial_balance_id', latestTb.id).in('account_code', codes);
+        const closingByCode = {}; (lines || []).forEach(l => closingByCode[l.account_code] = l.closing_balance);
+        coaIds.forEach(id => { const code = codeById[id]; if (code !== undefined && closingByCode[code] !== undefined) amountByAccountId[id] = closingByCode[code]; });
+      }
+    }
+  }
+  const withAmounts = (matched || []).map(m => {
+    const coaId = m.wp_main_items && m.wp_main_items.wp_groups && m.wp_main_items.wp_groups.coa_account_id;
+    return { ...m, account_amount: coaId && amountByAccountId[coaId] !== undefined ? amountByAccountId[coaId] : null };
+  });
+  res.json(withAmounts);
 });
 
 app.get('/api/client-files/:id/wp-main-items/:mainId', requireAuth, async (req, res) => {
