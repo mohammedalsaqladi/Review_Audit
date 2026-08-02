@@ -315,6 +315,15 @@ app.put('/api/clients/:id', requireAuth, async (req, res) => {
   res.json(data);
 });
 
+app.delete('/api/clients/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { error } = await sb.from('clients').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ message: 'تعذّر حذف العميل: ' + error.message });
+  res.json({ ok: true });
+});
+
 app.post('/api/clients/:id/employees', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
@@ -322,6 +331,31 @@ app.post('/api/clients/:id/employees', requireAuth, async (req, res) => {
   const { data, error } = await sb.from('client_employees').insert({ ...req.body, client_id: req.params.id }).select().single();
   if (error) return res.status(500).json({ message: error.message });
   res.json(data);
+});
+
+app.put('/api/clients/:id/employees/:empId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const body = req.body || {};
+  const payload = {
+    full_name: body.full_name, job_title: body.job_title || null,
+    email: body.email || null, phone: body.phone || null,
+    is_primary_contact: !!body.is_primary_contact,
+  };
+  const { data, error } = await sb.from('client_employees').update(payload)
+    .eq('id', req.params.empId).eq('client_id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.delete('/api/clients/:id/employees/:empId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { error } = await sb.from('client_employees').delete().eq('id', req.params.empId).eq('client_id', req.params.id);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -350,9 +384,10 @@ app.post('/api/clients/:id/files', requireAuth, async (req, res) => {
 });
 
 async function assertFileInCompany(sb, fileId, companyId) {
-  const { data } = await sb.from('client_files')
+  const { data, error } = await sb.from('client_files')
     .select('id, client_id, name, period_end, engagement_type, status, clients!inner(id,name,company_id)')
     .eq('id', fileId).eq('clients.company_id', companyId).maybeSingle();
+  if (error) console.error('assertFileInCompany query error:', error.message);
   return data;
 }
 
@@ -361,6 +396,30 @@ app.get('/api/client-files/:id', requireAuth, async (req, res) => {
   const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   res.json(file);
+});
+
+app.put('/api/client-files/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const body = req.body || {};
+  const payload = {};
+  if (body.name !== undefined) payload.name = body.name;
+  if (body.period_end !== undefined) payload.period_end = body.period_end || null;
+  if (body.engagement_type !== undefined) payload.engagement_type = body.engagement_type || null;
+  if (body.status !== undefined) payload.status = body.status;
+  const { data, error } = await sb.from('client_files').update(payload).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.delete('/api/client-files/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { error } = await sb.from('client_files').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ message: 'تعذّر حذف الملف: ' + error.message });
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -574,78 +633,93 @@ app.delete('/api/clients/:id/reviewers/:userId', requireAuth, async (req, res) =
 // ميزان المراجعة: تنزيل نموذج فارغ (بقائمة منسدلة لدليل الحسابات مستوى 4) وتصدير الحالي
 // ---------------------------------------------------------------------------
 app.get('/api/client-files/:id/trial-balance/template', requireAuth, async (req, res) => {
-  const sb = requireSupabase(res); if (!sb) return;
-  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
-  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
-  const { data: coa } = await sb.from('chart_of_accounts').select('code, name_ar')
-    .eq('company_id', req.session.companyId).eq('level', 4).order('code');
+  try {
+    const sb = requireSupabase(res); if (!sb) return;
+    const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+    if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+    const { data: coa, error: coaErr } = await sb.from('chart_of_accounts').select('code, name_ar')
+      .eq('company_id', req.session.companyId).eq('level', 4).order('code');
+    if (coaErr) return res.status(500).json({ message: 'تعذّر تحميل دليل الحسابات: ' + coaErr.message });
 
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet('ميزان المراجعة');
-  ws.views = [{ rightToLeft: true }];
-  ws.columns = [
-    { header: 'رقم الحساب', key: 'code', width: 16 },
-    { header: 'اسم الحساب', key: 'name', width: 26 },
-    { header: 'رصيد أول الفترة', key: 'opening', width: 18 },
-    { header: 'مدين الحركة', key: 'debit', width: 16 },
-    { header: 'دائن الحركة', key: 'credit', width: 16 },
-    { header: 'رصيد آخر الفترة', key: 'closing', width: 18 },
-    { header: 'رمز المستوى الرابع بدليل الحسابات', key: 'coaCode', width: 30 },
-  ];
-  ws.getRow(1).font = { bold: true };
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('ميزان المراجعة');
+    ws.views = [{ rightToLeft: true }];
+    ws.columns = [
+      { header: 'رقم الحساب', key: 'code', width: 16 },
+      { header: 'اسم الحساب', key: 'name', width: 26 },
+      { header: 'رصيد أول الفترة', key: 'opening', width: 18 },
+      { header: 'مدين الحركة', key: 'debit', width: 16 },
+      { header: 'دائن الحركة', key: 'credit', width: 16 },
+      { header: 'رصيد آخر الفترة', key: 'closing', width: 18 },
+      { header: 'رمز المستوى الرابع بدليل الحسابات', key: 'coaCode', width: 30 },
+    ];
+    ws.getRow(1).font = { bold: true };
 
-  const coaList = wb.addWorksheet('دليل الحسابات (لا تُعدَّل)');
-  coaList.state = 'veryHidden';
-  (coa || []).forEach((a, i) => { coaList.getCell(`A${i + 1}`).value = `${a.code} — ${a.name_ar}`; });
-  const lastRow = Math.max((coa || []).length, 1);
+    const coaList = wb.addWorksheet('دليل الحسابات (لا تُعدَّل)');
+    coaList.state = 'veryHidden';
+    (coa || []).forEach((a, i) => { coaList.getCell(`A${i + 1}`).value = `${a.code} — ${a.name_ar}`; });
+    const lastRow = Math.max((coa || []).length, 1);
 
-  for (let r = 2; r <= 200; r++) {
-    ws.getCell(`G${r}`).dataValidation = {
-      type: 'list', allowBlank: true,
-      formulae: [`'دليل الحسابات (لا تُعدَّل)'!$A$1:$A$${lastRow}`],
-    };
+    for (let r = 2; r <= 200; r++) {
+      ws.getCell(`G${r}`).dataValidation = {
+        type: 'list', allowBlank: true,
+        formulae: [`'دليل الحسابات (لا تُعدَّل)'!$A$1:$A$${lastRow}`],
+      };
+    }
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="نموذج-ميزان-المراجعة.xlsx"');
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (e) {
+    console.error('trial-balance/template failed:', e);
+    if (!res.headersSent) res.status(500).json({ message: 'تعذّر إنشاء ملف النموذج: ' + e.message });
+    else res.end();
   }
-
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', 'attachment; filename="نموذج-ميزان-المراجعة.xlsx"');
-  await wb.xlsx.write(res);
-  res.end();
 });
 
 app.get('/api/client-files/:id/trial-balance/export', requireAuth, async (req, res) => {
-  const sb = requireSupabase(res); if (!sb) return;
-  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
-  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
-  const { data: latest } = await sb.from('trial_balances').select('*').eq('client_file_id', req.params.id).order('version', { ascending: false }).limit(1).maybeSingle();
-  let lines = [];
-  if (latest) {
-    const { data } = await sb.from('trial_balance_lines').select('*, chart_of_accounts(code, name_ar)').eq('trial_balance_id', latest.id).order('account_code');
-    lines = data || [];
+  try {
+    const sb = requireSupabase(res); if (!sb) return;
+    const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+    if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+    const { data: latest, error: latestErr } = await sb.from('trial_balances').select('*').eq('client_file_id', req.params.id).order('version', { ascending: false }).limit(1).maybeSingle();
+    if (latestErr) return res.status(500).json({ message: 'تعذّر تحميل الميزان: ' + latestErr.message });
+    let lines = [];
+    if (latest) {
+      const { data, error: linesErr } = await sb.from('trial_balance_lines').select('*, chart_of_accounts(code, name_ar)').eq('trial_balance_id', latest.id).order('account_code');
+      if (linesErr) return res.status(500).json({ message: 'تعذّر تحميل بنود الميزان: ' + linesErr.message });
+      lines = data || [];
+    }
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('ميزان المراجعة');
+    ws.views = [{ rightToLeft: true }];
+    ws.columns = [
+      { header: 'رقم الحساب', key: 'code', width: 16 },
+      { header: 'اسم الحساب', key: 'name', width: 26 },
+      { header: 'رصيد أول الفترة', key: 'opening', width: 18 },
+      { header: 'مدين الحركة', key: 'debit', width: 16 },
+      { header: 'دائن الحركة', key: 'credit', width: 16 },
+      { header: 'رصيد آخر الفترة', key: 'closing', width: 18 },
+      { header: 'المستوى الرابع — دليل الحسابات', key: 'coa', width: 30 },
+    ];
+    ws.getRow(1).font = { bold: true };
+    lines.forEach(l => ws.addRow({
+      code: l.account_code, name: l.account_name,
+      opening: l.opening_balance, debit: l.debit_movement, credit: l.credit_movement, closing: l.closing_balance,
+      coa: l.chart_of_accounts ? `${l.chart_of_accounts.code} — ${l.chart_of_accounts.name_ar}` : '',
+    }));
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="ميزان-المراجعة.xlsx"');
+    await wb.xlsx.write(res);
+    res.end();
+  } catch (e) {
+    console.error('trial-balance/export failed:', e);
+    if (!res.headersSent) res.status(500).json({ message: 'تعذّر تصدير الملف: ' + e.message });
+    else res.end();
   }
-
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet('ميزان المراجعة');
-  ws.views = [{ rightToLeft: true }];
-  ws.columns = [
-    { header: 'رقم الحساب', key: 'code', width: 16 },
-    { header: 'اسم الحساب', key: 'name', width: 26 },
-    { header: 'رصيد أول الفترة', key: 'opening', width: 18 },
-    { header: 'مدين الحركة', key: 'debit', width: 16 },
-    { header: 'دائن الحركة', key: 'credit', width: 16 },
-    { header: 'رصيد آخر الفترة', key: 'closing', width: 18 },
-    { header: 'المستوى الرابع — دليل الحسابات', key: 'coa', width: 30 },
-  ];
-  ws.getRow(1).font = { bold: true };
-  lines.forEach(l => ws.addRow({
-    code: l.account_code, name: l.account_name,
-    opening: l.opening_balance, debit: l.debit_movement, credit: l.credit_movement, closing: l.closing_balance,
-    coa: l.chart_of_accounts ? `${l.chart_of_accounts.code} — ${l.chart_of_accounts.name_ar}` : '',
-  }));
-
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', 'attachment; filename="ميزان-المراجعة.xlsx"');
-  await wb.xlsx.write(res);
-  res.end();
 });
 
 // ---------------------------------------------------------------------------
