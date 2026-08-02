@@ -191,6 +191,23 @@
   .icon-btn:hover{background:var(--paper);}
   .icon-btn svg{width:18px; height:18px;}
   .icon-btn .dot{position:absolute; top:7px; left:8px; width:7px; height:7px; border-radius:50%; background:var(--red); border:1.5px solid var(--card);}
+
+  /* أزرار إجراءات صغيرة داخل الجداول والأشجار (تعديل/حذف) */
+  .row-icon-btn{display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:7px;
+    border:1px solid var(--line); background:var(--card); cursor:pointer; transition:background .12s, border-color .12s; flex-shrink:0;}
+  .row-icon-btn svg{width:13px; height:13px;}
+  .row-icon-btn.edit{color:var(--brass);}
+  .row-icon-btn.edit:hover{background:#FBF3E2; border-color:var(--brass);}
+  .row-icon-btn.delete{color:var(--red);}
+  .row-icon-btn.delete:hover{background:var(--red-bg); border-color:var(--red);}
+  .row-icon-btn.lead{color:#2F6F4E;}
+  .row-icon-btn.lead:hover{background:#E4F0EA; border-color:#2F6F4E;}
+  .row-actions{display:flex; align-items:center; gap:6px;}
+
+  /* أيقونة صغيرة للإشارة لحالة (مثل الربط بدليل الحسابات) بدل نص طويل */
+  .mini-icon-badge{display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:6px;
+    background:#EFE7D2; color:var(--brass); flex-shrink:0; cursor:default;}
+  .mini-icon-badge svg{width:12px; height:12px;}
   .topbar-user{display:flex; align-items:center; gap:9px; padding-inline-start:16px; border-inline-start:1px solid var(--line); cursor:pointer;}
   .topbar-user .av{width:34px; height:34px; border-radius:50%; background:var(--ink); color:var(--brass-light);
     display:flex; align-items:center; justify-content:center; font-family:'Cairo'; font-weight:700; font-size:12.5px;}
@@ -357,6 +374,20 @@
   .inline-add-box.active{display:flex;}
   .inline-add-box input{flex:1; padding:8px 11px; border:1.3px dashed var(--line-strong); border-radius:7px; background:var(--card); font-size:12.5px;}
   .inline-add-box button{padding:8px 13px; font-size:11.5px; white-space:nowrap;}
+
+  /* وضع العرض المختصر لبيانات العميل: خانات صغيرة وبدون حدود حتى يُضغط زر "تعديل" */
+  .ptab-headbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;}
+  .ptab-headbar h3{font-size:14px; font-weight:700; color:var(--ink);}
+  .ptab.view-mode .form-section{padding:12px 16px; margin-bottom:10px;}
+  .ptab.view-mode .form-section-title{margin-bottom:10px; padding-bottom:7px; font-size:11.5px;}
+  .ptab.view-mode .form-grid{gap:8px 18px;}
+  .ptab.view-mode .form-field label{margin-bottom:2px; font-size:10.5px; color:var(--muted); font-weight:600;}
+  .ptab.view-mode .form-field input, .ptab.view-mode .form-field select{
+    border:none; background:transparent; padding:2px 0; font-size:12.8px; font-weight:600; color:var(--ink);
+    pointer-events:none; border-radius:0;
+  }
+  .ptab.view-mode .save-action-row{display:none;}
+  .ptab:not(.view-mode) .form-section{border-color:var(--brass); box-shadow:0 0 0 1px rgba(173,138,63,.12);}
 
   .radio-group{display:flex; gap:18px; padding:10px 2px;}
   .radio-group label{display:flex; align-items:center; gap:7px; font-size:13px; cursor:pointer; color:var(--text);}
@@ -715,17 +746,10 @@
         </div>
       </div>
 
-      <div class="nav-group" id="grp-setup">
-        <div class="nav-item parent" onclick="toggleGroup('grp-setup')">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 01-4 0v-.09A1.7 1.7 0 008.5 19a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.14 15a1.7 1.7 0 00-1.55-1H2.5a2 2 0 010-4h.09A1.7 1.7 0 004 8.5a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 008.5 4.14 1.7 1.7 0 009.5 2.59V2.5a2 2 0 014 0v.09c0 .69.4 1.32 1 1.55.6.25 1.35.14 1.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.4 8.5c.23.6.86 1 1.55 1h.09a2 2 0 010 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg>
-          تهيئة النظام
-          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-        </div>
-        <div class="nav-sub">
-          <div class="nav-item" data-page="coa">دليل الحسابات</div>
-          <div class="nav-item" data-page="policies">السياسات</div>
-          <div class="nav-item" data-page="workpapers">أوراق العمل</div>
-          <div class="nav-item" data-page="auditorreport">تقرير المراجع</div>
+      <div class="nav-group">
+        <div class="nav-item" data-page="company">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
+          بيانات المكتب
         </div>
       </div>
 
@@ -733,13 +757,6 @@
         <div class="nav-item" data-page="staff">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
           المستخدمون
-        </div>
-      </div>
-
-      <div class="nav-group">
-        <div class="nav-item" data-page="company">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
-          بيانات المكتب
         </div>
       </div>
 
@@ -761,6 +778,20 @@
         <div class="nav-item" data-page="contracts">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 15h6M9 11h3"/></svg>
           العروض والعقود
+        </div>
+      </div>
+
+      <div class="nav-group" id="grp-setup">
+        <div class="nav-item parent" onclick="toggleGroup('grp-setup')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 01-4 0v-.09A1.7 1.7 0 008.5 19a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 004.14 15a1.7 1.7 0 00-1.55-1H2.5a2 2 0 010-4h.09A1.7 1.7 0 004 8.5a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 008.5 4.14 1.7 1.7 0 009.5 2.59V2.5a2 2 0 014 0v.09c0 .69.4 1.32 1 1.55.6.25 1.35.14 1.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.4 8.5c.23.6.86 1 1.55 1h.09a2 2 0 010 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg>
+          تهيئة النظام
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </div>
+        <div class="nav-sub">
+          <div class="nav-item" data-page="coa">دليل الحسابات</div>
+          <div class="nav-item" data-page="policies">السياسات</div>
+          <div class="nav-item" data-page="workpapers">أوراق العمل</div>
+          <div class="nav-item" data-page="auditorreport">تقرير المراجع</div>
         </div>
       </div>
     </nav>
@@ -905,7 +936,14 @@
         </div>
 
         <!-- تبويب: بيانات الاتصال -->
-        <div class="ptab active" id="ptab-contact">
+        <div class="ptab active view-mode" id="ptab-contact">
+          <div class="ptab-headbar">
+            <h3>بيانات الاتصال</h3>
+            <button class="btn" onclick="toggleProfileEditMode('ptab-contact')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              تعديل
+            </button>
+          </div>
           <div class="form-section">
             <div class="form-section-title">اتصال رئيسي</div>
             <div class="form-grid">
@@ -939,7 +977,7 @@
               <div class="form-field"><label>الرمز البريدي <span class="req">*</span></label><input id="pc-postal" placeholder="00000"></div>
             </div>
           </div>
-          <button class="btn dark" onclick="saveClientContact()">حفظ بيانات الاتصال</button>
+          <div class="save-action-row"><button class="btn dark" onclick="saveClientContact()">حفظ بيانات الاتصال</button></div>
         </div>
 
         <!-- تبويب: الموظفين -->
@@ -975,7 +1013,14 @@
         </div>
 
         <!-- تبويب: معلومات إضافية -->
-        <div class="ptab" id="ptab-extra">
+        <div class="ptab view-mode" id="ptab-extra">
+          <div class="ptab-headbar">
+            <h3>معلومات إضافية</h3>
+            <button class="btn" onclick="toggleProfileEditMode('ptab-extra')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              تعديل
+            </button>
+          </div>
           <div class="form-section">
             <div class="form-section-title">السجل والمعاملة الضريبية</div>
             <div class="form-grid">
@@ -1017,7 +1062,7 @@
               </div>
             </div>
           </div>
-          <button class="btn dark" onclick="saveClientExtra()">حفظ المعلومات الإضافية</button>
+          <div class="save-action-row"><button class="btn dark" onclick="saveClientExtra()">حفظ المعلومات الإضافية</button></div>
         </div>
 
         <!-- تبويب: ملفات التدقيق -->
@@ -1979,6 +2024,15 @@
 /* ===== جلسة المستخدم الحالية (تُملأ فعليًا بعد تسجيل الدخول عبر /api/login) ===== */
 let SESSION = { token:null, companyId:null, companyName:null, userId:null, role:null, username:null };
 
+/* أيقونات صغيرة قابلة لإعادة الاستخدام لأزرار التعديل/الحذف/الربط */
+const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+const ICON_DELETE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/><path d="M10 11v6M14 11v6"/></svg>';
+const ICON_LEAD = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.6 6.6L21 9l-5 4.5L17.4 21 12 17.3 6.6 21 8 13.5 3 9l6.4-.4z"/></svg>';
+const ICON_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>';
+function btnEdit(onclick, title){ return `<span class="row-icon-btn edit" title="${title||'تعديل'}" onclick="${onclick}">${ICON_EDIT}</span>`; }
+function btnDelete(onclick, title){ return `<span class="row-icon-btn delete" title="${title||'حذف'}" onclick="${onclick}">${ICON_DELETE}</span>`; }
+function btnLead(onclick, title){ return `<span class="row-icon-btn lead" title="${title||'تعيين كمسؤول'}" onclick="${onclick}">${ICON_LEAD}</span>`; }
+
 async function doLogin(){
   const code = document.getElementById('login-company-code').value.trim();
   const username = document.getElementById('login-username').value.trim();
@@ -2323,6 +2377,8 @@ async function openClientProfile(clientId){
   document.querySelector('.nav-item[data-page="clients"]').classList.add('active');
   document.querySelectorAll('.profile-tabs .tab').forEach((t,i)=>t.classList.toggle('active', i===0));
   document.querySelectorAll('#page-clientprofile .ptab').forEach((t,i)=>t.classList.toggle('active', i===0));
+  exitEditMode('ptab-contact');
+  exitEditMode('ptab-extra');
   document.querySelector('.content').scrollTop = 0;
 
   try{
@@ -2419,9 +2475,10 @@ function renderClientProfile(client, employees, files){
     <tr><td><b>${e.full_name}</b></td><td>${e.job_title||'—'}</td><td>${e.email||'—'}</td><td>${e.phone||'—'}</td>
     <td><span class="badge ${e.is_primary_contact?'ok':'neutral'}">${e.is_primary_contact?'جهة اتصال رئيسية':'نشط'}</span></td>
     <td style="white-space:nowrap;">
-      <span class="link" style="color:var(--brass); cursor:pointer; font-size:12px;" onclick="openEditEmployeeForm('${e.id}')">تعديل</span>
-      &nbsp;·&nbsp;
-      <span class="link" style="color:var(--red); cursor:pointer; font-size:12px;" onclick="deleteClientEmployee('${e.id}')">حذف</span>
+      <div class="row-actions">
+        ${btnEdit(`openEditEmployeeForm('${e.id}')`)}
+        ${btnDelete(`deleteClientEmployee('${e.id}')`)}
+      </div>
     </td></tr>`).join('')
     : '<tr><td colspan="6" class="empty-hint">لا يوجد موظفون بعد</td></tr>';
 
@@ -2438,6 +2495,25 @@ function switchProfileTab(el, key){
   el.classList.add('active');
   document.querySelectorAll('#page-clientprofile .ptab').forEach(t=>t.classList.remove('active'));
   document.getElementById('ptab-'+key).classList.add('active');
+}
+
+function toggleProfileEditMode(tabId){
+  const tab = document.getElementById(tabId);
+  const btn = tab.querySelector('.ptab-headbar button');
+  if(tab.classList.contains('view-mode')){
+    tab.classList.remove('view-mode');
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M18 6L6 18M6 6l12 12"/></svg> إلغاء';
+  } else {
+    exitEditMode(tabId);
+    if(currentClientId) openClientProfile(currentClientId); // إلغاء أي تعديل غير محفوظ بإعادة تحميل البيانات
+  }
+}
+function exitEditMode(tabId){
+  const tab = document.getElementById(tabId);
+  if(!tab) return;
+  tab.classList.add('view-mode');
+  const btn = tab.querySelector('.ptab-headbar button');
+  if(btn) btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> تعديل';
 }
 
 async function saveClientContact(){
@@ -2459,7 +2535,7 @@ async function saveClientContact(){
     po_box: document.getElementById('pc-pobox').value.trim() || null,
     postal_code: document.getElementById('pc-postal').value.trim() || null,
   };
-  try{ await apiFetch('/api/clients/'+currentClientId, {method:'PUT', body: JSON.stringify(payload)}); showToast('تم حفظ بيانات الاتصال'); openClientProfile(currentClientId); }
+  try{ await apiFetch('/api/clients/'+currentClientId, {method:'PUT', body: JSON.stringify(payload)}); showToast('تم حفظ بيانات الاتصال'); exitEditMode('ptab-contact'); openClientProfile(currentClientId); }
   catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
 
@@ -2476,7 +2552,7 @@ async function saveClientExtra(){
     office_branch_id: document.getElementById('sel-office-branch').value || null,
     review_manager_id: document.getElementById('sel-reviewer').value || null,
   };
-  try{ await apiFetch('/api/clients/'+currentClientId, {method:'PUT', body: JSON.stringify(payload)}); showToast('تم حفظ المعلومات الإضافية'); }
+  try{ await apiFetch('/api/clients/'+currentClientId, {method:'PUT', body: JSON.stringify(payload)}); showToast('تم حفظ المعلومات الإضافية'); exitEditMode('ptab-extra'); }
   catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
 
@@ -2638,8 +2714,10 @@ async function loadClientFileTeam(){
       return `<tr><td><b>${nm}</b></td><td>${role}</td>
         <td><span class="badge ${t.is_lead?'ok':'neutral'}">${t.is_lead?'مسؤول الملف':'عضو فريق'}</span></td>
         <td style="white-space:nowrap;">
-          ${t.is_lead ? '' : `<span class="link" style="color:var(--brass); cursor:pointer; font-size:12px;" onclick="makeTeamLead('${t.user_id}')">تعيين كمسؤول</span>&nbsp;·&nbsp;`}
-          <span class="link" style="color:var(--red); cursor:pointer; font-size:12px;" onclick="removeTeamMember('${t.user_id}')">إزالة</span>
+          <div class="row-actions">
+            ${t.is_lead ? '' : btnLead(`makeTeamLead('${t.user_id}')`)}
+            ${btnDelete(`removeTeamMember('${t.user_id}')`, 'إزالة')}
+          </div>
         </td></tr>`;
     }).join('') : '<tr><td colspan="4" class="empty-hint">لا يوجد أعضاء بعد</td></tr>';
   }catch(e){ showToast('تعذّر تحميل فريق المراجعة: '+e.message); }
@@ -3039,7 +3117,7 @@ async function loadUsersLive(){
         <td>${u.email||'—'}</td><td>${u.phone||'—'}</td>
         <td><span class="badge ${u.is_sales_agent?'ok':'neutral'}">${u.is_sales_agent?'نعم':'لا'}</span></td>
         <td><span class="badge ${u.is_active?'ok':'neutral'}">${u.is_active?'نشط':'معطّل'}</span></td>
-        <td><span class="link" style="color:var(--brass); cursor:pointer; font-size:12px;" onclick="openEditUserModal('${u.id}')">تعديل</span></td></tr>`).join('')
+        <td><div class="row-actions">${btnEdit(`openEditUserModal('${u.id}')`)}</div></td></tr>`).join('')
       : '<tr><td colspan="8" class="empty-hint">لا يوجد مستخدمون بعد</td></tr>';
   }catch(e){ tbody.innerHTML = `<tr><td colspan="8" class="empty-hint">تعذّر التحميل: ${e.message}</td></tr>`; }
 }
@@ -3400,17 +3478,21 @@ function renderWorkingPapersLive(groups, mains){
     return `<div class="wp-group">
       <div class="wp-group-head" onclick="toggleWpGroup(this)">
         <span class="tree-toggle open">▸</span><span>${g.code} — ${g.name}</span>
-        ${g.coa_account_id ? '<span class="badge neutral" style="font-size:9.5px;">مرتبطة بدليل الحسابات</span>' : ''}
-        <span class="link" style="font-size:10.5px; color:var(--brass);" onclick="event.stopPropagation(); openEditGroupModal('${g.id}')">تعديل</span>
-        <span class="link" style="font-size:10.5px; color:var(--red);" onclick="event.stopPropagation(); deleteGroupLive('${g.id}')">حذف</span>
+        ${g.coa_account_id ? `<span class="mini-icon-badge" title="مرتبطة بدليل الحسابات">${ICON_LINK}</span>` : ''}
+        <div class="row-actions" style="margin-inline-start:auto;">
+          ${btnEdit(`event.stopPropagation(); openEditGroupModal('${g.id}')`)}
+          ${btnDelete(`event.stopPropagation(); deleteGroupLive('${g.id}')`)}
+        </div>
         <span class="add-child-btn" onclick="event.stopPropagation(); openAddMainModal('${g.id}')">+ رئيسي</span>
       </div>
       <div class="wp-mains">
         ${groupMains.map(m=>`<div class="wp-main-item" onclick="selectWpMainLive(this,'${m.id}')">
           <span>${m.code || ''} — ${m.title}</span>
           <span class="badge ${m.visibility==='general'?'ok':'flag'}">${m.visibility==='general'?'عام':'خاص'}</span>
-          <span class="link" style="font-size:10.5px; color:var(--brass); margin-inline-start:8px;" onclick="event.stopPropagation(); openEditMainModal('${m.id}')">تعديل</span>
-          <span class="link" style="font-size:10.5px; color:var(--red);" onclick="event.stopPropagation(); deleteMainLive('${m.id}')">حذف</span>
+          <div class="row-actions" style="margin-inline-start:8px;">
+            ${btnEdit(`event.stopPropagation(); openEditMainModal('${m.id}')`)}
+            ${btnDelete(`event.stopPropagation(); deleteMainLive('${m.id}')`)}
+          </div>
         </div>`).join('') || '<div class="empty-hint">لا توجد أوراق عمل بعد</div>'}
       </div>
     </div>`;
@@ -3445,9 +3527,10 @@ async function selectWpMainLive(item, mainId){
         <table><thead><tr><th>البند</th><th>النوع</th><th>الظهور</th><th>الحالة</th><th></th></tr></thead>
         <tbody>${(subs||[]).map(s=>`<tr><td>${s.label}</td><td><span class="badge neutral">${s.item_type}</span></td><td><span class="badge ${s.visibility==='general'?'ok':'flag'}">${s.visibility==='general'?'عام':'خاص'}</span></td><td><span class="badge ${s.is_active?'ok':'neutral'}">${s.is_active?'فعّال':'غير فعّال'}</span></td>
           <td style="white-space:nowrap;">
-            <span class="link" style="font-size:12px; color:var(--brass); cursor:pointer;" onclick="openEditSubModal('${s.id}')">تعديل</span>
-            &nbsp;·&nbsp;
-            <span class="link" style="font-size:12px; color:var(--red); cursor:pointer;" onclick="deleteSubLive('${s.id}')">حذف</span>
+            <div class="row-actions">
+              ${btnEdit(`openEditSubModal('${s.id}')`)}
+              ${btnDelete(`deleteSubLive('${s.id}')`)}
+            </div>
           </td></tr>`).join('') || '<tr><td colspan="5" class="empty-hint">لا توجد بنود فرعية بعد</td></tr>'}</tbody></table>
       </div>
     </div>`;
