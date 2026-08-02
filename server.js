@@ -952,7 +952,7 @@ app.get('/api/staff-chat/group', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const { data, error } = await sb.from('staff_messages')
     .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar))')
-    .eq('company_id', req.session.companyId).is('recipient_user_id', null).order('created_at');
+    .eq('company_id', req.session.companyId).is('recipient_user_id', null).is('group_id', null).order('created_at');
   if (error) return res.status(500).json({ message: error.message });
   res.json(data || []);
 });
@@ -963,6 +963,68 @@ app.post('/api/staff-chat/group', requireAuth, async (req, res) => {
   if (!b.body && !b.attachment_data) return res.status(400).json({ message: 'الرسالة فارغة' });
   const payload = {
     company_id: req.session.companyId, sender_user_id: req.session.userId, recipient_user_id: null,
+    body: b.body || null, attachment_name: b.attachment_name || null, attachment_mime: b.attachment_mime || null, attachment_data: b.attachment_data || null,
+  };
+  const { data, error } = await sb.from('staff_messages').insert(payload)
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar))').single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// ---------------------------------------------------------------------------
+// مجموعات دردشة مخصّصة بين عدة موظفين (أكثر من شخصين)
+// ---------------------------------------------------------------------------
+app.get('/api/staff-chat/groups', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: myMemberships } = await sb.from('staff_chat_group_members').select('group_id').eq('user_id', req.session.userId);
+  const groupIds = (myMemberships || []).map(m => m.group_id);
+  if (!groupIds.length) return res.json([]);
+  const { data: groups, error } = await sb.from('staff_chat_groups').select('*, staff_chat_group_members(user_id, users(first_name_ar, last_name_ar))').in('id', groupIds);
+  if (error) return res.status(500).json({ message: error.message });
+  const { data: lastMsgs } = await sb.from('staff_messages').select('group_id, body, created_at').in('group_id', groupIds).order('created_at', { ascending: false });
+  const lastByGroup = {}; (lastMsgs || []).forEach(m => { if (!lastByGroup[m.group_id]) lastByGroup[m.group_id] = m; });
+  const result = (groups || []).map(g => ({
+    id: g.id, name: g.name,
+    members: (g.staff_chat_group_members || []).map(m => ((m.users.first_name_ar || '') + ' ' + (m.users.last_name_ar || '')).trim()),
+    last_message: lastByGroup[g.id] ? lastByGroup[g.id].body : null,
+    last_message_at: lastByGroup[g.id] ? lastByGroup[g.id].created_at : null,
+  })).sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
+  res.json(result);
+});
+
+app.post('/api/staff-chat/groups', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.name || !b.name.trim()) return res.status(400).json({ message: 'اسم المجموعة إلزامي' });
+  const memberIds = Array.isArray(b.member_ids) ? b.member_ids.filter(id => id !== req.session.userId) : [];
+  if (!memberIds.length) return res.status(400).json({ message: 'اختر عضوًا واحدًا على الأقل' });
+  const { data: group, error } = await sb.from('staff_chat_groups').insert({ company_id: req.session.companyId, name: b.name.trim(), created_by: req.session.userId }).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  const allMembers = [...new Set([req.session.userId, ...memberIds])].map(uid => ({ group_id: group.id, user_id: uid }));
+  const { error: memErr } = await sb.from('staff_chat_group_members').insert(allMembers);
+  if (memErr) return res.status(500).json({ message: memErr.message });
+  res.json(group);
+});
+
+app.get('/api/staff-chat/groups/:groupId/messages', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: member } = await sb.from('staff_chat_group_members').select('id').eq('group_id', req.params.groupId).eq('user_id', req.session.userId).maybeSingle();
+  if (!member) return res.status(403).json({ message: 'لست عضوًا بهذه المجموعة' });
+  const { data, error } = await sb.from('staff_messages')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar))')
+    .eq('group_id', req.params.groupId).order('created_at');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/staff-chat/groups/:groupId/messages', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: member } = await sb.from('staff_chat_group_members').select('id').eq('group_id', req.params.groupId).eq('user_id', req.session.userId).maybeSingle();
+  if (!member) return res.status(403).json({ message: 'لست عضوًا بهذه المجموعة' });
+  const b = req.body || {};
+  if (!b.body && !b.attachment_data) return res.status(400).json({ message: 'الرسالة فارغة' });
+  const payload = {
+    company_id: req.session.companyId, sender_user_id: req.session.userId, group_id: req.params.groupId,
     body: b.body || null, attachment_name: b.attachment_name || null, attachment_mime: b.attachment_mime || null, attachment_data: b.attachment_data || null,
   };
   const { data, error } = await sb.from('staff_messages').insert(payload)
@@ -1034,11 +1096,23 @@ app.get('/api/chats', requireAuth, async (req, res) => {
     .map(u => ({ user_id: u.id, name: ((u.first_name_ar || '') + ' ' + (u.last_name_ar || '')).trim(), role: u.roles ? u.roles.name_ar : null, last_message: lastByColleague[u.id] ? lastByColleague[u.id].body : null, last_message_at: lastByColleague[u.id] ? lastByColleague[u.id].created_at : null }))
     .sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
 
-  const { data: lastGroupMsg } = await sb.from('staff_messages').select('body, created_at').eq('company_id', companyId).is('recipient_user_id', null).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  const { data: lastGroupMsg } = await sb.from('staff_messages').select('body, created_at').eq('company_id', companyId).is('recipient_user_id', null).is('group_id', null).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+  const { data: myMemberships } = await sb.from('staff_chat_group_members').select('group_id').eq('user_id', req.session.userId);
+  const groupIds = (myMemberships || []).map(m => m.group_id);
+  let staffGroups = [];
+  if (groupIds.length) {
+    const { data: groups } = await sb.from('staff_chat_groups').select('id, name').in('id', groupIds);
+    const { data: lastMsgs } = await sb.from('staff_messages').select('group_id, body, created_at').in('group_id', groupIds).order('created_at', { ascending: false });
+    const lastByGroup = {}; (lastMsgs || []).forEach(m => { if (!lastByGroup[m.group_id]) lastByGroup[m.group_id] = m; });
+    staffGroups = (groups || []).map(g => ({ id: g.id, name: g.name, last_message: lastByGroup[g.id] ? lastByGroup[g.id].body : null, last_message_at: lastByGroup[g.id] ? lastByGroup[g.id].created_at : null }))
+      .sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
+  }
 
   res.json({
     clientRooms,
     staffDms,
+    staffGroups,
     staffGroup: { last_message: lastGroupMsg ? lastGroupMsg.body : null, last_message_at: lastGroupMsg ? lastGroupMsg.created_at : null },
   });
 });
