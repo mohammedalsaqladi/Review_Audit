@@ -1250,7 +1250,7 @@
       <div class="page" id="page-workpapers">
         <div class="page-head">
           <div><div class="crumb">تهيئة النظام</div><h1>أوراق العمل</h1><p class="desc">اختر ورقة عمل رئيسية من القائمة لعرض تفاصيلها وبنودها الفرعية</p></div>
-          <button class="btn dark" onclick="openModal('modal-addgroup')">+ إضافة مجموعة</button>
+          <button class="btn dark" onclick="openAddGroupModal()">+ إضافة مجموعة</button>
         </div>
 
         <div class="wp-shell">
@@ -1776,16 +1776,8 @@
       </div>
       <div class="coa-link-box" id="coaLinkYes">
         <div class="form-field full" style="margin-bottom:14px;">
-          <label>اختر الحساب (المستوى الثاني من دليل الحسابات)</label>
-          <select id="grp-coa-account">
-            <option value="1100">1100 — الأصول المتداولة</option>
-            <option value="2100">2100 — الخصوم المتداولة</option>
-            <option value="5000" selected>5000 — النقد والبنوك</option>
-            <option value="6000">6000 — المدينين والمبيعات</option>
-            <option value="7500">7500 — الاستثمارات</option>
-            <option value="8000">8000 — الذمم التجارية الدائنة</option>
-            <option value="11000">11000 — المخزون</option>
-          </select>
+          <label>اختر الحساب (المستوى الرابع من دليل الحسابات)</label>
+          <select id="grp-coa-account"></select>
           <div style="font-size:11px; color:var(--muted-2); margin-top:6px;">سيُستخدم رمز واسم الحساب المختار تلقائيًا كرمز واسم المجموعة</div>
         </div>
       </div>
@@ -3354,6 +3346,16 @@ async function selectWpMainLive(item, mainId){
         <tbody>${(subs||[]).map(s=>`<tr><td>${s.label}</td><td><span class="badge neutral">${s.item_type}</span></td><td><span class="badge ${s.visibility==='general'?'ok':'flag'}">${s.visibility==='general'?'عام':'خاص'}</span></td><td><span class="badge ${s.is_active?'ok':'neutral'}">${s.is_active?'فعّال':'غير فعّال'}</span></td></tr>`).join('') || '<tr><td colspan="4" class="empty-hint">لا توجد بنود فرعية بعد</td></tr>'}</tbody></table>
       </div>
     </div>`;
+}
+function openAddGroupModal(){
+  const sel = document.getElementById('grp-coa-account');
+  const level4 = coaData.filter(a=>a.level===4);
+  sel.innerHTML = level4.length
+    ? level4.map(a=>`<option value="${a.code}">${a.code} — ${a.name}</option>`).join('')
+    : '<option value="">— لا توجد حسابات مستوى رابع بعد —</option>';
+  document.getElementById('grp-code').value = '';
+  document.getElementById('grp-name').value = '';
+  openModal('modal-addgroup');
 }
 async function saveGroupFromForm(){
   const isLinked = document.querySelector('input[name="coaLink"]:checked').value === 'yes';
