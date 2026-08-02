@@ -654,14 +654,16 @@ app.post('/api/client-files/:id/adjustments', requireAuth, async (req, res) => {
   const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   const b = req.body || {};
+  if (!b.debit_account_code || !b.credit_account_code) return res.status(400).json({ message: 'اختر الحساب المدين والحساب الدائن' });
   const payload = {
     client_file_id: req.params.id,
-    coa_account_id: b.coa_account_id || null,
-    account_code: b.account_code || null,
-    account_name: b.account_name || null,
-    debit: Number(b.debit) || 0,
-    credit: Number(b.credit) || 0,
-    description: b.description || null,
+    debit_account_code: b.debit_account_code,
+    debit_account_name: b.debit_account_name || null,
+    credit_account_code: b.credit_account_code,
+    credit_account_name: b.credit_account_name || null,
+    amount: Number(b.amount) || 0,
+    affects: b.affects === 'opening' ? 'opening' : 'closing',
+    narration: b.narration || null,
     created_by: req.session.userId,
   };
   const { data, error } = await sb.from('trial_balance_adjustments').insert(payload).select().single();
@@ -674,13 +676,15 @@ app.put('/api/client-files/:id/adjustments/:adjId', requireAuth, async (req, res
   const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   const b = req.body || {};
+  if (!b.debit_account_code || !b.credit_account_code) return res.status(400).json({ message: 'اختر الحساب المدين والحساب الدائن' });
   const payload = {
-    coa_account_id: b.coa_account_id || null,
-    account_code: b.account_code || null,
-    account_name: b.account_name || null,
-    debit: Number(b.debit) || 0,
-    credit: Number(b.credit) || 0,
-    description: b.description || null,
+    debit_account_code: b.debit_account_code,
+    debit_account_name: b.debit_account_name || null,
+    credit_account_code: b.credit_account_code,
+    credit_account_name: b.credit_account_name || null,
+    amount: Number(b.amount) || 0,
+    affects: b.affects === 'opening' ? 'opening' : 'closing',
+    narration: b.narration || null,
   };
   const { data, error } = await sb.from('trial_balance_adjustments').update(payload)
     .eq('id', req.params.adjId).eq('client_file_id', req.params.id).select().single();
@@ -698,18 +702,18 @@ app.delete('/api/client-files/:id/adjustments/:adjId', requireAuth, async (req, 
 });
 
 // ---------------------------------------------------------------------------
-// نظام الدردشة — غرفة عامة واحدة لكل ملف تدقيق (وفريق المراجعة)، مع إمكانية
-// دردشة خاصة ببند عمل رئيسي عبر تمرير wp_main_item_id
+// نظام الدردشة — دردشة عميل واحدة (تُرى من كل فريق المراجعة)، تُصفَّى حسب الملف
+// أو بند العمل عند التصفح من داخلهما، وتُجمع بالكامل عند عرض "دردشة العميل"
 // ---------------------------------------------------------------------------
 app.get('/api/client-files/:id/chat', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   let q = sb.from('chat_messages')
-    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, sender_user_id, users(id, first_name_ar, last_name_ar)')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title)')
     .eq('client_file_id', req.params.id).order('created_at');
+  // بدون تحديد بند: تُعرض كل رسائل الملف (العامة وأي رسالة مرتبطة ببند). بتحديد بند: تُصفَّى لرسائله فقط.
   if (req.query.mainItemId) q = q.eq('wp_main_item_id', req.query.mainItemId);
-  else q = q.is('wp_main_item_id', null);
   const { data, error } = await q;
   if (error) return res.status(500).json({ message: error.message });
   res.json(data || []);
@@ -723,6 +727,7 @@ app.post('/api/client-files/:id/chat', requireAuth, async (req, res) => {
   if (!b.body && !b.attachment_data) return res.status(400).json({ message: 'الرسالة فارغة' });
   const payload = {
     company_id: req.session.companyId,
+    client_id: file.client_id,
     client_file_id: req.params.id,
     wp_main_item_id: b.wp_main_item_id || null,
     sender_user_id: req.session.userId,
@@ -732,7 +737,7 @@ app.post('/api/client-files/:id/chat', requireAuth, async (req, res) => {
     attachment_data: b.attachment_data || null,
   };
   const { data, error } = await sb.from('chat_messages').insert(payload)
-    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, sender_user_id, users(id, first_name_ar, last_name_ar)')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title)')
     .single();
   if (error) return res.status(500).json({ message: error.message });
   res.json(data);
@@ -747,27 +752,114 @@ app.get('/api/client-files/:id/client-employees', requireAuth, async (req, res) 
   res.json(data || []);
 });
 
-// دليل غرف الدردشة المتاحة للمستخدم الحالي: كل ملف تدقيق هو "عميل/شركة" ← غرفة عامة لفريقها
+// دردشة العميل المجمّعة — كل الرسائل بكل ملفاته التدقيقية بمكان واحد (مثل واتساب)
+app.get('/api/clients/:id/chat', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { data, error } = await sb.from('chat_messages')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title), client_files(name)')
+    .eq('client_id', req.params.id).order('created_at');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+// ---------------------------------------------------------------------------
+// دردشات فريق المكتب: مجموعة عامة لكل الموظفين + رسائل خاصة بين اثنين فقط
+// ---------------------------------------------------------------------------
+app.get('/api/staff-chat/group', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('staff_messages')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar))')
+    .eq('company_id', req.session.companyId).is('recipient_user_id', null).order('created_at');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/staff-chat/group', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.body && !b.attachment_data) return res.status(400).json({ message: 'الرسالة فارغة' });
+  const payload = {
+    company_id: req.session.companyId, sender_user_id: req.session.userId, recipient_user_id: null,
+    body: b.body || null, attachment_name: b.attachment_name || null, attachment_mime: b.attachment_mime || null, attachment_data: b.attachment_data || null,
+  };
+  const { data, error } = await sb.from('staff_messages').insert(payload)
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar))').single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.get('/api/staff-chat/dm/:userId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: peer } = await sb.from('users').select('id').eq('id', req.params.userId).eq('company_id', req.session.companyId).maybeSingle();
+  if (!peer) return res.status(404).json({ message: 'المستخدم غير موجود' });
+  const me = req.session.userId;
+  const { data, error } = await sb.from('staff_messages')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, sender_user_id, recipient_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar))')
+    .eq('company_id', req.session.companyId)
+    .or(`and(sender_user_id.eq.${me},recipient_user_id.eq.${req.params.userId}),and(sender_user_id.eq.${req.params.userId},recipient_user_id.eq.${me})`)
+    .order('created_at');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/staff-chat/dm/:userId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: peer } = await sb.from('users').select('id').eq('id', req.params.userId).eq('company_id', req.session.companyId).maybeSingle();
+  if (!peer) return res.status(404).json({ message: 'المستخدم غير موجود' });
+  const b = req.body || {};
+  if (!b.body && !b.attachment_data) return res.status(400).json({ message: 'الرسالة فارغة' });
+  const payload = {
+    company_id: req.session.companyId, sender_user_id: req.session.userId, recipient_user_id: req.params.userId,
+    body: b.body || null, attachment_name: b.attachment_name || null, attachment_mime: b.attachment_mime || null, attachment_data: b.attachment_data || null,
+  };
+  const { data, error } = await sb.from('staff_messages').insert(payload)
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, sender_user_id, recipient_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar))').single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// دليل الدردشات (صفحة "الدردشات") — عملاء كمجموعات + زملاء للمراسلة الخاصة + مجموعة المكتب
 app.get('/api/chats', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
-  const { data: files, error } = await sb.from('client_files')
-    .select('id, name, status, client_id, clients!inner(id, name, company_id)')
-    .eq('clients.company_id', req.session.companyId).order('created_at', { ascending: false });
-  if (error) return res.status(500).json({ message: error.message });
-  const fileIds = (files || []).map(f => f.id);
-  let lastByFile = {};
-  if (fileIds.length) {
-    const { data: lastMsgs } = await sb.from('chat_messages')
-      .select('client_file_id, body, created_at').in('client_file_id', fileIds).is('wp_main_item_id', null)
-      .order('created_at', { ascending: false });
-    (lastMsgs || []).forEach(m => { if (!lastByFile[m.client_file_id]) lastByFile[m.client_file_id] = m; });
+  const companyId = req.session.companyId;
+
+  const { data: clients, error: clientsErr } = await sb.from('clients').select('id, name').eq('company_id', companyId).order('name');
+  if (clientsErr) return res.status(500).json({ message: clientsErr.message });
+  const clientIds = (clients || []).map(c => c.id);
+  let lastByClient = {};
+  if (clientIds.length) {
+    const { data: lastMsgs } = await sb.from('chat_messages').select('client_id, body, created_at').in('client_id', clientIds).order('created_at', { ascending: false });
+    (lastMsgs || []).forEach(m => { if (!lastByClient[m.client_id]) lastByClient[m.client_id] = m; });
   }
-  const rooms = (files || []).map(f => ({
-    client_file_id: f.id, file_name: f.name, client_name: f.clients.name,
-    last_message: lastByFile[f.id] ? lastByFile[f.id].body : null,
-    last_message_at: lastByFile[f.id] ? lastByFile[f.id].created_at : null,
-  }));
-  res.json(rooms);
+  const clientRooms = (clients || [])
+    .map(c => ({ client_id: c.id, client_name: c.name, last_message: lastByClient[c.id] ? lastByClient[c.id].body : null, last_message_at: lastByClient[c.id] ? lastByClient[c.id].created_at : null }))
+    .sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
+
+  const { data: colleagues } = await sb.from('users').select('id, first_name_ar, last_name_ar, roles(name_ar)').eq('company_id', companyId).neq('id', req.session.userId).order('first_name_ar');
+  const colleagueIds = (colleagues || []).map(u => u.id);
+  let lastByColleague = {};
+  if (colleagueIds.length) {
+    const { data: dms } = await sb.from('staff_messages').select('sender_user_id, recipient_user_id, body, created_at')
+      .eq('company_id', companyId).not('recipient_user_id', 'is', null)
+      .or(`sender_user_id.eq.${req.session.userId},recipient_user_id.eq.${req.session.userId}`).order('created_at', { ascending: false });
+    (dms || []).forEach(m => {
+      const peerId = m.sender_user_id === req.session.userId ? m.recipient_user_id : m.sender_user_id;
+      if (!lastByColleague[peerId]) lastByColleague[peerId] = m;
+    });
+  }
+  const staffDms = (colleagues || [])
+    .map(u => ({ user_id: u.id, name: ((u.first_name_ar || '') + ' ' + (u.last_name_ar || '')).trim(), role: u.roles ? u.roles.name_ar : null, last_message: lastByColleague[u.id] ? lastByColleague[u.id].body : null, last_message_at: lastByColleague[u.id] ? lastByColleague[u.id].created_at : null }))
+    .sort((a, b) => new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
+
+  const { data: lastGroupMsg } = await sb.from('staff_messages').select('body, created_at').eq('company_id', companyId).is('recipient_user_id', null).order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+  res.json({
+    clientRooms,
+    staffDms,
+    staffGroup: { last_message: lastGroupMsg ? lastGroupMsg.body : null, last_message_at: lastGroupMsg ? lastGroupMsg.created_at : null },
+  });
 });
 
 // يحفظ نسخة جديدة كاملة من بنود الميزان (إصدار جديد في كل مرة، بدون حذف الإصدارات السابقة)
