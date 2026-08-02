@@ -491,16 +491,20 @@
   .progress-bar .fill{height:100%; border-radius:6px;}
 
   /* ===== بطاقة إجراء داخل ورقة العمل الفعلية (ملف التدقيق) ===== */
-  .proc-item{border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:14px; background:var(--card);}
+  .proc-item{border:1px solid var(--line); border-radius:10px; padding:14px 18px; margin-bottom:12px; background:var(--card);
+    display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap;}
   .proc-item .proc-num{display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%;
-    background:var(--ink); color:#F3EFE2; font-size:11px; font-weight:700; margin-inline-end:8px; flex-shrink:0;}
-  .proc-item .proc-q{font-size:13.5px; font-weight:700; color:var(--ink); margin-bottom:12px; display:flex; align-items:flex-start;}
+    background:var(--paper); color:var(--muted); font-size:11px; font-weight:700; flex-shrink:0; margin-inline-end:8px;}
+  .proc-item .proc-q{font-size:13.5px; font-weight:700; color:var(--ink); display:flex; align-items:flex-start;
+    flex:1 1 26%; min-width:180px; padding-top:6px;}
+  .proc-item .proc-answer{flex:1 1 32%; min-width:200px;}
+  .proc-item .proc-notes{flex:1 1 32%; min-width:200px;}
   .proc-options label{display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:9px; cursor:pointer; color:var(--text);}
   .proc-options input{width:17px; height:17px; accent-color:#2F6F4E; flex-shrink:0;}
-  .yn-row{display:flex; gap:22px; margin-bottom:12px;}
+  .yn-row{display:flex; gap:22px; margin-bottom:0;}
   .yn-row label{display:flex; align-items:center; gap:7px; font-size:13px; cursor:pointer;}
   .notes-label{font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:6px; display:block;}
-  .big-notes{width:100%; min-height:90px; padding:11px 13px; border:1.3px solid var(--line-strong); border-radius:8px;
+  .big-notes{width:100%; min-height:64px; padding:11px 13px; border:1.3px solid var(--line-strong); border-radius:8px;
     background:var(--paper); font-family:inherit; font-size:13px; resize:vertical; line-height:1.7;}
   .big-notes:focus{outline:none; border-color:var(--brass); background:var(--card);}
   .signoff-row{display:flex; gap:22px; flex-wrap:wrap; font-size:13px; margin-bottom:4px;}
@@ -528,6 +532,8 @@
     .login-form-wrap{flex:1;}
     .modal-box{max-width:100%;}
     .form-grid, .form-grid.cols-3{grid-template-columns:1fr;}
+    .proc-item{flex-direction:column;}
+    .proc-item .proc-q, .proc-item .proc-answer, .proc-item .proc-notes{flex:1 1 100%; min-width:0;}
   }
   @media (max-width:1100px){
     .stat-grid{grid-template-columns:repeat(2,1fr);}
@@ -1005,6 +1011,10 @@
                 <label>موقع المكتب <span class="req">*</span></label>
                 <select id="sel-office-branch"><option value="">— اختر —</option></select>
               </div>
+              <div class="form-field">
+                <label>المراجع المسؤول عن العميل</label>
+                <select id="sel-reviewer"><option value="">— بدون —</option></select>
+              </div>
             </div>
           </div>
           <button class="btn dark" onclick="saveClientExtra()">حفظ المعلومات الإضافية</button>
@@ -1071,6 +1081,27 @@
         <div class="tab-strip">
           <div class="tab active" onclick="switchCfdTab(this,'tb')">تهيئة الميزان</div>
           <div class="tab" onclick="switchCfdTab(this,'wp')">أوراق العمل</div>
+          <div class="tab" onclick="switchCfdTab(this,'team')">فريق المراجعة</div>
+        </div>
+
+        <!-- تبويب: فريق المراجعة -->
+        <div class="ptab" id="cfd-team">
+          <div class="form-section" style="padding:16px 18px; margin-bottom:16px;">
+            <div class="form-section-title" style="margin-bottom:12px;">إضافة عضو للفريق</div>
+            <div style="display:flex; gap:10px; align-items:end;">
+              <div class="form-field" style="flex:1;"><label>الموظف</label><select id="team-user-select"></select></div>
+              <div class="form-field"><label>مسؤول الملف؟</label>
+                <select id="team-user-lead"><option value="0">عضو فريق</option><option value="1">مسؤول الملف</option></select>
+              </div>
+              <button class="btn dark" onclick="addTeamMember()" style="margin-bottom:2px;">+ إضافة</button>
+            </div>
+          </div>
+          <div class="panel">
+            <table>
+              <thead><tr><th>الاسم</th><th>الدور الوظيفي</th><th>الحالة</th><th></th></tr></thead>
+              <tbody id="cfd-team-tbody"><tr><td colspan="4" class="empty-hint">لا يوجد أعضاء بعد</td></tr></tbody>
+            </table>
+          </div>
         </div>
 
         <!-- تبويب: تهيئة الميزان -->
@@ -1259,7 +1290,7 @@
             <div class="wp-group">
               <div class="wp-group-head" onclick="toggleWpGroup(this)">
                 <span class="tree-toggle open">▸</span><span>1000 — الملف الدائم</span>
-                <span class="add-child-btn" onclick="event.stopPropagation(); addMainTargetGroupId='demo-g1'; openModal('modal-addmain')">+ رئيسي</span>
+                <span class="add-child-btn" onclick="event.stopPropagation(); openAddMainModal('demo-g1')">+ رئيسي</span>
               </div>
               <div class="wp-mains">
                 <div class="wp-main-item active" onclick="selectWpMain(this,'wp-m1')">
@@ -1274,7 +1305,7 @@
             <div class="wp-group">
               <div class="wp-group-head" onclick="toggleWpGroup(this)">
                 <span class="tree-toggle open">▸</span><span>2000 — تخطيط المراجعة</span>
-                <span class="add-child-btn" onclick="event.stopPropagation(); addMainTargetGroupId='demo-g2'; openModal('modal-addmain')">+ رئيسي</span>
+                <span class="add-child-btn" onclick="event.stopPropagation(); openAddMainModal('demo-g2')">+ رئيسي</span>
               </div>
               <div class="wp-mains">
                 <div class="wp-main-item" onclick="selectWpMain(this,'wp-m3')">
@@ -1287,7 +1318,7 @@
               <div class="wp-group-head" onclick="toggleWpGroup(this)">
                 <span class="tree-toggle open">▸</span><span>5000 — النقد والبنوك</span>
                 <span class="badge neutral" style="font-size:9.5px;">مرتبطة بدليل الحسابات</span>
-                <span class="add-child-btn" onclick="event.stopPropagation(); addMainTargetGroupId='demo-g3'; openModal('modal-addmain')">+ رئيسي</span>
+                <span class="add-child-btn" onclick="event.stopPropagation(); openAddMainModal('demo-g3')">+ رئيسي</span>
               </div>
               <div class="wp-mains">
                 <div class="wp-main-item" onclick="selectWpMain(this,'wp-m4')">
@@ -1304,7 +1335,7 @@
               <div class="profile-head" style="margin-bottom:18px;">
                 <div class="seal2">1002</div>
                 <div><div class="pn">فهم المنشأة</div><div class="pm"><span class="badge ok">عام — تظهر لكل العملاء</span><span>ضمن مجموعة: 1000 — الملف الدائم</span></div></div>
-                <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='wp-m1'; openModal('modal-addsub')">+ إضافة فرعي</button>
+                <button class="btn dark" style="margin-inline-start:auto;" onclick="openAddSubModal('wp-m1')">+ إضافة فرعي</button>
               </div>
               <div class="form-section">
                 <div class="form-section-title">الهدف والملاحظات</div>
@@ -1329,7 +1360,7 @@
               <div class="profile-head" style="margin-bottom:18px;">
                 <div class="seal2">1004</div>
                 <div><div class="pn">الأنظمة الرقابية</div><div class="pm"><span class="badge flag">خاص — الشركات ذات المسؤولية المحدودة فقط</span><span>ضمن مجموعة: 1000 — الملف الدائم</span></div></div>
-                <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='wp-m2'; openModal('modal-addsub')">+ إضافة فرعي</button>
+                <button class="btn dark" style="margin-inline-start:auto;" onclick="openAddSubModal('wp-m2')">+ إضافة فرعي</button>
               </div>
               <div class="form-section">
                 <div class="form-section-title">الهدف والملاحظات</div>
@@ -1354,7 +1385,7 @@
               <div class="profile-head" style="margin-bottom:18px;">
                 <div class="seal2">2002</div>
                 <div><div class="pn">احتساب الأهمية النسبية</div><div class="pm"><span class="badge ok">عام — تظهر لكل العملاء</span><span>ضمن مجموعة: 2000 — تخطيط المراجعة</span></div></div>
-                <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='wp-m3'; openModal('modal-addsub')">+ إضافة فرعي</button>
+                <button class="btn dark" style="margin-inline-start:auto;" onclick="openAddSubModal('wp-m3')">+ إضافة فرعي</button>
               </div>
               <div class="form-section">
                 <div class="form-section-title">الهدف والملاحظات</div>
@@ -1370,7 +1401,7 @@
               <div class="profile-head" style="margin-bottom:18px;">
                 <div class="seal2">5001</div>
                 <div><div class="pn">برنامج مراجعة النقد والبنوك</div><div class="pm"><span class="badge flag">خاص — قطاع الخدمات المالية فقط</span><span>ضمن مجموعة: 5000 — النقد والبنوك</span></div></div>
-                <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='wp-m4'; openModal('modal-addsub')">+ إضافة فرعي</button>
+                <button class="btn dark" style="margin-inline-start:auto;" onclick="openAddSubModal('wp-m4')">+ إضافة فرعي</button>
               </div>
               <div class="form-section">
                 <div class="form-section-title">الهدف والملاحظات</div>
@@ -1791,26 +1822,14 @@
         <div class="form-grid vis-special" id="visSpecial-group">
           <div class="form-field"><label>نوع العميل</label>
             <div class="ms-dd">
-              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
-              <div class="ms-panel">
-                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة ذات مسؤولية محدودة</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مؤسسة فردية</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة مقفلة</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة عامة</label>
-              </div>
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">لا شيء محدد</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel" id="ms-panel-group-ctype"></div>
             </div>
           </div>
           <div class="form-field"><label>قطاع العميل</label>
             <div class="ms-dd">
-              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
-              <div class="ms-panel">
-                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> تجارة تجزئة وجملة</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> صناعة وتصنيع</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مقاولات وإنشاءات</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> خدمات مالية واستثمار</label>
-              </div>
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">لا شيء محدد</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel" id="ms-panel-group-sector"></div>
             </div>
           </div>
         </div>
@@ -1847,26 +1866,14 @@
         <div class="form-grid vis-special" id="visSpecial-main">
           <div class="form-field"><label>نوع العميل</label>
             <div class="ms-dd">
-              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
-              <div class="ms-panel">
-                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة ذات مسؤولية محدودة</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مؤسسة فردية</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة مقفلة</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة عامة</label>
-              </div>
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">لا شيء محدد</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel" id="ms-panel-main-ctype"></div>
             </div>
           </div>
           <div class="form-field"><label>قطاع العميل</label>
             <div class="ms-dd">
-              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
-              <div class="ms-panel">
-                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> تجارة تجزئة وجملة</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> صناعة وتصنيع</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مقاولات وإنشاءات</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> خدمات مالية واستثمار</label>
-              </div>
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">لا شيء محدد</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel" id="ms-panel-main-sector"></div>
             </div>
           </div>
         </div>
@@ -1948,26 +1955,14 @@
         <div class="form-grid vis-special" id="visSpecial-sub">
           <div class="form-field"><label>نوع العميل</label>
             <div class="ms-dd">
-              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
-              <div class="ms-panel">
-                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة ذات مسؤولية محدودة</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مؤسسة فردية</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة مقفلة</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> شركة مساهمة عامة</label>
-              </div>
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">لا شيء محدد</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel" id="ms-panel-sub-ctype"></div>
             </div>
           </div>
           <div class="form-field"><label>قطاع العميل</label>
             <div class="ms-dd">
-              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">الكل</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
-              <div class="ms-panel">
-                <label class="ms-opt ms-all"><input type="checkbox" checked onchange="msToggleAll(this)"> تحديد الكل</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> تجارة تجزئة وجملة</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> صناعة وتصنيع</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> مقاولات وإنشاءات</label>
-                <label class="ms-opt"><input type="checkbox" checked onchange="msUpdate(this)"> خدمات مالية واستثمار</label>
-              </div>
+              <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">لا شيء محدد</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div class="ms-panel" id="ms-panel-sub-sector"></div>
             </div>
           </div>
         </div>
@@ -2174,13 +2169,13 @@ async function loadLookups(){
     LOOKUPS = await apiFetch('/api/lookups');
     fillSelect('u-branch', LOOKUPS.branches, b=>b.name);
     fillSelect('u-role', LOOKUPS.roles, r=>r.name_ar);
-    fillSelect('sel-ctype', LOOKUPS.clientTypes, c=>c.name);
-    fillSelect('sel-sector', LOOKUPS.sectors, s=>s.name);
-    fillSelect('sel-region', LOOKUPS.regions, r=>r.name);
+    fillSelectAddNew('sel-ctype', LOOKUPS.clientTypes, c=>c.name, 'clientTypes');
+    fillSelectAddNew('sel-sector', LOOKUPS.sectors, s=>s.name, 'sectors');
+    fillSelectAddNew('sel-region', LOOKUPS.regions, r=>r.name, 'regions');
     fillSelect('sel-office-branch', LOOKUPS.branches, b=>b.name);
-    fillSelect('m-sel-region', LOOKUPS.regions, r=>r.name);
-    fillSelect('m-sel-ctype', LOOKUPS.clientTypes, c=>c.name);
-    fillSelect('m-sel-sector', LOOKUPS.sectors, s=>s.name);
+    fillSelectAddNew('m-sel-region', LOOKUPS.regions, r=>r.name, 'regions');
+    fillSelectAddNew('m-sel-ctype', LOOKUPS.clientTypes, c=>c.name, 'clientTypes');
+    fillSelectAddNew('m-sel-sector', LOOKUPS.sectors, s=>s.name, 'sectors');
   }catch(e){ console.error('تعذّر تحميل القوائم المرجعية', e); }
 }
 function fillSelect(id, items, labelFn){
@@ -2194,6 +2189,46 @@ function fillSelect(id, items, labelFn){
     opt.value = it.id; opt.textContent = labelFn(it);
     el.appendChild(opt);
   });
+}
+
+const LOOKUP_ENDPOINTS = { clientTypes: '/api/client-types', sectors: '/api/sectors', regions: '/api/regions' };
+const LOOKUP_LABELS = { clientTypes: 'نوع العميل', sectors: 'القطاع', regions: 'المنطقة' };
+
+/* select يحتوي أول خيار "+ إضافة جديد..." يفتح إدخال سريع ويحفظ بقاعدة البيانات مباشرة */
+function fillSelectAddNew(id, items, labelFn, lookupKey){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const keep = el.querySelector('option[value=""]');
+  el.innerHTML = '';
+  if(keep) el.appendChild(keep); else el.innerHTML = '<option value="">— اختر —</option>';
+  const newOpt = document.createElement('option');
+  newOpt.value = '__new__'; newOpt.textContent = '+ إضافة جديد...';
+  el.appendChild(newOpt);
+  (items||[]).forEach(it=>{
+    const opt = document.createElement('option');
+    opt.value = it.id; opt.textContent = labelFn(it);
+    el.appendChild(opt);
+  });
+  el.dataset.lookup = lookupKey;
+  el.onchange = function(){ handleLookupSelectChange(this); };
+}
+
+async function handleLookupSelectChange(sel){
+  if(sel.value !== '__new__') return;
+  const key = sel.dataset.lookup;
+  const label = LOOKUP_LABELS[key] || 'القيمة';
+  const name = prompt('أدخل اسم ' + label + ' الجديد:');
+  if(!name || !name.trim()){ sel.value=''; return; }
+  try{
+    const created = await apiFetch(LOOKUP_ENDPOINTS[key], {method:'POST', body: JSON.stringify({name: name.trim()})});
+    LOOKUPS[key].push(created);
+    document.querySelectorAll('select[data-lookup="'+key+'"]').forEach(s=>{
+      const prevVal = (s === sel) ? created.id : s.value;
+      fillSelectAddNew(s.id, LOOKUPS[key], it=>it.name, key);
+      s.value = prevVal;
+    });
+    showToast('تمت الإضافة');
+  }catch(e){ showToast('تعذّر الإضافة: '+e.message); sel.value=''; }
 }
 
 async function loadHomeStats(){
@@ -2291,6 +2326,7 @@ async function openClientProfile(clientId){
   document.querySelector('.content').scrollTop = 0;
 
   try{
+    if(!USERS_CACHE.length){ try{ USERS_CACHE = await apiFetch('/api/users'); }catch(e){} }
     const { client, employees, files } = await apiFetch('/api/clients/' + clientId);
     renderClientProfile(client, employees, files);
   }catch(e){
@@ -2374,6 +2410,8 @@ function renderClientProfile(client, employees, files){
     document.getElementById('sel-region').value = client.region_id || '';
     document.getElementById('sel-office-branch').value = client.office_branch_id || '';
   }
+  fillSelect('sel-reviewer', USERS_CACHE, u=>((u.first_name_ar||'')+' '+(u.last_name_ar||'')).trim());
+  document.getElementById('sel-reviewer').value = client.review_manager_id || '';
 
   const empBody = document.getElementById('client-employees-tbody');
   CURRENT_CLIENT_EMPLOYEES = employees;
@@ -2436,6 +2474,7 @@ async function saveClientExtra(){
     sector_id: document.getElementById('sel-sector').value || null,
     region_id: document.getElementById('sel-region').value || null,
     office_branch_id: document.getElementById('sel-office-branch').value || null,
+    review_manager_id: document.getElementById('sel-reviewer').value || null,
   };
   try{ await apiFetch('/api/clients/'+currentClientId, {method:'PUT', body: JSON.stringify(payload)}); showToast('تم حفظ المعلومات الإضافية'); }
   catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
@@ -2581,6 +2620,57 @@ async function openClientFileDetail(fileId){
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
     اختر ورقة عمل من القائمة لعرض تفاصيلها</div>`;
   loadMatchedWorkingPapers(); // إن كانت موجودة مسبقًا من تحديث سابق
+  loadClientFileTeam();
+}
+
+async function loadClientFileTeam(){
+  if(!currentClientFileId) return;
+  const tbody = document.getElementById('cfd-team-tbody');
+  const sel = document.getElementById('team-user-select');
+  try{
+    if(!USERS_CACHE.length){ try{ USERS_CACHE = await apiFetch('/api/users'); }catch(e){} }
+    fillSelect('team-user-select', USERS_CACHE, u=>((u.first_name_ar||'')+' '+(u.last_name_ar||'')).trim());
+    const team = await apiFetch('/api/client-files/'+currentClientFileId+'/team');
+    tbody.innerHTML = team.length ? team.map(t=>{
+      const u = t.users || {};
+      const nm = ((u.first_name_ar||'')+' '+(u.last_name_ar||'')).trim() || '—';
+      const role = u.roles ? u.roles.name_ar : '—';
+      return `<tr><td><b>${nm}</b></td><td>${role}</td>
+        <td><span class="badge ${t.is_lead?'ok':'neutral'}">${t.is_lead?'مسؤول الملف':'عضو فريق'}</span></td>
+        <td style="white-space:nowrap;">
+          ${t.is_lead ? '' : `<span class="link" style="color:var(--brass); cursor:pointer; font-size:12px;" onclick="makeTeamLead('${t.user_id}')">تعيين كمسؤول</span>&nbsp;·&nbsp;`}
+          <span class="link" style="color:var(--red); cursor:pointer; font-size:12px;" onclick="removeTeamMember('${t.user_id}')">إزالة</span>
+        </td></tr>`;
+    }).join('') : '<tr><td colspan="4" class="empty-hint">لا يوجد أعضاء بعد</td></tr>';
+  }catch(e){ showToast('تعذّر تحميل فريق المراجعة: '+e.message); }
+}
+
+async function addTeamMember(){
+  if(!currentClientFileId) return;
+  const userId = document.getElementById('team-user-select').value;
+  const isLead = document.getElementById('team-user-lead').value === '1';
+  if(!userId){ showToast('اختر الموظف أولًا'); return; }
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/team', {method:'POST', body: JSON.stringify({user_id:userId, is_lead:isLead})});
+    showToast('تمت الإضافة');
+    loadClientFileTeam();
+  }catch(e){ showToast('تعذّر الإضافة: '+e.message); }
+}
+async function makeTeamLead(userId){
+  if(!currentClientFileId) return;
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/team/'+userId, {method:'PUT', body: JSON.stringify({is_lead:true})});
+    showToast('تم تعيينه مسؤولًا عن الملف');
+    loadClientFileTeam();
+  }catch(e){ showToast('تعذّر التعيين: '+e.message); }
+}
+async function removeTeamMember(userId){
+  if(!currentClientFileId) return;
+  if(!confirm('هل تريد إزالة هذا العضو من فريق الملف؟')) return;
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/team/'+userId, {method:'DELETE'});
+    loadClientFileTeam();
+  }catch(e){ showToast('تعذّر الإزالة: '+e.message); }
 }
 
 function backToClientProfile(){
@@ -2822,39 +2912,42 @@ async function loadMatchedWorkingPapers(){
 function procItemHtml(sub, answer){
   const val = answer ? answer.answer_value : null;
   const comment = answer ? (answer.comment || '') : '';
-  let body = '';
+  let answerHtml = '', notesLabel = 'ملاحظات', notesHtml = '';
   if(sub.item_type === 'yesno'){
-    body = `<div class="yn-row">
+    answerHtml = `<div class="yn-row">
       <label><input type="radio" name="sub-${sub.id}" value="yes" ${val==='yes'?'checked':''}> نعم</label>
       <label><input type="radio" name="sub-${sub.id}" value="no" ${val==='no'?'checked':''}> لا</label>
-    </div>
-    <label class="notes-label">ملاحظات</label>
-    <textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
+    </div>`;
+    notesHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
   } else if(sub.item_type === 'multi'){
     const opts = Array.isArray(sub.options) ? sub.options : [];
     const checked = Array.isArray(val) ? val : [];
-    body = `<div class="proc-options">
+    answerHtml = `<div class="proc-options">
       ${opts.map(o=>`<label><input type="checkbox" data-sub="${sub.id}" data-kind="multi" value="${o}" ${checked.includes(o)?'checked':''}> ${o}</label>`).join('')}
-    </div>
-    <label class="notes-label">ملاحظات</label>
-    <textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
+    </div>`;
+    notesHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
   } else if(sub.item_type === 'qa_attach'){
-    body = `<div class="upload-mini" style="margin-bottom:12px;">
+    answerHtml = `<div class="upload-mini">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
       <b>${val ? 'مرفق محفوظ' : 'إرفاق مستند'}</b><span>PDF أو صورة أو ملف Excel</span>
-    </div>
-    <label class="notes-label">تعليق</label>
-    <textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
+    </div>`;
+    notesLabel = 'تعليق';
+    notesHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
   } else if(sub.item_type === 'list'){
     const opts = Array.isArray(sub.options) ? sub.options : [];
-    body = `<select data-sub="${sub.id}" data-kind="select" style="width:100%; padding:9px 12px; border:1.3px solid var(--line-strong); border-radius:8px; margin-bottom:10px;">
-      <option value="">— اختر —</option>${opts.map(o=>`<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}</select>
-    <label class="notes-label">تعليق</label>
-    <textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
+    answerHtml = `<select data-sub="${sub.id}" data-kind="select" style="width:100%; padding:9px 12px; border:1.3px solid var(--line-strong); border-radius:8px;">
+      <option value="">— اختر —</option>${opts.map(o=>`<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}</select>`;
+    notesLabel = 'تعليق';
+    notesHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
   } else { // qa
-    body = `<textarea class="big-notes" style="min-height:130px;" data-sub="${sub.id}" data-kind="text" placeholder="اكتب الشرح التفصيلي هنا...">${val || ''}</textarea>`;
+    answerHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="text" placeholder="اكتب الإجابة هنا...">${val || ''}</textarea>`;
+    notesHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="comment" placeholder="ملاحظات إضافية (اختياري)">${comment}</textarea>`;
   }
-  return `<div class="proc-item"><div class="proc-q"><span class="proc-num">${sub.sort_order||''}</span> ${sub.label}</div>${body}</div>`;
+  return `<div class="proc-item">
+    <div class="proc-q"><span class="proc-num">${sub.sort_order||''}</span> ${sub.label}</div>
+    <div class="proc-answer"><label class="notes-label">الإجابة</label>${answerHtml}</div>
+    <div class="proc-notes"><label class="notes-label">${notesLabel}</label>${notesHtml}</div>
+  </div>`;
 }
 
 async function loadWpMainDetail(item, mainId){
@@ -3288,6 +3381,9 @@ async function saveAccountFromForm(){
 /* ---------------- أوراق العمل: تحميل حقيقي ---------------- */
 let addMainTargetGroupId = null;   // آخر مجموعة ضُغط فيها "+ رئيسي"
 let addSubTargetMainId   = null;   // آخر ورقة رئيسية ضُغط فيها "+ إضافة فرعي"
+let editingGroupId = null;
+let editingMainId = null;
+let editingSubId = null;
 
 async function loadWorkingPapersLive(){
   if(!isLiveDataMode()) return;
@@ -3305,12 +3401,16 @@ function renderWorkingPapersLive(groups, mains){
       <div class="wp-group-head" onclick="toggleWpGroup(this)">
         <span class="tree-toggle open">▸</span><span>${g.code} — ${g.name}</span>
         ${g.coa_account_id ? '<span class="badge neutral" style="font-size:9.5px;">مرتبطة بدليل الحسابات</span>' : ''}
-        <span class="add-child-btn" onclick="event.stopPropagation(); addMainTargetGroupId='${g.id}'; openModal('modal-addmain')">+ رئيسي</span>
+        <span class="link" style="font-size:10.5px; color:var(--brass);" onclick="event.stopPropagation(); openEditGroupModal('${g.id}')">تعديل</span>
+        <span class="link" style="font-size:10.5px; color:var(--red);" onclick="event.stopPropagation(); deleteGroupLive('${g.id}')">حذف</span>
+        <span class="add-child-btn" onclick="event.stopPropagation(); openAddMainModal('${g.id}')">+ رئيسي</span>
       </div>
       <div class="wp-mains">
         ${groupMains.map(m=>`<div class="wp-main-item" onclick="selectWpMainLive(this,'${m.id}')">
           <span>${m.code || ''} — ${m.title}</span>
           <span class="badge ${m.visibility==='general'?'ok':'flag'}">${m.visibility==='general'?'عام':'خاص'}</span>
+          <span class="link" style="font-size:10.5px; color:var(--brass); margin-inline-start:8px;" onclick="event.stopPropagation(); openEditMainModal('${m.id}')">تعديل</span>
+          <span class="link" style="font-size:10.5px; color:var(--red);" onclick="event.stopPropagation(); deleteMainLive('${m.id}')">حذف</span>
         </div>`).join('') || '<div class="empty-hint">لا توجد أوراق عمل بعد</div>'}
       </div>
     </div>`;
@@ -3331,7 +3431,7 @@ async function selectWpMainLive(item, mainId){
       <div class="profile-head" style="margin-bottom:18px;">
         <div class="seal2">${mainRow.code || ''}</div>
         <div><div class="pn">${mainRow.title}</div><div class="pm"><span class="badge ${mainRow.visibility==='general'?'ok':'flag'}">${mainRow.visibility==='general'?'عام':'خاص'}</span></div></div>
-        <button class="btn dark" style="margin-inline-start:auto;" onclick="addSubTargetMainId='${mainId}'; openModal('modal-addsub')">+ إضافة فرعي</button>
+        <button class="btn dark" style="margin-inline-start:auto;" onclick="openAddSubModal('${mainId}')">+ إضافة فرعي</button>
       </div>
       <div class="form-section">
         <div class="form-section-title">الهدف والملاحظات</div>
@@ -3342,12 +3442,76 @@ async function selectWpMainLive(item, mainId){
       </div>
       <div class="panel">
         <div class="panel-head"><h3>البنود الفرعية</h3></div>
-        <table><thead><tr><th>البند</th><th>النوع</th><th>الظهور</th><th>الحالة</th></tr></thead>
-        <tbody>${(subs||[]).map(s=>`<tr><td>${s.label}</td><td><span class="badge neutral">${s.item_type}</span></td><td><span class="badge ${s.visibility==='general'?'ok':'flag'}">${s.visibility==='general'?'عام':'خاص'}</span></td><td><span class="badge ${s.is_active?'ok':'neutral'}">${s.is_active?'فعّال':'غير فعّال'}</span></td></tr>`).join('') || '<tr><td colspan="4" class="empty-hint">لا توجد بنود فرعية بعد</td></tr>'}</tbody></table>
+        <table><thead><tr><th>البند</th><th>النوع</th><th>الظهور</th><th>الحالة</th><th></th></tr></thead>
+        <tbody>${(subs||[]).map(s=>`<tr><td>${s.label}</td><td><span class="badge neutral">${s.item_type}</span></td><td><span class="badge ${s.visibility==='general'?'ok':'flag'}">${s.visibility==='general'?'عام':'خاص'}</span></td><td><span class="badge ${s.is_active?'ok':'neutral'}">${s.is_active?'فعّال':'غير فعّال'}</span></td>
+          <td style="white-space:nowrap;">
+            <span class="link" style="font-size:12px; color:var(--brass); cursor:pointer;" onclick="openEditSubModal('${s.id}')">تعديل</span>
+            &nbsp;·&nbsp;
+            <span class="link" style="font-size:12px; color:var(--red); cursor:pointer;" onclick="deleteSubLive('${s.id}')">حذف</span>
+          </td></tr>`).join('') || '<tr><td colspan="5" class="empty-hint">لا توجد بنود فرعية بعد</td></tr>'}</tbody></table>
       </div>
     </div>`;
 }
+/* ===== تعبئة قوائم "نوع العميل / قطاع العميل" الحقيقية داخل نوافذ إضافة/تعديل أوراق العمل ===== */
+function populateMsPanel(panelId, items, selectedIds){
+  const panel = document.getElementById(panelId);
+  if(!panel) return;
+  selectedIds = selectedIds || [];
+  const allChecked = items.length>0 && items.every(it=>selectedIds.includes(it.id));
+  panel.innerHTML = `<label class="ms-opt ms-all"><input type="checkbox" ${allChecked?'checked':''} onchange="msToggleAll(this)"> تحديد الكل</label>` +
+    items.map(it=>`<label class="ms-opt"><input type="checkbox" data-id="${it.id}" ${selectedIds.includes(it.id)?'checked':''} onchange="msUpdate(this)"> ${it.name}</label>`).join('');
+  msUpdateTriggerText(panel);
+}
+function getMsSelectedIds(panelId){
+  const panel = document.getElementById(panelId);
+  if(!panel) return [];
+  return [...panel.querySelectorAll('.ms-opt:not(.ms-all) input:checked')].map(i=>i.dataset.id);
+}
+/* يبني صفوف wp_visibility_targets: إن حُدِّد نوعان وقطاعان معًا ينشئ كل التوافيق بينهما (AND) */
+function buildVisibilityTargets(ctypePanelId, sectorPanelId){
+  const types = getMsSelectedIds(ctypePanelId);
+  const sectors = getMsSelectedIds(sectorPanelId);
+  if(!types.length && !sectors.length) return [];
+  if(types.length && sectors.length){
+    const rows = [];
+    types.forEach(t=>sectors.forEach(s=>rows.push({client_type_id:t, sector_id:s})));
+    return rows;
+  }
+  if(types.length) return types.map(t=>({client_type_id:t, sector_id:null}));
+  return sectors.map(s=>({client_type_id:null, sector_id:s}));
+}
+function populateAllVisPanels(prefix, selectedTargets){
+  selectedTargets = selectedTargets || [];
+  const ctypeIds = [...new Set(selectedTargets.filter(t=>t.client_type_id).map(t=>t.client_type_id))];
+  const sectorIds = [...new Set(selectedTargets.filter(t=>t.sector_id).map(t=>t.sector_id))];
+  populateMsPanel('ms-panel-'+prefix+'-ctype', LOOKUPS.clientTypes, ctypeIds);
+  populateMsPanel('ms-panel-'+prefix+'-sector', LOOKUPS.sectors, sectorIds);
+}
+
+function openAddMainModal(groupId){
+  addMainTargetGroupId = groupId;
+  editingMainId = null;
+  document.getElementById('main-code').value = '';
+  document.getElementById('main-title').value = '';
+  document.getElementById('main-objective').value = '';
+  document.getElementById('main-notes').value = '';
+  document.querySelector('input[name="visMain"][value="general"]').checked = true;
+  toggleSpecialVisibility(document.querySelector('input[name="visMain"][value="general"]'), 'visSpecial-main');
+  populateAllVisPanels('main', []);
+  openModal('modal-addmain');
+}
+function openAddSubModal(mainId){
+  addSubTargetMainId = mainId;
+  editingSubId = null;
+  document.getElementById('sub-label').value = '';
+  document.querySelector('input[name="visSub"][value="general"]').checked = true;
+  toggleSpecialVisibility(document.querySelector('input[name="visSub"][value="general"]'), 'visSpecial-sub');
+  populateAllVisPanels('sub', []);
+  openModal('modal-addsub');
+}
+
 function openAddGroupModal(){
+  editingGroupId = null;
   const sel = document.getElementById('grp-coa-account');
   const level4 = coaData.filter(a=>a.level===4);
   sel.innerHTML = level4.length
@@ -3355,6 +3519,9 @@ function openAddGroupModal(){
     : '<option value="">— لا توجد حسابات مستوى رابع بعد —</option>';
   document.getElementById('grp-code').value = '';
   document.getElementById('grp-name').value = '';
+  document.querySelector('input[name="visGroup"][value="general"]').checked = true;
+  toggleSpecialVisibility(document.querySelector('input[name="visGroup"][value="general"]'), 'visSpecial-group');
+  populateAllVisPanels('group', []);
   openModal('modal-addgroup');
 }
 async function saveGroupFromForm(){
@@ -3365,16 +3532,43 @@ async function saveGroupFromForm(){
     const [code, ...rest] = sel.options[sel.selectedIndex].text.split(' — ');
     payload = { code: code.trim(), name: rest.join(' — ').trim(), coa_code: code.trim() };
   } else {
-    payload = { code: document.getElementById('grp-code').value.trim(), name: document.getElementById('grp-name').value.trim() };
+    payload = { code: document.getElementById('grp-code').value.trim(), name: document.getElementById('grp-name').value.trim(), coa_code: '' };
   }
   payload.visibility = document.querySelector('input[name="visGroup"]:checked').value;
+  payload.visibility_targets = payload.visibility === 'special' ? buildVisibilityTargets('ms-panel-group-ctype','ms-panel-group-sector') : [];
   if(!payload.code || !payload.name){ showToast('رمز المجموعة واسمها إلزاميان'); return; }
   if(!isLiveDataMode()){ showToast('وضع تجريبي — سجّل الدخول فعليًا لحفظ البيانات في قاعدة البيانات'); closeModal('modal-addgroup'); return; }
   try{
-    await apiFetch('/api/wp-groups', {method:'POST', body: JSON.stringify(payload)});
+    if(editingGroupId) await apiFetch('/api/wp-groups/'+editingGroupId, {method:'PUT', body: JSON.stringify(payload)});
+    else await apiFetch('/api/wp-groups', {method:'POST', body: JSON.stringify(payload)});
     closeModal('modal-addgroup');
     loadWorkingPapersLive();
   }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
+}
+async function openEditGroupModal(groupId){
+  try{
+    const { group, targets } = await apiFetch('/api/wp-groups/'+groupId);
+    editingGroupId = groupId;
+    const hasCoa = !!group.coa_account_id;
+    document.querySelector(`input[name="coaLink"][value="${hasCoa?'yes':'no'}"]`).checked = true;
+    toggleCoaLink(document.querySelector(`input[name="coaLink"][value="${hasCoa?'yes':'no'}"]`));
+    document.getElementById('grp-code').value = group.code || '';
+    document.getElementById('grp-name').value = group.name || '';
+    const sel = document.getElementById('grp-coa-account');
+    const level4 = coaData.filter(a=>a.level===4);
+    sel.innerHTML = level4.length
+      ? level4.map(a=>`<option value="${a.code}">${a.code} — ${a.name}</option>`).join('')
+      : '<option value="">— لا توجد حسابات مستوى رابع بعد —</option>';
+    const visRadio = document.querySelector(`input[name="visGroup"][value="${group.visibility||'general'}"]`);
+    if(visRadio){ visRadio.checked = true; toggleSpecialVisibility(visRadio, 'visSpecial-group'); }
+    populateAllVisPanels('group', targets);
+    openModal('modal-addgroup');
+  }catch(e){ showToast('تعذّر تحميل المجموعة: '+e.message); }
+}
+async function deleteGroupLive(groupId){
+  if(!confirm('حذف المجموعة سيحذف كل أوراق العمل الرئيسية والفرعية التابعة لها. هل أنت متأكد؟')) return;
+  try{ await apiFetch('/api/wp-groups/'+groupId, {method:'DELETE'}); showToast('تم الحذف'); loadWorkingPapersLive(); }
+  catch(e){ showToast('تعذّر الحذف: '+e.message); }
 }
 async function saveMainFromForm(){
   const payload = {
@@ -3384,16 +3578,42 @@ async function saveMainFromForm(){
     notes: document.getElementById('main-notes').value.trim() || null,
     visibility: document.querySelector('input[name="visMain"]:checked').value,
   };
+  payload.visibility_targets = payload.visibility === 'special' ? buildVisibilityTargets('ms-panel-main-ctype','ms-panel-main-sector') : [];
   if(!payload.title){ showToast('اسم ورقة العمل إلزامي'); return; }
-  if(!addMainTargetGroupId){ showToast('اختر المجموعة أولًا من زر "+ رئيسي" داخلها'); return; }
+  if(!editingMainId && !addMainTargetGroupId){ showToast('اختر المجموعة أولًا من زر "+ رئيسي" داخلها'); return; }
   if(!isLiveDataMode()){ showToast('وضع تجريبي — سجّل الدخول فعليًا لحفظ البيانات في قاعدة البيانات'); closeModal('modal-addmain'); return; }
-  payload.group_id = addMainTargetGroupId;
   try{
-    await apiFetch('/api/wp-main-items', {method:'POST', body: JSON.stringify(payload)});
+    if(editingMainId){
+      await apiFetch('/api/wp-main-items/'+editingMainId, {method:'PUT', body: JSON.stringify(payload)});
+    } else {
+      payload.group_id = addMainTargetGroupId;
+      await apiFetch('/api/wp-main-items', {method:'POST', body: JSON.stringify(payload)});
+    }
     closeModal('modal-addmain');
     loadWorkingPapersLive();
   }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
+async function openEditMainModal(mainId){
+  try{
+    const { main, targets } = await apiFetch('/api/wp-main-items/'+mainId);
+    editingMainId = mainId;
+    addMainTargetGroupId = main.group_id;
+    document.getElementById('main-code').value = main.code || '';
+    document.getElementById('main-title').value = main.title || '';
+    document.getElementById('main-objective').value = main.objective || '';
+    document.getElementById('main-notes').value = main.notes || '';
+    const visRadio = document.querySelector(`input[name="visMain"][value="${main.visibility||'general'}"]`);
+    if(visRadio){ visRadio.checked = true; toggleSpecialVisibility(visRadio, 'visSpecial-main'); }
+    populateAllVisPanels('main', targets);
+    openModal('modal-addmain');
+  }catch(e){ showToast('تعذّر تحميل الورقة: '+e.message); }
+}
+async function deleteMainLive(mainId){
+  if(!confirm('حذف الورقة الرئيسية سيحذف كل البنود الفرعية التابعة لها. هل أنت متأكد؟')) return;
+  try{ await apiFetch('/api/wp-main-items/'+mainId, {method:'DELETE'}); showToast('تم الحذف'); loadWorkingPapersLive(); }
+  catch(e){ showToast('تعذّر الحذف: '+e.message); }
+}
+
 async function saveSubFromForm(){
   const type = document.getElementById('sub-type').value;
   const payload = {
@@ -3403,17 +3623,58 @@ async function saveSubFromForm(){
     requires_attachment: type==='qa_attach' ? !!document.querySelector('#cfg-qa_attach input[type="checkbox"]')?.checked : false,
     show_comment_field: type==='list' ? !!document.querySelector('#cfg-list input[type="checkbox"]')?.checked : true,
   };
+  payload.visibility_targets = payload.visibility === 'special' ? buildVisibilityTargets('ms-panel-sub-ctype','ms-panel-sub-sector') : [];
   if(type==='list'){ payload.options = [...document.querySelectorAll('#list-opt-chips .chip')].map(c=>c.textContent.replace('✕','').trim()); }
   if(type==='multi'){ payload.options = [...document.querySelectorAll('#multi-opt-chips .chip')].map(c=>c.textContent.replace('✕','').trim()); }
   if(!payload.label){ showToast('نص البند إلزامي'); return; }
-  if(!addSubTargetMainId){ showToast('اختر ورقة العمل الرئيسية أولًا'); return; }
+  if(!editingSubId && !addSubTargetMainId){ showToast('اختر ورقة العمل الرئيسية أولًا'); return; }
   if(!isLiveDataMode()){ showToast('وضع تجريبي — سجّل الدخول فعليًا لحفظ البيانات في قاعدة البيانات'); closeModal('modal-addsub'); return; }
-  payload.main_item_id = addSubTargetMainId;
   try{
-    await apiFetch('/api/wp-sub-items', {method:'POST', body: JSON.stringify(payload)});
+    if(editingSubId){
+      await apiFetch('/api/wp-sub-items/'+editingSubId, {method:'PUT', body: JSON.stringify(payload)});
+    } else {
+      payload.main_item_id = addSubTargetMainId;
+      await apiFetch('/api/wp-sub-items', {method:'POST', body: JSON.stringify(payload)});
+    }
     closeModal('modal-addsub');
-    if(!String(addSubTargetMainId).startsWith('demo-')) selectWpMainLive(document.querySelector('#page-workpapers .wp-main-item.active'), addSubTargetMainId);
+    const targetMainId = editingSubId ? addSubTargetMainId : addSubTargetMainId;
+    if(!String(targetMainId).startsWith('demo-')) selectWpMainLive(document.querySelector('#page-workpapers .wp-main-item.active'), targetMainId);
   }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
+}
+async function openEditSubModal(subId){
+  try{
+    const { sub, targets } = await apiFetch('/api/wp-sub-items/'+subId);
+    editingSubId = subId;
+    addSubTargetMainId = sub.main_item_id;
+    document.getElementById('sub-label').value = sub.label || '';
+    const typeSel = document.getElementById('sub-type');
+    typeSel.value = sub.item_type;
+    onSubTypeChange(typeSel);
+    if(sub.item_type==='list'){
+      const list = document.getElementById('list-opt-chips'); list.innerHTML='';
+      (sub.options||[]).forEach(v=>{ const c=document.createElement('div'); c.className='chip'; c.innerHTML=`${v} <span class="x" onclick="this.parentElement.remove()">✕</span>`; list.appendChild(c); });
+      const cb = document.querySelector('#cfg-list input[type="checkbox"]'); if(cb) cb.checked = !!sub.show_comment_field;
+    }
+    if(sub.item_type==='multi'){
+      const list = document.getElementById('multi-opt-chips'); list.innerHTML='';
+      (sub.options||[]).forEach(v=>{ const c=document.createElement('div'); c.className='chip'; c.innerHTML=`${v} <span class="x" onclick="this.parentElement.remove()">✕</span>`; list.appendChild(c); });
+    }
+    if(sub.item_type==='qa_attach'){
+      const cb = document.querySelector('#cfg-qa_attach input[type="checkbox"]'); if(cb) cb.checked = !!sub.requires_attachment;
+    }
+    const visRadio = document.querySelector(`input[name="visSub"][value="${sub.visibility||'general'}"]`);
+    if(visRadio){ visRadio.checked = true; toggleSpecialVisibility(visRadio, 'visSpecial-sub'); }
+    populateAllVisPanels('sub', targets);
+    openModal('modal-addsub');
+  }catch(e){ showToast('تعذّر تحميل البند: '+e.message); }
+}
+async function deleteSubLive(subId){
+  if(!confirm('هل تريد حذف هذا البند الفرعي؟')) return;
+  try{
+    await apiFetch('/api/wp-sub-items/'+subId, {method:'DELETE'});
+    showToast('تم الحذف');
+    selectWpMainLive(document.querySelector('#page-workpapers .wp-main-item.active'), addSubTargetMainId);
+  }catch(e){ showToast('تعذّر الحذف: '+e.message); }
 }
 </script>
 
