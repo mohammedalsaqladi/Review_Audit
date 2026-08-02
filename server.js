@@ -208,16 +208,26 @@ app.get('/api/working-papers', requireAuth, async (req, res) => {
   res.json({ groups, mains });
 });
 
-app.get('/api/wp-main-items/:id', requireAuth, async (req, res) => {
+// يحفظ أهداف "الظهور الخاص" لأي كيان (مجموعة/رئيسي/فرعي) — يحذف القديم ثم يدرج الجديد
+async function saveVisibilityTargets(sb, entityType, entityId, targets) {
+  await sb.from('wp_visibility_targets').delete().eq('entity_type', entityType).eq('entity_id', entityId);
+  const rows = (Array.isArray(targets) ? targets : [])
+    .filter(t => t && (t.client_type_id || t.sector_id))
+    .map(t => ({ entity_type: entityType, entity_id: entityId, client_type_id: t.client_type_id || null, sector_id: t.sector_id || null }));
+  if (rows.length) {
+    const { error } = await sb.from('wp_visibility_targets').insert(rows);
+    if (error) throw error;
+  }
+}
+
+app.get('/api/wp-groups/:id', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
-  const { data: main, error: e1 } = await sb.from('wp_main_items').select('*')
+  const { data: group, error } = await sb.from('wp_groups').select('*')
     .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
-  if (e1) return res.status(500).json({ message: e1.message });
-  if (!main) return res.status(404).json({ message: 'الورقة غير موجودة' });
-  const { data: subs, error: e2 } = await sb.from('wp_sub_items').select('*')
-    .eq('main_item_id', req.params.id).order('sort_order');
-  if (e2) return res.status(500).json({ message: e2.message });
-  res.json({ main, subs });
+  if (error) return res.status(500).json({ message: error.message });
+  if (!group) return res.status(404).json({ message: 'المجموعة غير موجودة' });
+  const { data: targets } = await sb.from('wp_visibility_targets').select('*').eq('entity_type', 'group').eq('entity_id', req.params.id);
+  res.json({ group, targets: targets || [] });
 });
 
 app.post('/api/wp-groups', requireAuth, async (req, res) => {
@@ -230,7 +240,53 @@ app.post('/api/wp-groups', requireAuth, async (req, res) => {
   }
   const { data, error } = await sb.from('wp_groups').insert(payload).select().single();
   if (error) return res.status(500).json({ message: error.message });
+  try { await saveVisibilityTargets(sb, 'group', data.id, req.body.visibility_targets); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
   res.json(data);
+});
+
+app.put('/api/wp-groups/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('wp_groups').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'المجموعة غير موجودة' });
+  const payload = { code: req.body.code, name: req.body.name, visibility: req.body.visibility, is_active: req.body.is_active !== false };
+  if (req.body.coa_code !== undefined) {
+    if (req.body.coa_code) {
+      const { data: coaAccount } = await sb.from('chart_of_accounts').select('id')
+        .eq('company_id', req.session.companyId).eq('code', req.body.coa_code).maybeSingle();
+      payload.coa_account_id = coaAccount ? coaAccount.id : null;
+    } else {
+      payload.coa_account_id = null;
+    }
+  }
+  const { data, error } = await sb.from('wp_groups').update(payload).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  try { await saveVisibilityTargets(sb, 'group', req.params.id, req.body.visibility_targets); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
+  res.json(data);
+});
+
+app.delete('/api/wp-groups/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('wp_groups').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'المجموعة غير موجودة' });
+  const { error } = await sb.from('wp_groups').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ message: 'تعذّر حذف المجموعة (تأكد من عدم وجود أوراق رئيسية تابعة لها): ' + error.message });
+  await sb.from('wp_visibility_targets').delete().eq('entity_type', 'group').eq('entity_id', req.params.id);
+  res.json({ ok: true });
+});
+
+app.get('/api/wp-main-items/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: main, error: e1 } = await sb.from('wp_main_items').select('*')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (e1) return res.status(500).json({ message: e1.message });
+  if (!main) return res.status(404).json({ message: 'الورقة غير موجودة' });
+  const { data: subs, error: e2 } = await sb.from('wp_sub_items').select('*')
+    .eq('main_item_id', req.params.id).order('sort_order');
+  if (e2) return res.status(500).json({ message: e2.message });
+  const { data: targets } = await sb.from('wp_visibility_targets').select('*').eq('entity_type', 'main').eq('entity_id', req.params.id);
+  res.json({ main, subs, targets: targets || [] });
 });
 
 app.post('/api/wp-main-items', requireAuth, async (req, res) => {
@@ -239,10 +295,45 @@ app.post('/api/wp-main-items', requireAuth, async (req, res) => {
   const { data: group } = await sb.from('wp_groups').select('id')
     .eq('id', req.body.group_id).eq('company_id', req.session.companyId).maybeSingle();
   if (!group) return res.status(400).json({ message: 'المجموعة غير موجودة أو لا تتبع مكتبك' });
-  const payload = { ...req.body, company_id: req.session.companyId };
+  const { visibility_targets, ...rest } = req.body;
+  const payload = { ...rest, company_id: req.session.companyId };
   const { data, error } = await sb.from('wp_main_items').insert(payload).select().single();
   if (error) return res.status(500).json({ message: error.message });
+  try { await saveVisibilityTargets(sb, 'main', data.id, visibility_targets); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
   res.json(data);
+});
+
+app.put('/api/wp-main-items/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('wp_main_items').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'الورقة غير موجودة' });
+  const { visibility_targets, group_id, company_id, id, ...rest } = req.body;
+  const { data, error } = await sb.from('wp_main_items').update(rest).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  try { await saveVisibilityTargets(sb, 'main', req.params.id, visibility_targets); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
+  res.json(data);
+});
+
+app.delete('/api/wp-main-items/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('wp_main_items').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'الورقة غير موجودة' });
+  const { error } = await sb.from('wp_main_items').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ message: 'تعذّر حذف الورقة (تأكد من عدم وجود بنود فرعية تابعة لها): ' + error.message });
+  await sb.from('wp_visibility_targets').delete().eq('entity_type', 'main').eq('entity_id', req.params.id);
+  res.json({ ok: true });
+});
+
+app.get('/api/wp-sub-items/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: sub, error } = await sb.from('wp_sub_items').select('*')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (error) return res.status(500).json({ message: error.message });
+  if (!sub) return res.status(404).json({ message: 'البند غير موجود' });
+  const { data: targets } = await sb.from('wp_visibility_targets').select('*').eq('entity_type', 'sub').eq('entity_id', req.params.id);
+  res.json({ sub, targets: targets || [] });
 });
 
 app.post('/api/wp-sub-items', requireAuth, async (req, res) => {
@@ -250,10 +341,35 @@ app.post('/api/wp-sub-items', requireAuth, async (req, res) => {
   const { data: main } = await sb.from('wp_main_items').select('id')
     .eq('id', req.body.main_item_id).eq('company_id', req.session.companyId).maybeSingle();
   if (!main) return res.status(400).json({ message: 'الورقة الرئيسية غير موجودة أو لا تتبع مكتبك' });
-  const payload = { ...req.body, company_id: req.session.companyId };
+  const { visibility_targets, ...rest } = req.body;
+  const payload = { ...rest, company_id: req.session.companyId };
   const { data, error } = await sb.from('wp_sub_items').insert(payload).select().single();
   if (error) return res.status(500).json({ message: error.message });
+  try { await saveVisibilityTargets(sb, 'sub', data.id, visibility_targets); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
   res.json(data);
+});
+
+app.put('/api/wp-sub-items/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('wp_sub_items').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'البند غير موجود' });
+  const { visibility_targets, main_item_id, company_id, id, ...rest } = req.body;
+  const { data, error } = await sb.from('wp_sub_items').update(rest).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  try { await saveVisibilityTargets(sb, 'sub', req.params.id, visibility_targets); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
+  res.json(data);
+});
+
+app.delete('/api/wp-sub-items/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('wp_sub_items').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'البند غير موجود' });
+  const { error } = await sb.from('wp_sub_items').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ message: error.message });
+  await sb.from('wp_visibility_targets').delete().eq('entity_type', 'sub').eq('entity_id', req.params.id);
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -270,6 +386,33 @@ app.get('/api/lookups', requireAuth, async (req, res) => {
     sb.from('roles').select('id,code,name_ar,level').order('level'),
   ]);
   res.json({ branches: branches || [], clientTypes: clientTypes || [], sectors: sectors || [], regions: regions || [], roles: roles || [] });
+});
+
+app.post('/api/client-types', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ message: 'الاسم إلزامي' });
+  const { data, error } = await sb.from('client_types').insert({ name, company_id: req.session.companyId }).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.post('/api/sectors', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ message: 'الاسم إلزامي' });
+  const { data, error } = await sb.from('sectors').insert({ name, company_id: req.session.companyId }).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.post('/api/regions', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ message: 'الاسم إلزامي' });
+  const { data, error } = await sb.from('regions').insert({ name, company_id: req.session.companyId }).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
 });
 
 // ---------------------------------------------------------------------------
@@ -423,6 +566,60 @@ app.delete('/api/client-files/:id', requireAuth, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// فريق المراجعة الخاص بملف تدقيق محدد (عدة مراجعين، واحد منهم مسؤول الملف)
+// ---------------------------------------------------------------------------
+app.get('/api/client-files/:id/team', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data, error } = await sb.from('client_file_team')
+    .select('id, user_id, is_lead, assigned_at, users(id, first_name_ar, last_name_ar, roles(name_ar))')
+    .eq('client_file_id', req.params.id).order('is_lead', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/client-files/:id/team', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data: user } = await sb.from('users').select('id').eq('id', req.body.user_id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!user) return res.status(400).json({ message: 'المستخدم غير موجود ضمن مكتبك' });
+  const makeLead = !!req.body.is_lead;
+  if (makeLead) {
+    // مسؤول واحد فقط لكل ملف — نلغي القيادة عن أي عضو سابق قبل تعيين الجديد
+    await sb.from('client_file_team').update({ is_lead: false }).eq('client_file_id', req.params.id);
+  }
+  const { data, error } = await sb.from('client_file_team')
+    .upsert({ client_file_id: req.params.id, user_id: req.body.user_id, is_lead: makeLead }, { onConflict: 'client_file_id,user_id' })
+    .select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.put('/api/client-files/:id/team/:userId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  if (req.body.is_lead) {
+    await sb.from('client_file_team').update({ is_lead: false }).eq('client_file_id', req.params.id);
+  }
+  const { data, error } = await sb.from('client_file_team')
+    .update({ is_lead: !!req.body.is_lead }).eq('client_file_id', req.params.id).eq('user_id', req.params.userId).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.delete('/api/client-files/:id/team/:userId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { error } = await sb.from('client_file_team').delete().eq('client_file_id', req.params.id).eq('user_id', req.params.userId);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
 // ميزان المراجعة (تهيئة الميزان)
 // ---------------------------------------------------------------------------
 app.get('/api/client-files/:id/trial-balance', requireAuth, async (req, res) => {
@@ -499,9 +696,27 @@ app.get('/api/client-files/:id/wp-main-items/:mainId', requireAuth, async (req, 
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   const { data: main } = await sb.from('wp_main_items').select('*').eq('id', req.params.mainId).maybeSingle();
   if (!main) return res.status(404).json({ message: 'الورقة غير موجودة' });
-  const { data: subs } = await sb.from('wp_sub_items').select('*').eq('main_item_id', req.params.mainId).order('sort_order');
-  const { data: answers } = await sb.from('client_file_wp_answers').select('*').eq('client_file_id', req.params.id).in('wp_sub_item_id', (subs || []).map(s => s.id));
-  res.json({ main, subs: subs || [], answers: answers || [] });
+  const { data: allSubs } = await sb.from('wp_sub_items').select('*').eq('main_item_id', req.params.mainId).order('sort_order');
+
+  // فلترة البنود الفرعية "الخاصة" حسب نوع/قطاع عميل هذا الملف تحديدًا
+  const { data: client } = await sb.from('clients').select('client_type_id, sector_id').eq('id', file.client_id).maybeSingle();
+  let subs = allSubs || [];
+  const specialIds = subs.filter(s => s.visibility === 'special').map(s => s.id);
+  if (specialIds.length) {
+    const { data: targets } = await sb.from('wp_visibility_targets').select('*').eq('entity_type', 'sub').in('entity_id', specialIds);
+    subs = subs.filter(s => {
+      if (s.visibility !== 'special') return true;
+      const myTargets = (targets || []).filter(t => t.entity_id === s.id);
+      if (!myTargets.length) return false; // خاص بدون أي هدف = لا يظهر لأحد
+      return myTargets.some(t =>
+        (!t.client_type_id || t.client_type_id === (client && client.client_type_id)) &&
+        (!t.sector_id || t.sector_id === (client && client.sector_id))
+      );
+    });
+  }
+
+  const { data: answers } = await sb.from('client_file_wp_answers').select('*').eq('client_file_id', req.params.id).in('wp_sub_item_id', subs.map(s => s.id));
+  res.json({ main, subs, answers: answers || [] });
 });
 
 app.post('/api/client-files/:id/wp-answers', requireAuth, async (req, res) => {
