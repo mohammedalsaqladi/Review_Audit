@@ -790,20 +790,6 @@
       </div>
 
       <div class="nav-group">
-        <div class="nav-item" data-page="company">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
-          بيانات المكتب
-        </div>
-      </div>
-
-      <div class="nav-group">
-        <div class="nav-item" data-page="staff">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-          المستخدمون
-        </div>
-      </div>
-
-      <div class="nav-group">
         <div class="nav-item" data-page="reviewpoints">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
           نقاط المراجعة
@@ -838,6 +824,17 @@
         </div>
       </div>
     </nav>
+
+    <div class="nav-group" style="padding:0 10px;">
+      <div class="nav-item" data-page="company">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M9 17h1M14 9h1M14 13h1M14 17h1"/></svg>
+        بيانات المكتب
+      </div>
+      <div class="nav-item" data-page="staff">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        المستخدمون
+      </div>
+    </div>
 
     <div class="side-user" style="cursor:pointer" onclick="openProfilePage()">
       <div class="av">س ق</div>
@@ -1182,13 +1179,13 @@
 
         <div class="tab-strip">
           <div class="tab active" onclick="switchCfdTab(this,'general')">التفاصيل العامة</div>
-          <div class="tab" onclick="switchCfdTab(this,'tb')">تهيئة الميزان</div>
-          <div class="tab" onclick="switchCfdTab(this,'chat')">الدردشة</div>
           <div class="tab" onclick="switchCfdTab(this,'wp')">أوراق العمل</div>
-          <div class="tab" onclick="switchCfdTab(this,'adj')">قيود التعديل</div>
+          <div class="tab" onclick="switchCfdTab(this,'chat')">الدردشة</div>
           <div class="tab" onclick="switchCfdTab(this,'req')">المتطلبات</div>
           <div class="tab" onclick="switchCfdTab(this,'notes')">الملاحظات</div>
           <div class="tab" onclick="switchCfdTab(this,'attach')">المرفقات</div>
+          <div class="tab" onclick="switchCfdTab(this,'tb')">تهيئة الميزان</div>
+          <div class="tab" onclick="switchCfdTab(this,'adj')">قيود التعديل</div>
         </div>
 
         <!-- تبويب: التفاصيل العامة -->
@@ -1404,10 +1401,19 @@
 
       <!-- ========== الدردشات ========== -->
       <div class="page" id="page-chats">
-        <div class="page-head"><div><div class="crumb">التواصل</div><h1>الدردشات</h1></div></div>
+        <div class="page-head"><div><div class="crumb">التواصل</div><h1>الدردشات</h1></div>
+          <button class="btn dark" onclick="openCreateGroupModal()">+ مجموعة جديدة</button>
+        </div>
         <div class="chat-shell">
-          <div class="chat-list" id="chats-directory-list">
-            <div class="empty-hint" style="padding:40px 20px;">جارٍ التحميل...</div>
+          <div style="display:flex; flex-direction:column; border-inline-start:1px solid var(--line); overflow:hidden;">
+            <div class="tab-strip" style="margin:10px 12px 0; border-bottom:1px solid var(--line);">
+              <div class="tab active" onclick="switchChatsDirTab(this,'clients')">دردشات العملاء</div>
+              <div class="tab" onclick="switchChatsDirTab(this,'staff')">دردشات المستخدمين</div>
+              <div class="tab" onclick="switchChatsDirTab(this,'groups')">المجموعات</div>
+            </div>
+            <div class="chat-list" id="chats-directory-list" style="flex:1; border-inline-start:none;">
+              <div class="empty-hint" style="padding:40px 20px;">جارٍ التحميل...</div>
+            </div>
           </div>
           <div style="display:flex; flex-direction:column;">
             <div id="chats-active-header" style="display:none; align-items:center; gap:11px; padding:13px 18px; border-bottom:1px solid var(--line); background:var(--card);">
@@ -1422,6 +1428,10 @@
               اختر محادثة من القائمة على اليمين للبدء
             </div>
             <div id="chats-active-thread" class="chat-thread" style="display:none; flex:1; border-radius:0; border:none;"></div>
+            <div id="chats-active-linkbar" style="display:none; padding:8px 12px; border-top:1px solid var(--line); background:var(--paper);">
+              <select id="chats-active-file-select" onchange="onDirectoryFileChange()" style="width:100%; font-size:11.5px; padding:6px 10px;"></select>
+              <select id="chats-active-item-select" style="width:100%; font-size:11.5px; padding:6px 10px; margin-top:6px;"></select>
+            </div>
             <div id="chats-active-composer" class="chat-composer" style="display:none; border-radius:0; border-inline:none; border-bottom:none;">
               <input type="file" id="chat-file-directory" style="display:none;" onchange="onChatFileSelected(this,'directory')">
               <span class="row-icon-btn edit" title="إرفاق ملف" onclick="document.getElementById('chat-file-directory').click()">
@@ -2029,6 +2039,31 @@
     <div class="modal-foot">
       <button class="btn" onclick="closeModal('modal-addnote')">إلغاء</button>
       <button class="btn dark" onclick="saveNote()">حفظ الملاحظة</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة إنشاء مجموعة دردشة جديدة ===== -->
+<div class="modal-overlay" id="modal-addgroupchat">
+  <div class="modal-box" style="max-width:460px;">
+    <div class="modal-head">
+      <div><h3>مجموعة دردشة جديدة</h3><span>اختر اسم المجموعة والأعضاء</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addgroupchat')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label>اسم المجموعة <span class="req">*</span></label><input id="groupchat-name" placeholder="مثال: فريق مراجعة شركة الفهد"></div>
+        <div class="form-field full"><label>الأعضاء <span class="req">*</span></label>
+          <div id="groupchat-members" style="max-height:220px; overflow-y:auto; border:1.3px solid var(--line-strong); border-radius:8px; padding:10px;"></div>
+        </div>
+      </div>
+      <div id="groupchat-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addgroupchat')">إلغاء</button>
+      <button class="btn dark" onclick="saveNewGroupChat()">إنشاء المجموعة</button>
     </div>
   </div>
 </div>
@@ -3429,6 +3464,7 @@ async function saveNote(){
     closeModal('modal-addnote');
     showToast('تم حفظ الملاحظة');
     loadNotes();
+    if(document.getElementById('wp-item-pane-notes')) loadItemNotes(CURRENT_WP_ITEM_ID);
   }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
 }
 async function toggleNoteResolved(noteId, resolved){
@@ -3602,12 +3638,13 @@ async function refreshWorkingPapersForFile(){
 }
 async function loadMatchedWorkingPapers(){
   if(!currentClientFileId) return;
-  let matched, progress, requirements;
+  let matched, progress, requirements, notes;
   try{
-    [matched, progress, requirements] = await Promise.all([
+    [matched, progress, requirements, notes] = await Promise.all([
       apiFetch('/api/client-files/'+currentClientFileId+'/working-papers'),
       apiFetch('/api/client-files/'+currentClientFileId+'/progress').catch(()=>({overallPercent:0, byMain:{}})),
       apiFetch('/api/client-files/'+currentClientFileId+'/requirements').catch(()=>[]),
+      apiFetch('/api/client-files/'+currentClientFileId+'/notes').catch(()=>[]),
     ]);
   }catch(e){ return; }
   const listCol = document.getElementById('cfd-wp-list');
@@ -3626,6 +3663,12 @@ async function loadMatchedWorkingPapers(){
     reqByMain[k] = reqByMain[k] || {total:0, done:0};
     reqByMain[k].total++; if(r.is_fulfilled) reqByMain[k].done++;
   });
+  const notesByMain = {};
+  (notes||[]).forEach(n=>{
+    const k = n.wp_main_item_id || '_general';
+    notesByMain[k] = notesByMain[k] || {total:0, open:0};
+    notesByMain[k].total++; if(!n.is_resolved) notesByMain[k].open++;
+  });
   const byGroup = {};
   matched.forEach(m=>{
     const g = m.wp_main_items.wp_groups;
@@ -3639,13 +3682,15 @@ async function loadMatchedWorkingPapers(){
         ${g.items.map(it=>{
           const pct = progress.byMain ? (progress.byMain[it.wp_main_items.id] ?? 0) : 0;
           const req = reqByMain[it.wp_main_items.id];
+          const nt = notesByMain[it.wp_main_items.id];
           return `<div class="wp-main-item" onclick="loadWpMainDetail(this,'${it.wp_main_items.id}')">
-          <span>${it.account_amount!==null && it.account_amount!==undefined ? formatMoney(it.account_amount)+' — ' : (it.wp_main_items.code?it.wp_main_items.code+' — ':'')}${it.wp_main_items.title}</span>
+          <span>${it.account_amount!==null && it.account_amount!==undefined ? formatMoney(it.account_amount)+' — ' : ''}${it.wp_main_items.title}</span>
           <span class="badge ${it.status==='completed'?'ok':it.status==='in_progress'?'warn':'neutral'}">${it.status==='completed'?'مكتملة':it.status==='in_progress'?'قيد التنفيذ':'لم تبدأ'}</span>
           <div class="wp-mini-stats">
             <div class="wp-mini-bar"><div class="wp-mini-bar-fill" style="width:${pct}%;"></div></div>
             <span class="wp-mini-pct">${pct}%</span>
             ${req ? `<span class="wp-req-badge">📋 ${req.done}/${req.total}</span>` : ''}
+            ${nt ? `<span class="wp-req-badge" style="background:#FBEFE0; color:#B5762C;">📝 ${nt.total-nt.open}/${nt.total}</span>` : ''}
           </div>
         </div>`;
         }).join('')}
@@ -3766,6 +3811,7 @@ async function loadWpMainDetail(item, mainId){
         <div class="ist active" onclick="switchWpItemSubtab(this,'details')">تفاصيل البند</div>
         <div class="ist" onclick="switchWpItemSubtab(this,'chat')">الدردشة</div>
         <div class="ist" onclick="switchWpItemSubtab(this,'req')">المتطلبات</div>
+        <div class="ist" onclick="switchWpItemSubtab(this,'notes')">الملاحظات</div>
       </div>
       <div class="wp-item-pane" id="wp-item-pane-details">
         ${main.objective ? `<div class="form-section"><div class="form-section-title">الهدف</div><div style="font-size:13px; line-height:1.8;">${main.objective}</div></div>` : ''}
@@ -3797,8 +3843,34 @@ async function loadWpMainDetail(item, mainId){
           </table>
         </div>
       </div>
+      <div class="wp-item-pane" id="wp-item-pane-notes" style="display:none;">
+        <div class="panel">
+          <div class="panel-head"><h3>ملاحظات هذا البند</h3>
+            <span class="add-child-btn" onclick="openAddNoteModal('${mainId}')">+ إضافة ملاحظة</span>
+          </div>
+          <table>
+            <thead><tr><th>الملاحظة</th><th>الحالة</th><th></th></tr></thead>
+            <tbody id="wp-item-notes-tbody"><tr><td colspan="3" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
     </div>`;
   CURRENT_WP_ITEM_ID = mainId;
+}
+async function loadItemNotes(mainId){
+  const tbody = document.getElementById('wp-item-notes-tbody');
+  if(!tbody) return;
+  try{
+    const rows = (await apiFetch('/api/client-files/'+currentClientFileId+'/notes')).filter(n=>n.wp_main_item_id===mainId);
+    tbody.innerHTML = rows.length ? rows.map(n=>`
+      <tr><td>${n.body}</td><td><span class="badge ${n.is_resolved?'ok':'flag'}">${n.is_resolved?'محلولة':'مفتوحة'}</span></td>
+      <td><div class="row-actions">
+        <span class="row-icon-btn ${n.is_resolved?'delete':'lead'}" title="${n.is_resolved?'إعادة فتحها':'وضع كمحلولة'}" onclick="toggleNoteResolved('${n.id}', ${!n.is_resolved}); setTimeout(()=>loadItemNotes('${mainId}'),300);">
+          ${n.is_resolved ? ICON_DELETE.replace('<svg','<svg style="transform:rotate(45deg)"') : ICON_LEAD}
+        </span>
+        ${btnDelete(`deleteNote('${n.id}')`)}
+      </div></td></tr>`).join('') : '<tr><td colspan="3" class="empty-hint">لا توجد ملاحظات لهذا البند</td></tr>';
+  }catch(e){ tbody.innerHTML = `<tr><td colspan="3" class="empty-hint">تعذّر التحميل</td></tr>`; }
 }
 async function loadItemRequirements(mainId){
   const tbody = document.getElementById('wp-item-req-tbody');
@@ -3834,8 +3906,10 @@ function switchWpItemSubtab(el, key){
   document.getElementById('wp-item-pane-details').style.display = key==='details' ? '' : 'none';
   document.getElementById('wp-item-pane-chat').style.display = key==='chat' ? '' : 'none';
   document.getElementById('wp-item-pane-req').style.display = key==='req' ? '' : 'none';
+  document.getElementById('wp-item-pane-notes').style.display = key==='notes' ? '' : 'none';
   if(key==='chat') loadChatMessages('item');
   if(key==='req') loadItemRequirements(CURRENT_WP_ITEM_ID);
+  if(key==='notes') loadItemNotes(CURRENT_WP_ITEM_ID);
 }
 
 async function saveWpAnswers(mainId){
@@ -4697,46 +4771,68 @@ async function reassignChatMessage(msgId){
 }
 
 /* ================= دليل الدردشات (الصفحة العامة) ================= */
-let ACTIVE_CONVERSATION = null; // { type: 'client'|'staff_dm'|'staff_group', id, label, sub }
+let ACTIVE_CONVERSATION = null; // { type: 'client'|'staff_dm'|'staff_group'|'custom_group', id, label, sub }
+let CHATS_DIR_CACHE = null;
+let CHATS_DIR_TAB = 'clients';
+
+function switchChatsDirTab(el, key){
+  document.querySelectorAll('#page-chats .tab-strip .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  CHATS_DIR_TAB = key;
+  renderChatsDirectoryList();
+}
 
 async function loadChatsDirectory(){
   const list = document.getElementById('chats-directory-list');
   if(!list) return;
   list.innerHTML = '<div class="empty-hint" style="padding:40px 20px;">جارٍ التحميل...</div>';
   try{
-    const dir = await apiFetch('/api/chats');
-    let html = '';
-    html += `<div class="ch-item" onclick="openDirectoryConversation('staff_group', null, 'فريق المكتب', 'مجموعة عامة لكل الموظفين')">
+    CHATS_DIR_CACHE = await apiFetch('/api/chats');
+    renderChatsDirectoryList();
+  }catch(e){ list.innerHTML = `<div class="empty-hint" style="padding:40px;">تعذّر التحميل: ${e.message}</div>`; }
+}
+
+function renderChatsDirectoryList(){
+  const list = document.getElementById('chats-directory-list');
+  if(!list || !CHATS_DIR_CACHE) return;
+  const dir = CHATS_DIR_CACHE;
+  let html = '';
+  if(CHATS_DIR_TAB === 'clients'){
+    html = dir.clientRooms.length ? dir.clientRooms.map(r=>`
+      <div class="ch-item" onclick="openDirectoryConversation('client', '${r.client_id}', '${(r.client_name||'').replace(/'/g,"")}', 'دردشة جماعية — يراها كل فريق المراجعة')">
+        <div class="av">${(r.client_name||'ع').slice(0,2)}</div>
+        <div style="flex:1; min-width:0;">
+          <div class="cn">${r.client_name}</div>
+          <div class="cl">${r.last_message || 'لا توجد رسائل بعد'}</div>
+        </div>
+      </div>`).join('') : '<div class="empty-hint" style="padding:50px 20px;">لا يوجد عملاء بعد</div>';
+  } else if(CHATS_DIR_TAB === 'staff'){
+    html = dir.staffDms.length ? dir.staffDms.map(u=>`
+      <div class="ch-item" onclick="openDirectoryConversation('staff_dm', '${u.user_id}', '${(u.name||'').replace(/'/g,"")}', '${(u.role||'').replace(/'/g,"")}')">
+        <div class="av">${(u.name||'م').slice(0,2)}</div>
+        <div style="flex:1; min-width:0;">
+          <div class="cn">${u.name}${u.role?` <span style="font-weight:400; color:var(--muted); font-size:10.5px;">— ${u.role}</span>`:''}</div>
+          <div class="cl">${u.last_message || 'لا توجد رسائل بعد'}</div>
+        </div>
+      </div>`).join('') : '<div class="empty-hint" style="padding:50px 20px;">لا يوجد موظفون آخرون بعد</div>';
+  } else { // groups
+    html = `<div class="ch-item" onclick="openDirectoryConversation('staff_group', null, 'فريق المكتب', 'مجموعة عامة لكل الموظفين')">
       <div class="av">فم</div>
       <div style="flex:1; min-width:0;">
         <div class="cn">👥 فريق المكتب</div>
         <div class="cl">${dir.staffGroup.last_message || 'لا توجد رسائل بعد'}</div>
       </div>
     </div>`;
-    if(dir.staffDms.length){
-      html += `<div style="padding:9px 16px; font-size:11px; font-weight:700; color:var(--muted); background:var(--paper);">الموظفون</div>`;
-      html += dir.staffDms.map(u=>`
-        <div class="ch-item" onclick="openDirectoryConversation('staff_dm', '${u.user_id}', '${(u.name||'').replace(/'/g,"")}', '${(u.role||'').replace(/'/g,"")}')">
-          <div class="av">${(u.name||'م').slice(0,2)}</div>
-          <div style="flex:1; min-width:0;">
-            <div class="cn">${u.name}${u.role?` <span style="font-weight:400; color:var(--muted); font-size:10.5px;">— ${u.role}</span>`:''}</div>
-            <div class="cl">${u.last_message || 'لا توجد رسائل بعد'}</div>
-          </div>
-        </div>`).join('');
-    }
-    if(dir.clientRooms.length){
-      html += `<div style="padding:9px 16px; font-size:11px; font-weight:700; color:var(--muted); background:var(--paper);">العملاء</div>`;
-      html += dir.clientRooms.map(r=>`
-        <div class="ch-item" onclick="openDirectoryConversation('client', '${r.client_id}', '${(r.client_name||'').replace(/'/g,"")}', 'دردشة جماعية — يراها كل فريق المراجعة')">
-          <div class="av">${(r.client_name||'ع').slice(0,2)}</div>
-          <div style="flex:1; min-width:0;">
-            <div class="cn">${r.client_name}</div>
-            <div class="cl">${r.last_message || 'لا توجد رسائل بعد'}</div>
-          </div>
-        </div>`).join('');
-    }
-    list.innerHTML = html || '<div class="empty-hint" style="padding:60px 20px;">لا توجد محادثات بعد</div>';
-  }catch(e){ list.innerHTML = `<div class="empty-hint" style="padding:40px;">تعذّر التحميل: ${e.message}</div>`; }
+    html += (dir.staffGroups||[]).map(g=>`
+      <div class="ch-item" onclick="openDirectoryConversation('custom_group', '${g.id}', '${(g.name||'').replace(/'/g,"")}', 'مجموعة مخصصة')">
+        <div class="av">${(g.name||'م').slice(0,2)}</div>
+        <div style="flex:1; min-width:0;">
+          <div class="cn">👥 ${g.name}</div>
+          <div class="cl">${g.last_message || 'لا توجد رسائل بعد'}</div>
+        </div>
+      </div>`).join('');
+  }
+  list.innerHTML = html;
 }
 
 function openDirectoryConversation(type, id, label, sub){
@@ -4750,7 +4846,37 @@ function openDirectoryConversation(type, id, label, sub){
   document.getElementById('chats-active-av').textContent = (label||'؟').slice(0,2);
   document.getElementById('chats-active-title').textContent = label;
   document.getElementById('chats-active-sub').textContent = sub || '';
+  const linkbar = document.getElementById('chats-active-linkbar');
+  if(type === 'client'){
+    linkbar.style.display = 'block';
+    loadDirectoryClientFiles(id);
+  } else {
+    linkbar.style.display = 'none';
+  }
   loadDirectoryMessages();
+}
+
+async function loadDirectoryClientFiles(clientId){
+  const fileSel = document.getElementById('chats-active-file-select');
+  const itemSel = document.getElementById('chats-active-item-select');
+  fileSel.innerHTML = '<option value="">جارٍ التحميل...</option>';
+  itemSel.innerHTML = '<option value="">(بدون ربط ببند)</option>';
+  try{
+    const { files } = await apiFetch('/api/clients/'+clientId);
+    if(!files.length){ fileSel.innerHTML = '<option value="">— لا توجد ملفات تدقيق لهذا العميل —</option>'; return; }
+    fileSel.innerHTML = files.map(f=>`<option value="${f.id}">📁 ${f.name}</option>`).join('');
+    onDirectoryFileChange();
+  }catch(e){ fileSel.innerHTML = '<option value="">تعذّر التحميل</option>'; }
+}
+async function onDirectoryFileChange(){
+  const fileId = document.getElementById('chats-active-file-select').value;
+  const itemSel = document.getElementById('chats-active-item-select');
+  itemSel.innerHTML = '<option value="">(بدون ربط ببند)</option>';
+  if(!fileId) return;
+  try{
+    const matched = await apiFetch('/api/client-files/'+fileId+'/working-papers');
+    itemSel.innerHTML = '<option value="">(بدون ربط ببند)</option>' + matched.map(m=>`<option value="${m.wp_main_items.id}">${m.wp_main_items.title}</option>`).join('');
+  }catch(e){}
 }
 
 async function loadDirectoryMessages(){
@@ -4761,6 +4887,7 @@ async function loadDirectoryMessages(){
     let url;
     if(ACTIVE_CONVERSATION.type === 'client') url = '/api/clients/'+ACTIVE_CONVERSATION.id+'/chat';
     else if(ACTIVE_CONVERSATION.type === 'staff_dm') url = '/api/staff-chat/dm/'+ACTIVE_CONVERSATION.id;
+    else if(ACTIVE_CONVERSATION.type === 'custom_group') url = '/api/staff-chat/groups/'+ACTIVE_CONVERSATION.id+'/messages';
     else url = '/api/staff-chat/group';
     const msgs = await apiFetch(url);
     const showContext = ACTIVE_CONVERSATION.type === 'client';
@@ -4779,8 +4906,15 @@ async function sendDirectoryMessage(){
   if(attach){ payload.attachment_name = attach.name; payload.attachment_mime = attach.mime; payload.attachment_data = attach.data; }
   try{
     let url;
-    if(ACTIVE_CONVERSATION.type === 'client'){ showToast('لإرسال رسالة لعميل، افتحها من داخل أحد ملفاته التدقيقية'); return; }
+    if(ACTIVE_CONVERSATION.type === 'client'){
+      const fileId = document.getElementById('chats-active-file-select').value;
+      if(!fileId){ showToast('اختر ملف التدقيق أولًا من القائمة أسفل الرسائل'); return; }
+      const itemId = document.getElementById('chats-active-item-select').value;
+      if(itemId) payload.wp_main_item_id = itemId;
+      url = '/api/client-files/'+fileId+'/chat';
+    }
     else if(ACTIVE_CONVERSATION.type === 'staff_dm') url = '/api/staff-chat/dm/'+ACTIVE_CONVERSATION.id;
+    else if(ACTIVE_CONVERSATION.type === 'custom_group') url = '/api/staff-chat/groups/'+ACTIVE_CONVERSATION.id+'/messages';
     else url = '/api/staff-chat/group';
     await apiFetch(url, {method:'POST', body: JSON.stringify(payload)});
     input.value = '';
@@ -4788,6 +4922,36 @@ async function sendDirectoryMessage(){
     loadDirectoryMessages();
     loadChatsDirectory();
   }catch(e){ showToast('تعذّر إرسال الرسالة: '+e.message); }
+}
+
+/* ---------------- إنشاء مجموعة دردشة جديدة ---------------- */
+async function openCreateGroupModal(){
+  document.getElementById('groupchat-name').value = '';
+  document.getElementById('groupchat-error').style.display = 'none';
+  const box = document.getElementById('groupchat-members');
+  box.innerHTML = '<div class="empty-hint" style="padding:10px;">جارٍ التحميل...</div>';
+  openModal('modal-addgroupchat');
+  try{
+    if(!USERS_CACHE.length){ USERS_CACHE = await apiFetch('/api/users'); }
+    box.innerHTML = USERS_CACHE.filter(u=>u.id!==SESSION.userId).map(u=>`
+      <label style="display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:12.5px; cursor:pointer;">
+        <input type="checkbox" value="${u.id}" class="groupchat-member-cb" style="width:16px; height:16px;">
+        ${u.first_name_ar||''} ${u.last_name_ar||''}
+      </label>`).join('') || '<div class="empty-hint" style="padding:10px;">لا يوجد موظفون آخرون</div>';
+  }catch(e){ box.innerHTML = 'تعذّر تحميل الموظفين'; }
+}
+async function saveNewGroupChat(){
+  const name = document.getElementById('groupchat-name').value.trim();
+  const memberIds = [...document.querySelectorAll('.groupchat-member-cb:checked')].map(cb=>cb.value);
+  const errBox = document.getElementById('groupchat-error');
+  if(!name){ errBox.textContent = 'اسم المجموعة إلزامي'; errBox.style.display='block'; return; }
+  if(!memberIds.length){ errBox.textContent = 'اختر عضوًا واحدًا على الأقل'; errBox.style.display='block'; return; }
+  try{
+    await apiFetch('/api/staff-chat/groups', {method:'POST', body: JSON.stringify({name, member_ids: memberIds})});
+    closeModal('modal-addgroupchat');
+    showToast('تم إنشاء المجموعة');
+    loadChatsDirectory();
+  }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
 }
 </script>
 
