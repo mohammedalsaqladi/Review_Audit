@@ -1187,6 +1187,7 @@
           <div class="tab" onclick="switchCfdTab(this,'wp')">أوراق العمل</div>
           <div class="tab" onclick="switchCfdTab(this,'adj')">قيود التعديل</div>
           <div class="tab" onclick="switchCfdTab(this,'req')">المتطلبات</div>
+          <div class="tab" onclick="switchCfdTab(this,'notes')">الملاحظات</div>
           <div class="tab" onclick="switchCfdTab(this,'attach')">المرفقات</div>
         </div>
 
@@ -1338,6 +1339,24 @@
             <table>
               <thead><tr><th>المتطلب</th><th>مرتبط بورقة</th><th>الحالة</th><th>تاريخ الطلب</th><th></th></tr></thead>
               <tbody id="cfd-req-tbody"><tr><td colspan="5" class="empty-hint">لا توجد متطلبات بعد</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- تبويب: الملاحظات -->
+        <div class="ptab" id="cfd-notes">
+          <div class="completion-stats">
+            <div class="completion-card done"><div class="num" id="notes-resolved-count">0</div><div class="lbl">محلولة</div></div>
+            <div class="completion-card notstarted"><div class="num" id="notes-open-count">0</div><div class="lbl">مفتوحة</div></div>
+            <div class="completion-card"><div class="num" id="notes-total-count">0</div><div class="lbl">الإجمالي</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>الملاحظات الداخلية</h3>
+              <span class="add-child-btn" onclick="openAddNoteModal()">+ إضافة ملاحظة</span>
+            </div>
+            <table>
+              <thead><tr><th>الملاحظة</th><th>مرتبطة بورقة</th><th>الحالة</th><th>بواسطة</th><th></th></tr></thead>
+              <tbody id="cfd-notes-tbody"><tr><td colspan="5" class="empty-hint">لا توجد ملاحظات بعد</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1991,6 +2010,29 @@
   </div>
 </div>
 
+<!-- ===== نافذة إضافة ملاحظة داخلية ===== -->
+<div class="modal-overlay" id="modal-addnote">
+  <div class="modal-box" style="max-width:460px;">
+    <div class="modal-head">
+      <div><h3>إضافة ملاحظة داخلية</h3><span>ستُرسل تلقائيًا كرسالة بالدردشة</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addnote')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label>نص الملاحظة <span class="req">*</span></label><textarea id="note-body" style="width:100%; min-height:80px; padding:10px 13px; border:1.3px solid var(--line-strong); border-radius:8px;"></textarea></div>
+        <div class="form-field full"><label>مرتبطة بورقة عمل (اختياري)</label><select id="note-main-item"><option value="">— عامة (غير مرتبطة ببند) —</option></select></div>
+      </div>
+      <div id="note-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addnote')">إلغاء</button>
+      <button class="btn dark" onclick="saveNote()">حفظ الملاحظة</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== نافذة إضافة مستخدم (موظف مكتب) ===== -->
 <div class="modal-overlay" id="modal-adduser">
   <div class="modal-box" style="max-width:640px;">
@@ -2300,6 +2342,10 @@ const ICON_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 function btnEdit(onclick, title){ return `<span class="row-icon-btn edit" title="${title||'تعديل'}" onclick="${onclick}">${ICON_EDIT}</span>`; }
 function btnDelete(onclick, title){ return `<span class="row-icon-btn delete" title="${title||'حذف'}" onclick="${onclick}">${ICON_DELETE}</span>`; }
 function btnLead(onclick, title){ return `<span class="row-icon-btn lead" title="${title||'تعيين كمسؤول'}" onclick="${onclick}">${ICON_LEAD}</span>`; }
+function formatMoney(n){
+  n = Number(n)||0;
+  return n.toLocaleString('ar-SA', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
 
 async function doLogin(){
   const code = document.getElementById('login-company-code').value.trim();
@@ -3118,6 +3164,7 @@ function switchCfdTab(el, key){
   if(key==='adj') loadAdjustments();
   if(key==='general') loadClientFileTeam();
   if(key==='req') loadRequirements();
+  if(key==='notes') loadNotes();
   if(key==='attach') loadFileAttachments();
 }
 
@@ -3287,11 +3334,11 @@ async function loadRequirements(){
       : '<tr><td colspan="5" class="empty-hint">لا توجد متطلبات بعد</td></tr>';
   }catch(e){ showToast('تعذّر تحميل المتطلبات: '+e.message); }
 }
-function openAddRequirementModal(){
+function openAddRequirementModal(preselectMainId){
   document.getElementById('req-title').value = '';
   const sel = document.getElementById('req-main-item');
   sel.innerHTML = '<option value="">— عام (غير مرتبط ببند) —</option>' +
-    WP_MAIN_ITEMS_CACHE.map(m=>`<option value="${m.id}">${m.code||''} — ${m.title}</option>`).join('');
+    WP_MAIN_ITEMS_CACHE.map(m=>`<option value="${m.id}" ${m.id===preselectMainId?'selected':''}>${m.code||''} — ${m.title}</option>`).join('');
   document.getElementById('req-error').style.display = 'none';
   openModal('modal-addreq');
 }
@@ -3305,6 +3352,7 @@ async function saveRequirement(){
     closeModal('modal-addreq');
     showToast('تم إرسال الطلب بالدردشة');
     loadRequirements();
+    if(document.getElementById('wp-item-pane-req')) loadItemRequirements(CURRENT_WP_ITEM_ID);
   }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
 }
 function openFulfillRequirementModal(reqId, title){
@@ -3337,6 +3385,63 @@ async function deleteRequirement(reqId){
   try{
     await apiFetch('/api/client-files/'+currentClientFileId+'/requirements/'+reqId, {method:'DELETE'});
     loadRequirements();
+  }catch(e){ showToast('تعذّر الحذف: '+e.message); }
+}
+
+/* ---------------- الملاحظات ---------------- */
+async function loadNotes(){
+  if(!currentClientFileId) return;
+  const tbody = document.getElementById('cfd-notes-tbody');
+  try{
+    const rows = await apiFetch('/api/client-files/'+currentClientFileId+'/notes');
+    document.getElementById('notes-total-count').textContent = rows.length;
+    document.getElementById('notes-resolved-count').textContent = rows.filter(n=>n.is_resolved).length;
+    document.getElementById('notes-open-count').textContent = rows.filter(n=>!n.is_resolved).length;
+    tbody.innerHTML = rows.length ? rows.map(n=>`
+      <tr><td>${n.body}</td>
+      <td>${n.wp_main_items ? n.wp_main_items.title : '<span class="empty-hint" style="padding:0;">عامة</span>'}</td>
+      <td><span class="badge ${n.is_resolved?'ok':'flag'}">${n.is_resolved?'محلولة':'مفتوحة'}</span></td>
+      <td>${n.created ? ((n.created.first_name_ar||'')+' '+(n.created.last_name_ar||'')).trim() : '—'}</td>
+      <td><div class="row-actions">
+        <span class="row-icon-btn ${n.is_resolved?'delete':'lead'}" title="${n.is_resolved?'إعادة فتحها':'وضع كمحلولة'}" onclick="toggleNoteResolved('${n.id}', ${!n.is_resolved})">
+          ${n.is_resolved ? ICON_DELETE.replace('<svg','<svg style="transform:rotate(45deg)"') : ICON_LEAD}
+        </span>
+        ${btnDelete(`deleteNote('${n.id}')`)}
+      </div></td></tr>`).join('')
+      : '<tr><td colspan="5" class="empty-hint">لا توجد ملاحظات بعد</td></tr>';
+  }catch(e){ showToast('تعذّر تحميل الملاحظات: '+e.message); }
+}
+function openAddNoteModal(preselectMainId){
+  document.getElementById('note-body').value = '';
+  const sel = document.getElementById('note-main-item');
+  sel.innerHTML = '<option value="">— عامة (غير مرتبطة ببند) —</option>' +
+    WP_MAIN_ITEMS_CACHE.map(m=>`<option value="${m.id}" ${m.id===preselectMainId?'selected':''}>${m.code||''} — ${m.title}</option>`).join('');
+  document.getElementById('note-error').style.display = 'none';
+  openModal('modal-addnote');
+}
+async function saveNote(){
+  const body = document.getElementById('note-body').value.trim();
+  const mainId = document.getElementById('note-main-item').value || null;
+  const errBox = document.getElementById('note-error');
+  if(!body){ errBox.textContent = 'نص الملاحظة إلزامي'; errBox.style.display='block'; return; }
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/notes', {method:'POST', body: JSON.stringify({body, wp_main_item_id: mainId})});
+    closeModal('modal-addnote');
+    showToast('تم حفظ الملاحظة');
+    loadNotes();
+  }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
+}
+async function toggleNoteResolved(noteId, resolved){
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/notes/'+noteId+'/resolve', {method:'POST', body: JSON.stringify({is_resolved:resolved})});
+    loadNotes();
+  }catch(e){ showToast('تعذّر التحديث: '+e.message); }
+}
+async function deleteNote(noteId){
+  if(!confirm('هل تريد حذف هذه الملاحظة؟')) return;
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/notes/'+noteId, {method:'DELETE'});
+    loadNotes();
   }catch(e){ showToast('تعذّر الحذف: '+e.message); }
 }
 
@@ -3535,7 +3640,7 @@ async function loadMatchedWorkingPapers(){
           const pct = progress.byMain ? (progress.byMain[it.wp_main_items.id] ?? 0) : 0;
           const req = reqByMain[it.wp_main_items.id];
           return `<div class="wp-main-item" onclick="loadWpMainDetail(this,'${it.wp_main_items.id}')">
-          <span>${it.wp_main_items.code||''} — ${it.wp_main_items.title}</span>
+          <span>${it.account_amount!==null && it.account_amount!==undefined ? formatMoney(it.account_amount)+' — ' : (it.wp_main_items.code?it.wp_main_items.code+' — ':'')}${it.wp_main_items.title}</span>
           <span class="badge ${it.status==='completed'?'ok':it.status==='in_progress'?'warn':'neutral'}">${it.status==='completed'?'مكتملة':it.status==='in_progress'?'قيد التنفيذ':'لم تبدأ'}</span>
           <div class="wp-mini-stats">
             <div class="wp-mini-bar"><div class="wp-mini-bar-fill" style="width:${pct}%;"></div></div>
@@ -3660,6 +3765,7 @@ async function loadWpMainDetail(item, mainId){
       <div class="item-subtabs">
         <div class="ist active" onclick="switchWpItemSubtab(this,'details')">تفاصيل البند</div>
         <div class="ist" onclick="switchWpItemSubtab(this,'chat')">الدردشة</div>
+        <div class="ist" onclick="switchWpItemSubtab(this,'req')">المتطلبات</div>
       </div>
       <div class="wp-item-pane" id="wp-item-pane-details">
         ${main.objective ? `<div class="form-section"><div class="form-section-title">الهدف</div><div style="font-size:13px; line-height:1.8;">${main.objective}</div></div>` : ''}
@@ -3676,12 +3782,36 @@ async function loadWpMainDetail(item, mainId){
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 015 5l-9.2 9.19a1.5 1.5 0 01-2.12-2.12l8.49-8.48"/></svg>
           </span>
           <div id="chat-file-preview-item" class="chat-file-preview" style="display:none;"></div>
-          <input id="chat-input-item" placeholder="اكتب رسالة بخصوص هذا البند..." onkeydown="if(event.key==='Enter'){sendChatMessage('item');}">
+          <input id="chat-input-item" placeholder="اكتب رسالة، أو / لطلب متطلب، أو ! لملاحظة..." onkeydown="if(event.key==='Enter'){sendChatMessage('item');}">
           <button class="btn dark" onclick="sendChatMessage('item')">إرسال</button>
+        </div>
+      </div>
+      <div class="wp-item-pane" id="wp-item-pane-req" style="display:none;">
+        <div class="panel">
+          <div class="panel-head"><h3>متطلبات هذا البند</h3>
+            <span class="add-child-btn" onclick="openAddRequirementModal('${mainId}')">+ طلب متطلب</span>
+          </div>
+          <table>
+            <thead><tr><th>المتطلب</th><th>الحالة</th><th></th></tr></thead>
+            <tbody id="wp-item-req-tbody"><tr><td colspan="3" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
+          </table>
         </div>
       </div>
     </div>`;
   CURRENT_WP_ITEM_ID = mainId;
+}
+async function loadItemRequirements(mainId){
+  const tbody = document.getElementById('wp-item-req-tbody');
+  if(!tbody) return;
+  try{
+    const rows = (await apiFetch('/api/client-files/'+currentClientFileId+'/requirements')).filter(r=>r.wp_main_item_id===mainId);
+    tbody.innerHTML = rows.length ? rows.map(r=>`
+      <tr><td>${r.title}</td><td><span class="badge ${r.is_fulfilled?'ok':'flag'}">${r.is_fulfilled?'مستوفى':'بانتظار العميل'}</span></td>
+      <td><div class="row-actions">
+        ${!r.is_fulfilled ? `<span class="row-icon-btn lead" title="رفع المرفق" onclick="openFulfillRequirementModal('${r.id}','${(r.title||'').replace(/'/g,"")}')">${ICON_LINK}</span>` : ''}
+        ${btnDelete(`deleteRequirement('${r.id}')`)}
+      </div></td></tr>`).join('') : '<tr><td colspan="3" class="empty-hint">لا توجد متطلبات لهذا البند</td></tr>';
+  }catch(e){ tbody.innerHTML = `<tr><td colspan="3" class="empty-hint">تعذّر التحميل</td></tr>`; }
 }
 async function toggleSignoff(mainId, type, checked, checkboxEl){
   try{
@@ -3703,7 +3833,9 @@ function switchWpItemSubtab(el, key){
   el.classList.add('active');
   document.getElementById('wp-item-pane-details').style.display = key==='details' ? '' : 'none';
   document.getElementById('wp-item-pane-chat').style.display = key==='chat' ? '' : 'none';
+  document.getElementById('wp-item-pane-req').style.display = key==='req' ? '' : 'none';
   if(key==='chat') loadChatMessages('item');
+  if(key==='req') loadItemRequirements(CURRENT_WP_ITEM_ID);
 }
 
 async function saveWpAnswers(mainId){
@@ -4509,6 +4641,21 @@ async function sendChatMessage(scope){
       showToast('تم إرسال طلب المتطلب');
       loadChatMessages(scope);
     }catch(e){ showToast('تعذّر إرسال الطلب: '+e.message); }
+    return;
+  }
+
+  // "!" بأول الرسالة = تسجيل ملاحظة داخلية بتبويب "الملاحظات"
+  if(text.startsWith('!')){
+    const body = text.slice(1).trim();
+    if(!body){ showToast('اكتب نص الملاحظة بعد !'); return; }
+    try{
+      await apiFetch('/api/client-files/'+currentClientFileId+'/notes', {
+        method:'POST', body: JSON.stringify({body, wp_main_item_id: (scope==='item' ? CURRENT_WP_ITEM_ID : null)})
+      });
+      input.value = '';
+      showToast('تم تسجيل الملاحظة');
+      loadChatMessages(scope);
+    }catch(e){ showToast('تعذّر تسجيل الملاحظة: '+e.message); }
     return;
   }
 
