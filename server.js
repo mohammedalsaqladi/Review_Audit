@@ -14,7 +14,7 @@ const { createClient } = require('@supabase/supabase-js');
 const ExcelJS = require('exceljs');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '15mb' }));
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -528,7 +528,7 @@ app.post('/api/clients/:id/files', requireAuth, async (req, res) => {
 
 async function assertFileInCompany(sb, fileId, companyId) {
   const { data, error } = await sb.from('client_files')
-    .select('id, client_id, name, period_end, engagement_type, status, clients!inner(id,name,company_id)')
+    .select('id, client_id, name, period_start, period_end, prev_period_start, prev_period_end, engagement_type, status, clients!inner(id,name,company_id)')
     .eq('id', fileId).eq('clients.company_id', companyId).maybeSingle();
   if (error) console.error('assertFileInCompany query error:', error.message);
   return data;
@@ -548,7 +548,10 @@ app.put('/api/client-files/:id', requireAuth, async (req, res) => {
   const body = req.body || {};
   const payload = {};
   if (body.name !== undefined) payload.name = body.name;
+  if (body.period_start !== undefined) payload.period_start = body.period_start || null;
   if (body.period_end !== undefined) payload.period_end = body.period_end || null;
+  if (body.prev_period_start !== undefined) payload.prev_period_start = body.prev_period_start || null;
+  if (body.prev_period_end !== undefined) payload.prev_period_end = body.prev_period_end || null;
   if (body.engagement_type !== undefined) payload.engagement_type = body.engagement_type || null;
   if (body.status !== undefined) payload.status = body.status;
   const { data, error } = await sb.from('client_files').update(payload).eq('id', req.params.id).select().single();
@@ -627,10 +630,144 @@ app.get('/api/client-files/:id/trial-balance', requireAuth, async (req, res) => 
   const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   const { data: latest } = await sb.from('trial_balances').select('*').eq('client_file_id', req.params.id).order('version', { ascending: false }).limit(1).maybeSingle();
-  if (!latest) return res.json({ trialBalance: null, lines: [] });
+  const { data: adjustments } = await sb.from('trial_balance_adjustments').select('*').eq('client_file_id', req.params.id).order('created_at');
+  if (!latest) return res.json({ trialBalance: null, lines: [], adjustments: adjustments || [] });
   const { data: lines, error } = await sb.from('trial_balance_lines').select('*').eq('trial_balance_id', latest.id).order('account_code');
   if (error) return res.status(500).json({ message: error.message });
-  res.json({ trialBalance: latest, lines });
+  res.json({ trialBalance: latest, lines, adjustments: adjustments || [] });
+});
+
+// ---------------------------------------------------------------------------
+// قيود التعديل (Adjusting Journal Entries) — تنعكس على "الميزان المعدَّل" فورًا
+// ---------------------------------------------------------------------------
+app.get('/api/client-files/:id/adjustments', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data, error } = await sb.from('trial_balance_adjustments').select('*').eq('client_file_id', req.params.id).order('created_at');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/client-files/:id/adjustments', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const b = req.body || {};
+  const payload = {
+    client_file_id: req.params.id,
+    coa_account_id: b.coa_account_id || null,
+    account_code: b.account_code || null,
+    account_name: b.account_name || null,
+    debit: Number(b.debit) || 0,
+    credit: Number(b.credit) || 0,
+    description: b.description || null,
+    created_by: req.session.userId,
+  };
+  const { data, error } = await sb.from('trial_balance_adjustments').insert(payload).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.put('/api/client-files/:id/adjustments/:adjId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const b = req.body || {};
+  const payload = {
+    coa_account_id: b.coa_account_id || null,
+    account_code: b.account_code || null,
+    account_name: b.account_name || null,
+    debit: Number(b.debit) || 0,
+    credit: Number(b.credit) || 0,
+    description: b.description || null,
+  };
+  const { data, error } = await sb.from('trial_balance_adjustments').update(payload)
+    .eq('id', req.params.adjId).eq('client_file_id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.delete('/api/client-files/:id/adjustments/:adjId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { error } = await sb.from('trial_balance_adjustments').delete().eq('id', req.params.adjId).eq('client_file_id', req.params.id);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// نظام الدردشة — غرفة عامة واحدة لكل ملف تدقيق (وفريق المراجعة)، مع إمكانية
+// دردشة خاصة ببند عمل رئيسي عبر تمرير wp_main_item_id
+// ---------------------------------------------------------------------------
+app.get('/api/client-files/:id/chat', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  let q = sb.from('chat_messages')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, sender_user_id, users(id, first_name_ar, last_name_ar)')
+    .eq('client_file_id', req.params.id).order('created_at');
+  if (req.query.mainItemId) q = q.eq('wp_main_item_id', req.query.mainItemId);
+  else q = q.is('wp_main_item_id', null);
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/client-files/:id/chat', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const b = req.body || {};
+  if (!b.body && !b.attachment_data) return res.status(400).json({ message: 'الرسالة فارغة' });
+  const payload = {
+    company_id: req.session.companyId,
+    client_file_id: req.params.id,
+    wp_main_item_id: b.wp_main_item_id || null,
+    sender_user_id: req.session.userId,
+    body: b.body || null,
+    attachment_name: b.attachment_name || null,
+    attachment_mime: b.attachment_mime || null,
+    attachment_data: b.attachment_data || null,
+  };
+  const { data, error } = await sb.from('chat_messages').insert(payload)
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, sender_user_id, users(id, first_name_ar, last_name_ar)')
+    .single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.get('/api/client-files/:id/client-employees', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data, error } = await sb.from('client_employees').select('id, full_name, job_title, email').eq('client_id', file.client_id).order('full_name');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+// دليل غرف الدردشة المتاحة للمستخدم الحالي: كل ملف تدقيق هو "عميل/شركة" ← غرفة عامة لفريقها
+app.get('/api/chats', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: files, error } = await sb.from('client_files')
+    .select('id, name, status, client_id, clients!inner(id, name, company_id)')
+    .eq('clients.company_id', req.session.companyId).order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  const fileIds = (files || []).map(f => f.id);
+  let lastByFile = {};
+  if (fileIds.length) {
+    const { data: lastMsgs } = await sb.from('chat_messages')
+      .select('client_file_id, body, created_at').in('client_file_id', fileIds).is('wp_main_item_id', null)
+      .order('created_at', { ascending: false });
+    (lastMsgs || []).forEach(m => { if (!lastByFile[m.client_file_id]) lastByFile[m.client_file_id] = m; });
+  }
+  const rooms = (files || []).map(f => ({
+    client_file_id: f.id, file_name: f.name, client_name: f.clients.name,
+    last_message: lastByFile[f.id] ? lastByFile[f.id].body : null,
+    last_message_at: lastByFile[f.id] ? lastByFile[f.id].created_at : null,
+  }));
+  res.json(rooms);
 });
 
 // يحفظ نسخة جديدة كاملة من بنود الميزان (إصدار جديد في كل مرة، بدون حذف الإصدارات السابقة)
