@@ -870,6 +870,14 @@
             <div class="ps"><b id="profile-stat-employees">0</b><span>موظفو العميل</span></div>
             <div class="ps"><b id="profile-stat-reviewers">0</b><span>مراجعون مرتبطون</span></div>
           </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-inline-start:12px;">
+            <select id="pc-status-quick" onchange="changeClientStatus(this.value)" style="min-width:110px;">
+              <option value="active">نشط</option>
+              <option value="paused">موقوف</option>
+              <option value="archived">مؤرشف</option>
+            </select>
+            <button class="btn" style="color:var(--red); border-color:#E8C7BC;" onclick="deleteCurrentClient()">حذف العميل</button>
+          </div>
         </div>
 
         <div class="form-section" style="margin-bottom:20px;">
@@ -952,9 +960,9 @@
           </div>
           <div class="panel">
             <table>
-              <thead><tr><th>الاسم</th><th>المسمى الوظيفي</th><th>البريد الإلكتروني</th><th>الهاتف</th><th>الحالة</th></tr></thead>
+              <thead><tr><th>الاسم</th><th>المسمى الوظيفي</th><th>البريد الإلكتروني</th><th>الهاتف</th><th>الحالة</th><th></th></tr></thead>
               <tbody id="client-employees-tbody">
-                <tr><td colspan="5" class="empty-hint">لا يوجد موظفون بعد</td></tr>
+                <tr><td colspan="6" class="empty-hint">لا يوجد موظفون بعد</td></tr>
               </tbody>
             </table>
           </div>
@@ -1048,6 +1056,15 @@
           <div>
             <div class="pn" id="cfd-title">—</div>
             <div class="pm"><span id="cfd-period">نهاية الفترة: —</span><span id="cfd-gate">—</span></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; margin-inline-start:12px;">
+            <select id="cfd-status-quick" onchange="changeClientFileStatus(this.value)" style="min-width:130px;">
+              <option value="in_progress">قيد التنفيذ</option>
+              <option value="ready_for_partner">جاهز للشريك</option>
+              <option value="closed">مغلق</option>
+            </select>
+            <button class="btn" onclick="openEditClientFileModal()">تعديل الملف</button>
+            <button class="btn" style="color:var(--red); border-color:#E8C7BC;" onclick="deleteCurrentClientFile()">حذف الملف</button>
           </div>
         </div>
 
@@ -1598,6 +1615,38 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-editfile">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h3>تعديل ملف التدقيق</h3><span>عدّل بيانات الملف واحفظ</span></div>
+      <div class="modal-close" onclick="closeModal('modal-editfile')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label>اسم الملف <span class="req">*</span></label><input id="ef-name"></div>
+        <div class="form-field"><label>نهاية الفترة</label><input type="date" id="ef-period"></div>
+        <div class="form-field"><label>البوابة</label>
+          <select id="ef-gate"><option>مراجعة سنوية</option><option>مراجعة ربعية</option><option>زكاة وضريبة</option></select>
+        </div>
+        <div class="form-field"><label>حالة الملف</label>
+          <select id="ef-status">
+            <option value="in_progress">قيد التنفيذ</option>
+            <option value="ready_for_partner">جاهز للشريك</option>
+            <option value="closed">مغلق</option>
+          </select>
+        </div>
+      </div>
+      <div id="ef-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-editfile')">إلغاء</button>
+      <button class="btn dark" onclick="saveEditClientFile()">حفظ التعديلات</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== نافذة إضافة مستخدم (موظف مكتب) ===== -->
 <div class="modal-overlay" id="modal-adduser">
   <div class="modal-box" style="max-width:640px;">
@@ -1647,6 +1696,9 @@
         <div class="form-grid">
           <div class="form-field"><label>اسم المستخدم <span class="req">*</span></label><input id="u-username" placeholder="m.alotaibi"></div>
           <div class="form-field"><label>البريد الإلكتروني <span class="req">*</span></label><input id="u-email" placeholder="m.alotaibi@officefirm.com"></div>
+          <div class="form-field"><label>حالة المستخدم</label>
+            <select id="u-status"><option value="1">نشط</option><option value="0">معطّل</option></select>
+          </div>
         </div>
         <div style="font-size:11.5px; color:var(--muted-2); margin-top:10px;">يدخل هذا المستخدم بصيغة: رمز المكتب + اسم المستخدم + كلمة مرور مبدئية تُولَّد تلقائيًا وتظهر لك بعد الحفظ.</div>
         <div id="adduser-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:10px;"></div>
@@ -2112,6 +2164,9 @@ document.querySelectorAll('.chat-list .ch-item').forEach(it=>{
    ============================================================================ */
 let currentClientId = null;
 let currentClientFileId = null;
+let CURRENT_CLIENT_FILE = null;
+let CURRENT_CLIENT_EMPLOYEES = [];
+let editingEmployeeId = null;
 let LOOKUPS = { branches:[], clientTypes:[], sectors:[], regions:[], roles:[] };
 
 function backToClients(){
@@ -2293,6 +2348,8 @@ function renderClientProfile(client, employees, files){
   document.getElementById('profile-name').textContent = client.name;
   document.getElementById('profile-seal').textContent = client.name.trim().split(' ').slice(0,2).map(w=>w[0]).join('');
   document.getElementById('profile-status-badge').textContent = client.status || '—';
+  const statusSel = document.getElementById('pc-status-quick');
+  if(statusSel) statusSel.value = client.status || 'active';
   document.getElementById('profile-code-line').textContent = 'رمز العميل: ' + (client.client_code || '—');
   document.getElementById('profile-stat-files').textContent = files.length;
   document.getElementById('profile-stat-employees').textContent = employees.length;
@@ -2327,10 +2384,16 @@ function renderClientProfile(client, employees, files){
   }
 
   const empBody = document.getElementById('client-employees-tbody');
+  CURRENT_CLIENT_EMPLOYEES = employees;
   empBody.innerHTML = employees.length ? employees.map(e=>`
     <tr><td><b>${e.full_name}</b></td><td>${e.job_title||'—'}</td><td>${e.email||'—'}</td><td>${e.phone||'—'}</td>
-    <td><span class="badge ${e.is_primary_contact?'ok':'neutral'}">${e.is_primary_contact?'جهة اتصال رئيسية':'نشط'}</span></td></tr>`).join('')
-    : '<tr><td colspan="5" class="empty-hint">لا يوجد موظفون بعد</td></tr>';
+    <td><span class="badge ${e.is_primary_contact?'ok':'neutral'}">${e.is_primary_contact?'جهة اتصال رئيسية':'نشط'}</span></td>
+    <td style="white-space:nowrap;">
+      <span class="link" style="color:var(--brass); cursor:pointer; font-size:12px;" onclick="openEditEmployeeForm('${e.id}')">تعديل</span>
+      &nbsp;·&nbsp;
+      <span class="link" style="color:var(--red); cursor:pointer; font-size:12px;" onclick="deleteClientEmployee('${e.id}')">حذف</span>
+    </td></tr>`).join('')
+    : '<tr><td colspan="6" class="empty-hint">لا يوجد موظفون بعد</td></tr>';
 
   const filesBody = document.getElementById('client-files-tbody');
   filesBody.innerHTML = files.length ? files.map(f=>`
@@ -2386,7 +2449,30 @@ async function saveClientExtra(){
   catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
 
-function openAddEmployeeForm(){ document.getElementById('add-employee-box').style.display = 'block'; }
+function openAddEmployeeForm(){
+  editingEmployeeId = null;
+  ['emp-name','emp-title','emp-email','emp-phone'].forEach(id=>document.getElementById(id).value = '');
+  document.getElementById('add-employee-box').style.display = 'block';
+}
+function openEditEmployeeForm(empId){
+  const e = CURRENT_CLIENT_EMPLOYEES.find(x=>x.id===empId);
+  if(!e) return;
+  editingEmployeeId = empId;
+  document.getElementById('emp-name').value = e.full_name || '';
+  document.getElementById('emp-title').value = e.job_title || '';
+  document.getElementById('emp-email').value = e.email || '';
+  document.getElementById('emp-phone').value = e.phone || '';
+  document.getElementById('add-employee-box').style.display = 'block';
+}
+async function deleteClientEmployee(empId){
+  if(!currentClientId) return;
+  if(!confirm('هل تريد حذف هذا الموظف؟')) return;
+  try{
+    await apiFetch('/api/clients/'+currentClientId+'/employees/'+empId, {method:'DELETE'});
+    showToast('تم حذف الموظف');
+    openClientProfile(currentClientId);
+  }catch(e){ showToast('تعذّر الحذف: '+e.message); }
+}
 async function saveNewEmployee(){
   if(!currentClientId) return;
   const payload = {
@@ -2397,8 +2483,13 @@ async function saveNewEmployee(){
   };
   if(!payload.full_name){ showToast('اسم الموظف إلزامي'); return; }
   try{
-    await apiFetch('/api/clients/'+currentClientId+'/employees', {method:'POST', body: JSON.stringify(payload)});
+    if(editingEmployeeId){
+      await apiFetch('/api/clients/'+currentClientId+'/employees/'+editingEmployeeId, {method:'PUT', body: JSON.stringify(payload)});
+    } else {
+      await apiFetch('/api/clients/'+currentClientId+'/employees', {method:'POST', body: JSON.stringify(payload)});
+    }
     document.getElementById('add-employee-box').style.display = 'none';
+    editingEmployeeId = null;
     openClientProfile(currentClientId);
   }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
@@ -2418,6 +2509,26 @@ async function saveNewClientFile(){
     document.getElementById('add-file-box').style.display = 'none';
     openClientFileDetail(file.id);
   }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
+}
+
+async function changeClientStatus(newStatus){
+  if(!currentClientId) return;
+  try{
+    await apiFetch('/api/clients/'+currentClientId, {method:'PUT', body: JSON.stringify({status: newStatus})});
+    document.getElementById('profile-status-badge').textContent = newStatus;
+    showToast('تم تحديث حالة العميل');
+    loadClientsLive();
+  }catch(e){ showToast('تعذّر تحديث الحالة: '+e.message); }
+}
+async function deleteCurrentClient(){
+  if(!currentClientId) return;
+  if(!confirm('هل أنت متأكد من حذف هذا العميل؟ سيتم حذف كل ملفاته وبياناته المرتبطة نهائيًا ولا يمكن التراجع.')) return;
+  try{
+    await apiFetch('/api/clients/'+currentClientId, {method:'DELETE'});
+    showToast('تم حذف العميل');
+    backToClients();
+    loadClientsLive();
+  }catch(e){ showToast('تعذّر حذف العميل: '+e.message); }
 }
 
 /* ---------------- إضافة عميل جديد (النافذة السريعة) ---------------- */
@@ -2463,10 +2574,13 @@ async function openClientFileDetail(fileId){
 
   try{
     const file = await apiFetch('/api/client-files/' + fileId);
+    CURRENT_CLIENT_FILE = file;
     document.getElementById('cfd-seal').textContent = (file.engagement_type||'').slice(0,2) || '—';
     document.getElementById('cfd-title').textContent = file.name;
     document.getElementById('cfd-period').textContent = 'نهاية الفترة: ' + (file.period_end || '—');
     document.getElementById('cfd-gate').textContent = file.engagement_type || '';
+    const statusSel = document.getElementById('cfd-status-quick');
+    if(statusSel) statusSel.value = file.status || 'in_progress';
   }catch(e){ showToast('تعذّر تحميل الملف: '+e.message); return; }
 
   await loadTrialBalanceLive();
@@ -2481,6 +2595,61 @@ function backToClientProfile(){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-clientprofile').classList.add('active');
   if(currentClientId) openClientProfile(currentClientId);
+}
+
+async function changeClientFileStatus(newStatus){
+  if(!currentClientFileId) return;
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId, {method:'PUT', body: JSON.stringify({status: newStatus})});
+    showToast('تم تحديث حالة الملف');
+    if(CURRENT_CLIENT_FILE) CURRENT_CLIENT_FILE.status = newStatus;
+    loadClientFilesGlobalLive();
+  }catch(e){ showToast('تعذّر تحديث الحالة: '+e.message); }
+}
+
+function openEditClientFileModal(){
+  if(!CURRENT_CLIENT_FILE) return;
+  document.getElementById('ef-name').value = CURRENT_CLIENT_FILE.name || '';
+  document.getElementById('ef-period').value = CURRENT_CLIENT_FILE.period_end || '';
+  document.getElementById('ef-gate').value = CURRENT_CLIENT_FILE.engagement_type || 'مراجعة سنوية';
+  document.getElementById('ef-status').value = CURRENT_CLIENT_FILE.status || 'in_progress';
+  document.getElementById('ef-error').style.display = 'none';
+  openModal('modal-editfile');
+}
+
+async function saveEditClientFile(){
+  if(!currentClientFileId) return;
+  const errBox = document.getElementById('ef-error');
+  errBox.style.display = 'none';
+  const payload = {
+    name: document.getElementById('ef-name').value.trim(),
+    period_end: document.getElementById('ef-period').value || null,
+    engagement_type: document.getElementById('ef-gate').value,
+    status: document.getElementById('ef-status').value,
+  };
+  if(!payload.name){ errBox.textContent = 'اسم الملف إلزامي'; errBox.style.display = 'block'; return; }
+  try{
+    const updated = await apiFetch('/api/client-files/'+currentClientFileId, {method:'PUT', body: JSON.stringify(payload)});
+    CURRENT_CLIENT_FILE = updated;
+    closeModal('modal-editfile');
+    showToast('تم حفظ تعديلات الملف');
+    document.getElementById('cfd-title').textContent = updated.name;
+    document.getElementById('cfd-period').textContent = 'نهاية الفترة: ' + (updated.period_end || '—');
+    document.getElementById('cfd-gate').textContent = updated.engagement_type || '';
+    document.getElementById('cfd-status-quick').value = updated.status || 'in_progress';
+    loadClientFilesGlobalLive();
+  }catch(e){ errBox.textContent = e.message; errBox.style.display = 'block'; }
+}
+
+async function deleteCurrentClientFile(){
+  if(!currentClientFileId) return;
+  if(!confirm('هل أنت متأكد من حذف ملف التدقيق هذا؟ سيُحذف الميزان وأوراق العمل المرتبطة به نهائيًا.')) return;
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId, {method:'DELETE'});
+    showToast('تم حذف الملف');
+    loadClientFilesGlobalLive();
+    backToClientProfile();
+  }catch(e){ showToast('تعذّر حذف الملف: '+e.message); }
 }
 
 function switchCfdTab(el, key){
@@ -2552,8 +2721,15 @@ async function saveTrialBalance(){
 async function downloadFileFromApi(path, filename){
   const headers = {};
   if(SESSION.token) headers['Authorization'] = 'Bearer ' + SESSION.token;
-  const res = await fetch(path, { headers });
-  if(!res.ok){ showToast('تعذّر تنزيل الملف'); return; }
+  let res;
+  try{ res = await fetch(path, { headers }); }
+  catch(e){ showToast('تعذّر تنزيل الملف: تحقّق من الاتصال بالسيرفر'); return; }
+  if(!res.ok){
+    let msg = 'تعذّر تنزيل الملف (خطأ ' + res.status + ')';
+    try{ const data = await res.json(); if(data && data.message) msg = 'تعذّر تنزيل الملف: ' + data.message; }catch(e){}
+    showToast(msg);
+    return;
+  }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2762,6 +2938,7 @@ function openAddUserModal(){
   document.getElementById('u-role').value = '';
   document.getElementById('u-username').disabled = false;
   document.getElementById('u-agent-no').checked = true;
+  document.getElementById('u-status').value = '1';
   openModal('modal-adduser');
 }
 async function loadUsersLive(){
@@ -2803,6 +2980,7 @@ function openEditUserModal(userId){
   document.getElementById('u-username').value = u.username || '';
   document.getElementById('u-username').disabled = true;
   document.getElementById('u-email').value = u.email || '';
+  document.getElementById('u-status').value = u.is_active ? '1' : '0';
   document.getElementById('adduser-error').style.display = 'none';
   document.getElementById('adduser-submit-btn').textContent = 'حفظ التعديلات';
   openModal('modal-adduser');
@@ -2826,6 +3004,7 @@ async function saveUserFromForm(){
     is_sales_agent: document.getElementById('u-agent-yes').checked,
     username: document.getElementById('u-username').value.trim(),
     email: document.getElementById('u-email').value.trim() || null,
+    is_active: document.getElementById('u-status').value === '1',
   };
   try{
     if(editingUserId){
