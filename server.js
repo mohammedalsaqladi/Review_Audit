@@ -668,7 +668,7 @@ app.get('/api/client-files/:id/trial-balance/template', requireAuth, async (req,
     }
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="نموذج-ميزان-المراجعة.xlsx"');
+    res.setHeader('Content-Disposition', "attachment; filename=\"trial-balance-template.xlsx\"; filename*=UTF-8''" + encodeURIComponent('نموذج-ميزان-المراجعة.xlsx'));
     await wb.xlsx.write(res);
     res.end();
   } catch (e) {
@@ -712,7 +712,7 @@ app.get('/api/client-files/:id/trial-balance/export', requireAuth, async (req, r
     }));
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="ميزان-المراجعة.xlsx"');
+    res.setHeader('Content-Disposition', "attachment; filename=\"trial-balance.xlsx\"; filename*=UTF-8''" + encodeURIComponent('ميزان-المراجعة.xlsx'));
     await wb.xlsx.write(res);
     res.end();
   } catch (e) {
