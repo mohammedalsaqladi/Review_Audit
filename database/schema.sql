@@ -251,11 +251,11 @@ create table client_files (
 );
 create index idx_client_files_client on client_files(client_id);
 
--- موازين المراجعة المرفوعة (بإصدارات متعددة لكل ملف)
+-- ميزان المراجعة المرفوعة (تفصيل كل إصدار مرفوع في trial_balances)
 create table trial_balances (
     id              uuid primary key default gen_random_uuid(),
     client_file_id  uuid not null references client_files(id) on delete cascade,
-    file_url        text not null,
+    file_url        text,                                      -- اختياري: فارغ عند التعبئة اليدوية أو الاستيراد المباشر
     version         int  not null default 1,
     status          varchar(30) not null default 'pending',  -- pending / matched / unexplained_diff
     uploaded_by     uuid references users(id),

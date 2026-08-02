@@ -6,6 +6,7 @@
 <title>تمام | نظام المراجعة والتدقيق</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;600;700;800&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --ink:#12232E;
@@ -871,6 +872,17 @@
           </div>
         </div>
 
+        <div class="form-section" style="margin-bottom:20px;">
+          <div class="form-section-title">فريق المراجعة</div>
+          <div class="chips-row" id="reviewers-chips-view" style="margin-top:0;">
+            <span class="empty-hint" style="padding:4px 0;">لا يوجد مراجعون مرتبطون بعد</span>
+          </div>
+          <div class="add-row-inline" style="margin-top:12px; margin-bottom:0;">
+            <div><select id="sel-add-reviewer"><option value="">— اختر مستخدمًا لإضافته —</option></select></div>
+            <button class="btn" onclick="addReviewerToClient()">+ إضافة للفريق</button>
+          </div>
+        </div>
+
         <div class="profile-tabs">
           <div class="tab active" onclick="switchProfileTab(this,'contact')">بيانات الاتصال</div>
           <div class="tab" onclick="switchProfileTab(this,'employees')">الموظفين</div>
@@ -1046,9 +1058,27 @@
 
         <!-- تبويب: تهيئة الميزان -->
         <div class="ptab active" id="cfd-tb">
+          <div class="page-head" style="margin-bottom:14px;">
+            <div></div>
+            <div style="display:flex; gap:10px;">
+              <button class="btn" onclick="downloadTrialBalanceTemplate()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg>
+                تنزيل نموذج الميزان
+              </button>
+              <button class="btn" onclick="document.getElementById('tb-import-input').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+                استيراد ميزان
+              </button>
+              <input type="file" id="tb-import-input" accept=".xlsx,.xls" style="display:none;" onchange="importTrialBalanceExcel(this)">
+              <button class="btn" onclick="exportTrialBalance()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                تصدير
+              </button>
+            </div>
+          </div>
           <div class="notice">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.86L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.86a2 2 0 00-3.4 0z"/></svg>
-            اختر لكل سطر حسابه من دليل الحسابات (المستوى الرابع) لربطه — يُستخدم هذا الربط عند "تحديث أوراق العمل".
+            اختر لكل سطر حسابه من دليل الحسابات (المستوى الرابع) لربطه — يُستخدم هذا الربط عند "تحديث أوراق العمل". النموذج المُنزَّل فيه نفس هذه القائمة كخيارات جاهزة بالإكسل.
           </div>
 
           <div class="panel">
@@ -1058,7 +1088,7 @@
             <table id="tb-table">
               <thead><tr><th>رقم الحساب</th><th>اسم الحساب</th><th>رصيد أول الفترة</th><th>مدين الحركة</th><th>دائن الحركة</th><th>رصيد آخر الفترة</th><th>المستوى الرابع — دليل الحسابات</th><th></th></tr></thead>
               <tbody id="tb-tbody">
-                <tr><td colspan="8" class="empty-hint">لا توجد بنود ميزان بعد — اضغط "+ إضافة صف" لبدء التعبئة</td></tr>
+                <tr><td colspan="8" class="empty-hint">لا توجد بنود ميزان بعد — اضغط "+ إضافة صف" أو "استيراد ميزان"</td></tr>
               </tbody>
             </table>
           </div>
@@ -1384,13 +1414,13 @@
       <div class="page" id="page-staff">
         <div class="page-head">
           <div><div class="crumb">تهيئة النظام</div><h1>المستخدمون</h1><p class="desc">فريق المكتب وأدواره — الشريك، الجودة، مدير المراجعة، والمراجعون</p></div>
-          <button class="btn dark" onclick="openModal('modal-adduser')">+ إضافة مستخدم</button>
+          <button class="btn dark" onclick="openAddUserModal()">+ إضافة مستخدم</button>
         </div>
         <div class="panel">
           <table>
-            <thead><tr><th>الاسم</th><th>الدور</th><th>الفرع</th><th>البريد الإلكتروني</th><th>الجوال</th><th>مندوب مبيعات</th><th>الحالة</th></tr></thead>
+            <thead><tr><th>الاسم</th><th>الدور</th><th>الفرع</th><th>البريد الإلكتروني</th><th>الجوال</th><th>مندوب مبيعات</th><th>الحالة</th><th></th></tr></thead>
             <tbody id="staff-tbody">
-              <tr><td colspan="7" class="empty-hint">جارٍ التحميل...</td></tr>
+              <tr><td colspan="8" class="empty-hint">جارٍ التحميل...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1514,50 +1544,23 @@
     <div class="modal-body">
       <div class="form-grid" style="margin-bottom:16px;">
         <div class="form-field full"><label>اسم العميل باللغة العربية <span class="req">*</span></label><input id="newclient-ar" placeholder="مثال: شركة النسمة الرائعة التجارية"></div>
-        <div class="form-field full"><label>اسم العميل باللغة الإنجليزية</label><input placeholder="e.g. Al Nasama Trading Co."></div>
       </div>
 
-      <div class="form-grid" style="margin-bottom:16px;">
+      <div class="form-grid" style="margin-bottom:4px;">
         <div class="form-field">
-          <label>المناطق <span class="req">*</span> <span class="add-inline" onclick="toggleInline('m-add-region')">+ إضافة منطقة</span></label>
-          <select id="m-sel-region"><option value="">— اختر —</option><option>الرياض</option><option>مكة المكرمة</option><option>المدينة المنورة</option><option>المنطقة الشرقية</option></select>
-          <div class="inline-add-box" id="m-add-region"><input placeholder="اسم منطقة جديدة" id="m-in-region"><button class="btn" onclick="addOption('m-sel-region','m-in-region','m-add-region')">إضافة</button></div>
+          <label>المنطقة</label>
+          <select id="m-sel-region"><option value="">— اختر —</option></select>
         </div>
         <div class="form-field">
-          <label>نوع العميل <span class="add-inline" onclick="toggleInline('m-add-ctype')">+ إضافة نوع عميل</span></label>
-          <select id="m-sel-ctype"><option value="">— اختر —</option><option>شركة ذات مسؤولية محدودة</option><option>مؤسسة فردية</option><option>شركة مساهمة مقفلة</option></select>
-          <div class="inline-add-box" id="m-add-ctype"><input placeholder="نوع عميل جديد" id="m-in-ctype"><button class="btn" onclick="addOption('m-sel-ctype','m-in-ctype','m-add-ctype')">إضافة</button></div>
+          <label>نوع العميل</label>
+          <select id="m-sel-ctype"><option value="">— اختر —</option></select>
         </div>
         <div class="form-field full">
-          <label>قطاع العميل <span class="add-inline" onclick="toggleInline('m-add-sector')">+ إضافة قطاع</span></label>
-          <select id="m-sel-sector"><option value="">— اختر —</option><option>تجارة تجزئة وجملة</option><option>صناعة وتصنيع</option><option>مقاولات وإنشاءات</option><option>عقارات</option></select>
-          <div class="inline-add-box" id="m-add-sector"><input placeholder="قطاع جديد" id="m-in-sector"><button class="btn" onclick="addOption('m-sel-sector','m-in-sector','m-add-sector')">إضافة</button></div>
+          <label>قطاع العميل</label>
+          <select id="m-sel-sector"><option value="">— اختر —</option></select>
         </div>
       </div>
-
-      <div class="form-section" style="padding:16px 18px; margin-bottom:16px;">
-        <div class="form-section-title" style="margin-bottom:12px;">الفروع</div>
-        <div id="branches-list"></div>
-        <span class="add-inline" style="font-size:12px;" onclick="addBranchRow()">+ إضافة فرع</span>
-      </div>
-
-      <div class="form-section" style="padding:16px 18px; margin-bottom:4px;">
-        <div class="form-section-title" style="margin-bottom:12px;">المراجع المسؤول</div>
-        <div class="add-row-inline">
-          <div>
-            <select id="m-sel-reviewer">
-              <option value="">اختر من فضلك</option>
-              <option>نورة السبيعي — مراجع</option>
-              <option>بندر العتيبي — مراجع</option>
-              <option>عبدالله الحربي — مدير مراجعة</option>
-              <option>فهد الدوسري — مدير مراجعة</option>
-              <option>منى القحطاني — جودة</option>
-            </select>
-          </div>
-          <button class="btn" onclick="addReviewerChip()">+ إضافة مراجع</button>
-        </div>
-        <div class="chips-row" id="reviewer-chips"></div>
-      </div>
+      <div id="addclient-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:10px;"></div>
     </div>
     <div class="modal-foot">
       <button class="btn" onclick="closeModal('modal-addclient')">إلغاء</button>
@@ -1599,7 +1602,7 @@
 <div class="modal-overlay" id="modal-adduser">
   <div class="modal-box" style="max-width:640px;">
     <div class="modal-head">
-      <div><h3>إضافة مستخدم</h3><span>موظف تابع لمكتبكم — يظهر ضمن سلّم الأدوار وصلاحياته</span></div>
+      <div><h3 id="adduser-modal-title">إضافة مستخدم</h3><span>موظف تابع لمكتبكم — يظهر ضمن سلّم الأدوار وصلاحياته</span></div>
       <div class="modal-close" onclick="closeModal('modal-adduser')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </div>
@@ -1634,7 +1637,7 @@
           </div>
           <div class="form-field full">
             <label>مندوب مبيعات؟</label>
-            <div class="radio-group"><label><input type="radio" name="uagent" id="u-agent-yes" value="1" style="accent-color:#AD8A3F;"> نعم</label><label><input type="radio" name="uagent" value="0" checked style="accent-color:#AD8A3F;"> لا</label></div>
+            <div class="radio-group"><label><input type="radio" name="uagent" id="u-agent-yes" value="1" style="accent-color:#AD8A3F;"> نعم</label><label><input type="radio" name="uagent" id="u-agent-no" value="0" checked style="accent-color:#AD8A3F;"> لا</label></div>
           </div>
         </div>
       </div>
@@ -2128,6 +2131,9 @@ async function loadLookups(){
     fillSelect('sel-sector', LOOKUPS.sectors, s=>s.name);
     fillSelect('sel-region', LOOKUPS.regions, r=>r.name);
     fillSelect('sel-office-branch', LOOKUPS.branches, b=>b.name);
+    fillSelect('m-sel-region', LOOKUPS.regions, r=>r.name);
+    fillSelect('m-sel-ctype', LOOKUPS.clientTypes, c=>c.name);
+    fillSelect('m-sel-sector', LOOKUPS.sectors, s=>s.name);
   }catch(e){ console.error('تعذّر تحميل القوائم المرجعية', e); }
 }
 function fillSelect(id, items, labelFn){
@@ -2244,6 +2250,42 @@ async function openClientProfile(clientId){
     console.error('openClientProfile failed:', e);
     showToast('تعذّر تحميل بيانات العميل: ' + e.message);
   }
+  loadClientReviewers(clientId);
+}
+
+/* ---------------- فريق المراجعة المرتبط بالعميل ---------------- */
+function populateReviewerSelect(){
+  const sel = document.getElementById('sel-add-reviewer');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— اختر مستخدمًا لإضافته —</option>' +
+    USERS_CACHE.map(u=>`<option value="${u.id}">${u.first_name_ar} ${u.last_name_ar}${u.roles?' — '+u.roles.name_ar:''}</option>`).join('');
+}
+async function loadClientReviewers(clientId){
+  populateReviewerSelect();
+  const box = document.getElementById('reviewers-chips-view');
+  try{
+    const reviewers = await apiFetch('/api/clients/'+clientId+'/reviewers');
+    document.getElementById('profile-stat-reviewers').textContent = reviewers.length;
+    box.innerHTML = reviewers.length ? reviewers.map(r=>`
+      <div class="chip">${r.users ? r.users.first_name_ar+' '+r.users.last_name_ar : ''}${r.users && r.users.roles ? ' — '+r.users.roles.name_ar : ''}
+        <span class="x" onclick="removeReviewerFromClient('${r.user_id}')">✕</span></div>`).join('')
+      : '<span class="empty-hint" style="padding:4px 0;">لا يوجد مراجعون مرتبطون بعد</span>';
+  }catch(e){ box.innerHTML = `<span class="empty-hint" style="padding:4px 0;">تعذّر تحميل فريق المراجعة: ${e.message}</span>`; }
+}
+async function addReviewerToClient(){
+  const userId = document.getElementById('sel-add-reviewer').value;
+  if(!userId || !currentClientId) return;
+  try{
+    await apiFetch('/api/clients/'+currentClientId+'/reviewers', {method:'POST', body: JSON.stringify({user_id: userId})});
+    loadClientReviewers(currentClientId);
+  }catch(e){ showToast('تعذّر إضافة المراجع: '+e.message); }
+}
+async function removeReviewerFromClient(userId){
+  if(!currentClientId) return;
+  try{
+    await apiFetch('/api/clients/'+currentClientId+'/reviewers/'+userId, {method:'DELETE'});
+    loadClientReviewers(currentClientId);
+  }catch(e){ showToast('تعذّر حذف المراجع: '+e.message); }
 }
 
 function renderClientProfile(client, employees, files){
@@ -2381,9 +2423,17 @@ async function saveNewClientFile(){
 /* ---------------- إضافة عميل جديد (النافذة السريعة) ---------------- */
 async function saveNewClient(){
   const name = document.getElementById('newclient-ar').value.trim();
-  if(!name){ showToast('اسم العميل إلزامي'); return; }
+  const errBox = document.getElementById('addclient-error');
+  errBox.style.display = 'none';
+  if(!name){ errBox.textContent = 'اسم العميل إلزامي'; errBox.style.display = 'block'; return; }
+  const payload = {
+    name, status: 'active',
+    region_id: document.getElementById('m-sel-region').value || null,
+    client_type_id: document.getElementById('m-sel-ctype').value || null,
+    sector_id: document.getElementById('m-sel-sector').value || null,
+  };
   try{
-    const client = await apiFetch('/api/clients', {method:'POST', body: JSON.stringify({ name, status:'active' })});
+    const client = await apiFetch('/api/clients', {method:'POST', body: JSON.stringify(payload)});
     closeModal('modal-addclient');
 
     currentClientId = client.id;
@@ -2394,6 +2444,7 @@ async function saveNewClient(){
     document.querySelector('.content').scrollTop = 0;
 
     renderClientProfile(client, [], []); // نعرض بيانات العميل الجديد مباشرة، بدون إعادة جلبها من السيرفر
+    loadClientReviewers(client.id);
     switchProfileTab(document.querySelector('.profile-tabs .tab:nth-child(3)'), 'extra');
     loadClientsLive(); // لتحديث القائمة بالعميل الجديد
   }catch(e){ showToast('خطأ أثناء إنشاء العميل: '+e.message); }
@@ -2495,6 +2546,67 @@ async function saveTrialBalance(){
     showToast('تم حفظ الميزان');
     loadTrialBalanceLive();
   }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
+}
+
+/* ---------------- تنزيل نموذج / استيراد / تصدير الميزان كإكسل ---------------- */
+async function downloadFileFromApi(path, filename){
+  const headers = {};
+  if(SESSION.token) headers['Authorization'] = 'Bearer ' + SESSION.token;
+  const res = await fetch(path, { headers });
+  if(!res.ok){ showToast('تعذّر تنزيل الملف'); return; }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function downloadTrialBalanceTemplate(){
+  if(!currentClientFileId) return;
+  downloadFileFromApi('/api/client-files/'+currentClientFileId+'/trial-balance/template', 'نموذج-ميزان-المراجعة.xlsx');
+}
+function exportTrialBalance(){
+  if(!currentClientFileId) return;
+  downloadFileFromApi('/api/client-files/'+currentClientFileId+'/trial-balance/export', 'ميزان-المراجعة.xlsx');
+}
+function importTrialBalanceExcel(input){
+  if(!input.files.length) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      if(!rows.length){ showToast('الملف فارغ أو غير مقروء'); return; }
+      const tbody = document.getElementById('tb-tbody');
+      tbody.innerHTML = '';
+      rows.forEach(r=>{
+        const code = String(r['رقم الحساب'] ?? r['code'] ?? '').trim();
+        if(!code) return;
+        const coaCell = String(r['المستوى الرابع — دليل الحسابات'] ?? r['رمز المستوى الرابع بدليل الحسابات'] ?? r['coa'] ?? '').trim();
+        let coaId = null;
+        if(coaCell){
+          const coaCode = coaCell.split('—')[0].trim();
+          const match = coaData.find(a=>a.code === coaCode);
+          if(match) coaId = match.id;
+        }
+        tbody.insertAdjacentHTML('beforeend', tbRowHtml({
+          account_code: code,
+          account_name: r['اسم الحساب'] ?? r['name'] ?? '',
+          opening_balance: r['رصيد أول الفترة'] ?? r['opening'] ?? 0,
+          debit_movement: r['مدين الحركة'] ?? r['debit'] ?? 0,
+          credit_movement: r['دائن الحركة'] ?? r['credit'] ?? 0,
+          closing_balance: r['رصيد آخر الفترة'] ?? r['closing'] ?? 0,
+          coa_account_id: coaId,
+        }));
+      });
+      if(!tbody.children.length) tbody.innerHTML = '<tr><td colspan="8" class="empty-hint">لم يتم التعرّف على أي صف صالح بالملف</td></tr>';
+      showToast('تم استيراد '+rows.length+' صفًا — راجعها ثم اضغط "حفظ الميزان"');
+    }catch(err){ showToast('تعذّر قراءة الملف: '+err.message); }
+    input.value = '';
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 /* ---------------- أوراق العمل الفعلية لهذا الملف ---------------- */
@@ -2637,21 +2749,65 @@ async function saveWpAnswers(mainId){
 /* ============================================================================
    المستخدمون (موظفو المكتب)
    ============================================================================ */
+let USERS_CACHE = [];
+function openAddUserModal(){
+  editingUserId = null;
+  document.getElementById('adduser-modal-title').textContent = 'إضافة مستخدم';
+  document.getElementById('adduser-submit-btn').textContent = 'حفظ المستخدم';
+  document.getElementById('adduser-error').style.display = 'none';
+  ['u-first-ar','u-last-ar','u-first-en','u-last-en','u-phone','u-title-ar','u-title-en','u-username','u-email']
+    .forEach(id=>document.getElementById(id).value = '');
+  document.getElementById('u-employment').value = '';
+  document.getElementById('u-branch').value = '';
+  document.getElementById('u-role').value = '';
+  document.getElementById('u-username').disabled = false;
+  document.getElementById('u-agent-no').checked = true;
+  openModal('modal-adduser');
+}
 async function loadUsersLive(){
   const tbody = document.getElementById('staff-tbody');
   if(!tbody) return;
   try{
     const users = await apiFetch('/api/users');
+    USERS_CACHE = users;
     tbody.innerHTML = users.length ? users.map(u=>`
       <tr><td><b>${u.first_name_ar} ${u.last_name_ar}</b></td>
         <td><span class="badge neutral">${u.roles ? u.roles.name_ar : '—'}</span></td>
         <td>${u.branches ? u.branches.name : '—'}</td>
         <td>${u.email||'—'}</td><td>${u.phone||'—'}</td>
         <td><span class="badge ${u.is_sales_agent?'ok':'neutral'}">${u.is_sales_agent?'نعم':'لا'}</span></td>
-        <td><span class="badge ${u.is_active?'ok':'neutral'}">${u.is_active?'نشط':'معطّل'}</span></td></tr>`).join('')
-      : '<tr><td colspan="7" class="empty-hint">لا يوجد مستخدمون بعد</td></tr>';
-  }catch(e){ tbody.innerHTML = `<tr><td colspan="7" class="empty-hint">تعذّر التحميل: ${e.message}</td></tr>`; }
+        <td><span class="badge ${u.is_active?'ok':'neutral'}">${u.is_active?'نشط':'معطّل'}</span></td>
+        <td><span class="link" style="color:var(--brass); cursor:pointer; font-size:12px;" onclick="openEditUserModal('${u.id}')">تعديل</span></td></tr>`).join('')
+      : '<tr><td colspan="8" class="empty-hint">لا يوجد مستخدمون بعد</td></tr>';
+  }catch(e){ tbody.innerHTML = `<tr><td colspan="8" class="empty-hint">تعذّر التحميل: ${e.message}</td></tr>`; }
 }
+
+let editingUserId = null;
+function openEditUserModal(userId){
+  const u = USERS_CACHE.find(x=>x.id===userId);
+  if(!u) return;
+  editingUserId = userId;
+  document.getElementById('adduser-modal-title').textContent = 'تعديل مستخدم';
+  document.getElementById('u-first-ar').value = u.first_name_ar || '';
+  document.getElementById('u-last-ar').value = u.last_name_ar || '';
+  document.getElementById('u-first-en').value = u.first_name_en || '';
+  document.getElementById('u-last-en').value = u.last_name_en || '';
+  document.getElementById('u-phone').value = u.phone || '';
+  document.querySelector(`input[name="ugender"][value="${u.gender||'male'}"]`).checked = true;
+  document.getElementById('u-employment').value = u.employment_type || '';
+  document.getElementById('u-branch').value = u.branch_id || '';
+  document.getElementById('u-title-ar').value = u.job_title_ar || '';
+  document.getElementById('u-title-en').value = u.job_title_en || '';
+  document.getElementById('u-role').value = u.role_id || '';
+  document.getElementById(u.is_sales_agent ? 'u-agent-yes' : 'u-agent-no').checked = true;
+  document.getElementById('u-username').value = u.username || '';
+  document.getElementById('u-username').disabled = true;
+  document.getElementById('u-email').value = u.email || '';
+  document.getElementById('adduser-error').style.display = 'none';
+  document.getElementById('adduser-submit-btn').textContent = 'حفظ التعديلات';
+  openModal('modal-adduser');
+}
+
 async function saveUserFromForm(){
   const errBox = document.getElementById('adduser-error');
   errBox.style.display = 'none';
@@ -2672,9 +2828,15 @@ async function saveUserFromForm(){
     email: document.getElementById('u-email').value.trim() || null,
   };
   try{
-    const result = await apiFetch('/api/users', {method:'POST', body: JSON.stringify(payload)});
-    closeModal('modal-adduser');
-    showToast(result.temporaryPassword ? ('تم إنشاء المستخدم — كلمة المرور المبدئية: ' + result.temporaryPassword) : 'تم إنشاء المستخدم');
+    if(editingUserId){
+      await apiFetch('/api/users/'+editingUserId, {method:'PUT', body: JSON.stringify(payload)});
+      closeModal('modal-adduser');
+      showToast('تم حفظ تعديلات المستخدم');
+    } else {
+      const result = await apiFetch('/api/users', {method:'POST', body: JSON.stringify(payload)});
+      closeModal('modal-adduser');
+      showToast(result.temporaryPassword ? ('تم إنشاء المستخدم — كلمة المرور المبدئية: ' + result.temporaryPassword) : 'تم إنشاء المستخدم');
+    }
     loadUsersLive();
   }catch(e){ errBox.textContent = e.message; errBox.style.display = 'block'; }
 }

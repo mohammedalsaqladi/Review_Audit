@@ -11,6 +11,7 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
+const ExcelJS = require('exceljs');
 
 const app = express();
 app.use(express.json());
@@ -503,6 +504,148 @@ app.post('/api/users', requireAuth, async (req, res) => {
   const { data, error } = await sb.from('users').insert(payload).select().single();
   if (error) return res.status(500).json({ message: error.message });
   res.json({ ...data, temporaryPassword: body.password ? undefined : tempPassword });
+});
+
+app.get('/api/users/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('users').select('*')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (error) return res.status(500).json({ message: error.message });
+  if (!data) return res.status(404).json({ message: 'المستخدم غير موجود' });
+  res.json(data);
+});
+
+app.put('/api/users/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('users').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'المستخدم غير موجود' });
+  const body = req.body || {};
+  const payload = {
+    branch_id: body.branch_id || null, role_id: body.role_id,
+    first_name_ar: body.first_name_ar, last_name_ar: body.last_name_ar,
+    first_name_en: body.first_name_en || null, last_name_en: body.last_name_en || null,
+    phone: body.phone || null, gender: body.gender || null,
+    job_title_ar: body.job_title_ar || null, job_title_en: body.job_title_en || null,
+    employment_type: body.employment_type || null, is_sales_agent: !!body.is_sales_agent,
+    email: body.email || null, is_active: body.is_active !== false,
+  };
+  if (body.password) payload.password_hash = await bcrypt.hash(body.password, 10);
+  const { data, error } = await sb.from('users').update(payload).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// ---------------------------------------------------------------------------
+// فريق المراجعة المرتبط بكل عميل
+// ---------------------------------------------------------------------------
+app.get('/api/clients/:id/reviewers', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { data, error } = await sb.from('client_reviewer_assignments')
+    .select('id, user_id, users(id, first_name_ar, last_name_ar, roles(name_ar))')
+    .eq('client_id', req.params.id);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/clients/:id/reviewers', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { data: user } = await sb.from('users').select('id').eq('id', req.body.user_id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!user) return res.status(400).json({ message: 'المستخدم غير موجود ضمن مكتبك' });
+  const { error } = await sb.from('client_reviewer_assignments').insert({ client_id: req.params.id, user_id: req.body.user_id });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
+});
+
+app.delete('/api/clients/:id/reviewers/:userId', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { error } = await sb.from('client_reviewer_assignments').delete()
+    .eq('client_id', req.params.id).eq('user_id', req.params.userId);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// ميزان المراجعة: تنزيل نموذج فارغ (بقائمة منسدلة لدليل الحسابات مستوى 4) وتصدير الحالي
+// ---------------------------------------------------------------------------
+app.get('/api/client-files/:id/trial-balance/template', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data: coa } = await sb.from('chart_of_accounts').select('code, name_ar')
+    .eq('company_id', req.session.companyId).eq('level', 4).order('code');
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('ميزان المراجعة');
+  ws.views = [{ rightToLeft: true }];
+  ws.columns = [
+    { header: 'رقم الحساب', key: 'code', width: 16 },
+    { header: 'اسم الحساب', key: 'name', width: 26 },
+    { header: 'رصيد أول الفترة', key: 'opening', width: 18 },
+    { header: 'مدين الحركة', key: 'debit', width: 16 },
+    { header: 'دائن الحركة', key: 'credit', width: 16 },
+    { header: 'رصيد آخر الفترة', key: 'closing', width: 18 },
+    { header: 'رمز المستوى الرابع بدليل الحسابات', key: 'coaCode', width: 30 },
+  ];
+  ws.getRow(1).font = { bold: true };
+
+  const coaList = wb.addWorksheet('دليل الحسابات (لا تُعدَّل)');
+  coaList.state = 'veryHidden';
+  (coa || []).forEach((a, i) => { coaList.getCell(`A${i + 1}`).value = `${a.code} — ${a.name_ar}`; });
+  const lastRow = Math.max((coa || []).length, 1);
+
+  for (let r = 2; r <= 200; r++) {
+    ws.getCell(`G${r}`).dataValidation = {
+      type: 'list', allowBlank: true,
+      formulae: [`'دليل الحسابات (لا تُعدَّل)'!$A$1:$A$${lastRow}`],
+    };
+  }
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="نموذج-ميزان-المراجعة.xlsx"');
+  await wb.xlsx.write(res);
+  res.end();
+});
+
+app.get('/api/client-files/:id/trial-balance/export', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data: latest } = await sb.from('trial_balances').select('*').eq('client_file_id', req.params.id).order('version', { ascending: false }).limit(1).maybeSingle();
+  let lines = [];
+  if (latest) {
+    const { data } = await sb.from('trial_balance_lines').select('*, chart_of_accounts(code, name_ar)').eq('trial_balance_id', latest.id).order('account_code');
+    lines = data || [];
+  }
+
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('ميزان المراجعة');
+  ws.views = [{ rightToLeft: true }];
+  ws.columns = [
+    { header: 'رقم الحساب', key: 'code', width: 16 },
+    { header: 'اسم الحساب', key: 'name', width: 26 },
+    { header: 'رصيد أول الفترة', key: 'opening', width: 18 },
+    { header: 'مدين الحركة', key: 'debit', width: 16 },
+    { header: 'دائن الحركة', key: 'credit', width: 16 },
+    { header: 'رصيد آخر الفترة', key: 'closing', width: 18 },
+    { header: 'المستوى الرابع — دليل الحسابات', key: 'coa', width: 30 },
+  ];
+  ws.getRow(1).font = { bold: true };
+  lines.forEach(l => ws.addRow({
+    code: l.account_code, name: l.account_name,
+    opening: l.opening_balance, debit: l.debit_movement, credit: l.credit_movement, closing: l.closing_balance,
+    coa: l.chart_of_accounts ? `${l.chart_of_accounts.code} — ${l.chart_of_accounts.name_ar}` : '',
+  }));
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="ميزان-المراجعة.xlsx"');
+  await wb.xlsx.write(res);
+  res.end();
 });
 
 // ---------------------------------------------------------------------------
