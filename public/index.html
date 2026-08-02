@@ -1141,8 +1141,14 @@
               <option value="ready_for_partner">جاهز للشريك</option>
               <option value="closed">مغلق</option>
             </select>
-            <button class="btn" onclick="openEditClientFileModal()">تعديل الملف</button>
-            <button class="btn" style="color:var(--red); border-color:#E8C7BC;" onclick="deleteCurrentClientFile()">حذف الملف</button>
+            <div class="row-actions">
+              <span class="row-icon-btn edit" title="تعديل الملف" onclick="openEditClientFileModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </span>
+              <span class="row-icon-btn delete" title="حذف الملف" onclick="deleteCurrentClientFile()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/><path d="M10 11v6M14 11v6"/></svg>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -1155,7 +1161,14 @@
         </div>
 
         <!-- تبويب: التفاصيل العامة -->
-        <div class="ptab active" id="cfd-general">
+        <div class="ptab active view-mode" id="cfd-general">
+          <div class="ptab-headbar">
+            <h3>التفاصيل العامة</h3>
+            <button class="btn" onclick="toggleProfileEditMode('cfd-general')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              تعديل
+            </button>
+          </div>
           <div class="form-section">
             <div class="form-section-title">الفترة الحالية</div>
             <div class="form-grid cols-3">
@@ -1170,7 +1183,7 @@
               <div class="form-field"><label>نهاية الفترة السابقة</label><input type="date" id="gen-prev-end"></div>
             </div>
           </div>
-          <div style="margin-bottom:16px;"><button class="btn dark" onclick="saveGeneralPeriods()">حفظ التواريخ</button></div>
+          <div class="save-action-row" style="margin-bottom:16px;"><button class="btn dark" onclick="saveGeneralPeriods()">حفظ التواريخ</button></div>
 
           <div class="panel-head" style="margin:22px 0 12px;"><h3>فريق المراجعة</h3>
             <span class="add-child-btn" onclick="openAddTeamMemberModal()">+ إضافة عضو</span>
@@ -1275,8 +1288,8 @@
               <span class="add-child-btn" onclick="openAddAdjustmentModal()">+ إضافة قيد</span>
             </div>
             <table>
-              <thead><tr><th>الحساب</th><th>الوصف</th><th>مدين</th><th>دائن</th><th></th></tr></thead>
-              <tbody id="cfd-adj-tbody"><tr><td colspan="5" class="empty-hint">لا توجد قيود تعديل بعد</td></tr></tbody>
+              <thead><tr><th>الحساب المدين</th><th>الحساب الدائن</th><th>المبلغ</th><th>يؤثر على</th><th>البيان</th><th></th></tr></thead>
+              <tbody id="cfd-adj-tbody"><tr><td colspan="6" class="empty-hint">لا توجد قيود تعديل بعد</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1308,8 +1321,33 @@
       <!-- ========== الدردشات ========== -->
       <div class="page" id="page-chats">
         <div class="page-head"><div><div class="crumb">التواصل</div><h1>الدردشات</h1></div></div>
-        <div class="panel">
-          <div class="empty-hint" style="padding:60px 20px;">هذا القسم لم يُربط بقاعدة البيانات بعد — لا توجد محادثات لعرضها حاليًا</div>
+        <div class="chat-shell">
+          <div class="chat-list" id="chats-directory-list">
+            <div class="empty-hint" style="padding:40px 20px;">جارٍ التحميل...</div>
+          </div>
+          <div style="display:flex; flex-direction:column;">
+            <div id="chats-active-header" style="display:none; align-items:center; gap:11px; padding:13px 18px; border-bottom:1px solid var(--line); background:var(--card);">
+              <div class="av" id="chats-active-av">-</div>
+              <div>
+                <div style="font-size:13.5px; font-weight:700;" id="chats-active-title">—</div>
+                <div style="font-size:11px; color:var(--muted);" id="chats-active-sub">—</div>
+              </div>
+            </div>
+            <div id="chats-active-empty" class="wp-empty" style="height:100%;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              اختر محادثة من القائمة على اليمين للبدء
+            </div>
+            <div id="chats-active-thread" class="chat-thread" style="display:none; flex:1; border-radius:0; border:none;"></div>
+            <div id="chats-active-composer" class="chat-composer" style="display:none; border-radius:0; border-inline:none; border-bottom:none;">
+              <input type="file" id="chat-file-directory" style="display:none;" onchange="onChatFileSelected(this,'directory')">
+              <span class="row-icon-btn edit" title="إرفاق ملف" onclick="document.getElementById('chat-file-directory').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 015 5l-9.2 9.19a1.5 1.5 0 01-2.12-2.12l8.49-8.48"/></svg>
+              </span>
+              <div id="chat-file-preview-directory" class="chat-file-preview" style="display:none;"></div>
+              <input id="chat-input-directory" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter'){sendDirectoryMessage();}">
+              <button class="btn dark" onclick="sendDirectoryMessage()">إرسال</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1825,10 +1863,13 @@
     </div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-field full"><label>الحساب (المستوى الرابع) <span class="req">*</span></label><select id="adj-account"></select></div>
-        <div class="form-field full"><label>وصف القيد</label><input id="adj-desc" placeholder="مثال: تعديل مخصص الديون المشكوك فيها"></div>
-        <div class="form-field"><label>مدين</label><input type="number" step="0.01" id="adj-debit" value="0"></div>
-        <div class="form-field"><label>دائن</label><input type="number" step="0.01" id="adj-credit" value="0"></div>
+        <div class="form-field"><label>الحساب المدين <span class="req">*</span></label><select id="adj-debit-account"></select></div>
+        <div class="form-field"><label>الحساب الدائن <span class="req">*</span></label><select id="adj-credit-account"></select></div>
+        <div class="form-field"><label>المبلغ <span class="req">*</span></label><input type="number" step="0.01" id="adj-amount" value="0"></div>
+        <div class="form-field"><label>يؤثر على</label>
+          <select id="adj-affects"><option value="closing">رصيد آخر الفترة</option><option value="opening">رصيد أول الفترة</option></select>
+        </div>
+        <div class="form-field full"><label>البيان</label><input id="adj-narration" placeholder="مثال: تعديل مخصص الديون المشكوك فيها"></div>
       </div>
       <div id="adj-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
     </div>
@@ -2622,7 +2663,9 @@ function toggleProfileEditMode(tabId){
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><path d="M18 6L6 18M6 6l12 12"/></svg> إلغاء';
   } else {
     exitEditMode(tabId);
-    if(currentClientId) openClientProfile(currentClientId); // إلغاء أي تعديل غير محفوظ بإعادة تحميل البيانات
+    // إلغاء أي تعديل غير محفوظ بإعادة تحميل البيانات — حسب السياق الحالي
+    if(tabId==='cfd-general' && currentClientFileId) openClientFileDetail(currentClientFileId);
+    else if(currentClientId) openClientProfile(currentClientId);
   }
 }
 function exitEditMode(tabId){
@@ -2794,6 +2837,7 @@ async function openClientFileDetail(fileId){
   document.getElementById('page-clientfiledetail').classList.add('active');
   document.querySelectorAll('#page-clientfiledetail .tab-strip .tab').forEach((t,i)=>t.classList.toggle('active', i===0));
   document.querySelectorAll('#page-clientfiledetail .ptab').forEach((t,i)=>t.classList.toggle('active', i===0));
+  exitEditMode('cfd-general');
   document.querySelector('.content').scrollTop = 0;
 
   try{
@@ -2873,6 +2917,7 @@ async function saveGeneralPeriods(){
     CURRENT_CLIENT_FILE = updated;
     document.getElementById('cfd-period').textContent = 'نهاية الفترة: ' + (updated.period_end || '—');
     showToast('تم حفظ التواريخ');
+    exitEditMode('cfd-general');
   }catch(e){ showToast('تعذّر الحفظ: '+e.message); }
 }
 async function makeTeamLead(userId){
@@ -2965,10 +3010,12 @@ function switchCfdTab(el, key){
 
 /* ---------------- تهيئة الميزان ---------------- */
 let ADJUSTMENTS_CACHE = [];
+let TB_LINES_CACHE = [];
 async function loadTrialBalanceLive(){
   try{
     const { trialBalance, lines, adjustments } = await apiFetch('/api/client-files/'+currentClientFileId+'/trial-balance');
     ADJUSTMENTS_CACHE = adjustments || [];
+    TB_LINES_CACHE = lines || [];
     document.getElementById('tb-version-title').textContent = trialBalance
       ? `بنود الميزان — إصدار v${trialBalance.version}` : 'بنود الميزان';
     renderTrialBalanceRows(lines || []);
@@ -2989,18 +3036,25 @@ function renderTrialBalanceRows(lines){
 }
 function tbRowHtml(l){
   l = l || {};
-  const adj = ADJUSTMENTS_CACHE.filter(a=>a.coa_account_id && l.coa_account_id && a.coa_account_id===l.coa_account_id);
-  const adjNet = adj.reduce((s,a)=>s + (Number(a.debit)||0) - (Number(a.credit)||0), 0);
-  const adjustedClosing = (Number(l.closing_balance)||0) + adjNet;
+  // أثر قيود التعديل على هذا السطر: مطابقة برمز الحساب كما ورد فعليًا بالميزان (مدين يزيد / دائن ينقص)
+  const debitHits = ADJUSTMENTS_CACHE.filter(a=>a.debit_account_code && l.account_code && a.debit_account_code===l.account_code);
+  const creditHits = ADJUSTMENTS_CACHE.filter(a=>a.credit_account_code && l.account_code && a.credit_account_code===l.account_code);
+  const openingImpact = debitHits.filter(a=>a.affects==='opening').reduce((s,a)=>s+(Number(a.amount)||0),0)
+                       - creditHits.filter(a=>a.affects==='opening').reduce((s,a)=>s+(Number(a.amount)||0),0);
+  const closingImpact = debitHits.filter(a=>a.affects==='closing').reduce((s,a)=>s+(Number(a.amount)||0),0)
+                       - creditHits.filter(a=>a.affects==='closing').reduce((s,a)=>s+(Number(a.amount)||0),0);
+  const adjustedOpening = (Number(l.opening_balance)||0) + openingImpact;
+  const adjustedClosing = (Number(l.closing_balance)||0) + closingImpact;
+  const netImpact = openingImpact + closingImpact;
   return `<tr>
     <td><input value="${l.account_code||''}" class="tb-code" style="width:90px; border:1px solid var(--line-strong); border-radius:6px; padding:6px 8px;"></td>
     <td><input value="${l.account_name||''}" class="tb-name" style="width:150px; border:1px solid var(--line-strong); border-radius:6px; padding:6px 8px;"></td>
-    <td><input value="${l.opening_balance||0}" class="tb-opening" type="number" step="0.01" style="width:100px; border:1px solid var(--line-strong); border-radius:6px; padding:6px 8px;"></td>
+    <td><input value="${l.opening_balance||0}" class="tb-opening" type="number" step="0.01" style="width:100px; border:1px solid var(--line-strong); border-radius:6px; padding:6px 8px;" title="${openingImpact?'المعدَّل: '+adjustedOpening.toFixed(2):''}"></td>
     <td><input value="${l.debit_movement||0}" class="tb-debit" type="number" step="0.01" style="width:100px; border:1px solid var(--line-strong); border-radius:6px; padding:6px 8px;"></td>
     <td><input value="${l.credit_movement||0}" class="tb-credit" type="number" step="0.01" style="width:100px; border:1px solid var(--line-strong); border-radius:6px; padding:6px 8px;"></td>
     <td><input value="${l.closing_balance||0}" class="tb-closing" type="number" step="0.01" style="width:100px; border:1px solid var(--line-strong); border-radius:6px; padding:6px 8px;"></td>
     <td><select class="tb-coa">${coaLevel4Options(l.coa_account_id)}</select></td>
-    <td style="text-align:center;"><span class="badge ${adjNet===0?'neutral':(adjNet>0?'ok':'flag')}">${adjNet.toFixed(2)}</span></td>
+    <td style="text-align:center;"><span class="badge ${netImpact===0?'neutral':(netImpact>0?'ok':'flag')}">${netImpact.toFixed(2)}</span></td>
     <td style="text-align:center; font-weight:700;">${adjustedClosing.toFixed(2)}</td>
     <td><span class="tree-toggle leaf" style="visibility:visible; cursor:pointer;" onclick="this.closest('tr').remove()">✕</span></td>
   </tr>`;
@@ -3011,34 +3065,41 @@ function addTrialBalanceRow(){
   tbody.insertAdjacentHTML('beforeend', tbRowHtml({}));
 }
 
-/* ---------------- قيود التعديل ---------------- */
+/* ---------------- قيود التعديل (قيد مزدوج: حساب مدين + حساب دائن، من واقع الميزان) ---------------- */
 let editingAdjId = null;
 async function loadAdjustments(){
   if(!currentClientFileId) return;
   const tbody = document.getElementById('cfd-adj-tbody');
   try{
     const rows = await apiFetch('/api/client-files/'+currentClientFileId+'/adjustments');
+    ADJUSTMENTS_CACHE = rows || [];
     tbody.innerHTML = rows.length ? rows.map(a=>`
-      <tr><td>${a.account_code?`${a.account_code} — ${a.account_name||''}`:'—'}</td>
-      <td>${a.description||'—'}</td>
-      <td>${Number(a.debit||0).toFixed(2)}</td>
-      <td>${Number(a.credit||0).toFixed(2)}</td>
+      <tr><td>${a.debit_account_code?`${a.debit_account_code} — ${a.debit_account_name||''}`:'—'}</td>
+      <td>${a.credit_account_code?`${a.credit_account_code} — ${a.credit_account_name||''}`:'—'}</td>
+      <td>${Number(a.amount||0).toFixed(2)}</td>
+      <td><span class="badge neutral">${a.affects==='opening'?'أول الفترة':'آخر الفترة'}</span></td>
+      <td>${a.narration||'—'}</td>
       <td><div class="row-actions">${btnEdit(`openEditAdjustmentModal('${a.id}')`)}${btnDelete(`deleteAdjustment('${a.id}')`)}</div></td></tr>`).join('')
-      : '<tr><td colspan="5" class="empty-hint">لا توجد قيود تعديل بعد</td></tr>';
+      : '<tr><td colspan="6" class="empty-hint">لا توجد قيود تعديل بعد</td></tr>';
   }catch(e){ showToast('تعذّر تحميل قيود التعديل: '+e.message); }
 }
-function fillAdjAccountSelect(selectedId){
-  const level4 = coaData.filter(a=>a.level===4);
-  document.getElementById('adj-account').innerHTML = '<option value="">— اختر —</option>' +
-    level4.map(a=>`<option value="${a.id}" data-code="${a.code}" data-name="${a.name}" ${a.id===selectedId?'selected':''}>${a.code} — ${a.name}</option>`).join('');
+function tbAccountOptions(selectedCode){
+  if(!TB_LINES_CACHE.length) return '<option value="">— لا توجد بنود بالميزان بعد —</option>';
+  return '<option value="">— اختر —</option>' + TB_LINES_CACHE.map(l=>
+    `<option value="${l.account_code}" data-name="${l.account_name||''}" ${l.account_code===selectedCode?'selected':''}>${l.account_code} — ${l.account_name||''}</option>`).join('');
+}
+function fillAdjAccountSelects(selectedDebitCode, selectedCreditCode){
+  document.getElementById('adj-debit-account').innerHTML = tbAccountOptions(selectedDebitCode);
+  document.getElementById('adj-credit-account').innerHTML = tbAccountOptions(selectedCreditCode);
 }
 function openAddAdjustmentModal(){
+  if(!TB_LINES_CACHE.length){ showToast('أضف بنود الميزان أولًا من تبويب "تهيئة الميزان" قبل إضافة قيد تعديل'); return; }
   editingAdjId = null;
   document.getElementById('adj-modal-title').textContent = 'إضافة قيد تعديل';
-  fillAdjAccountSelect(null);
-  document.getElementById('adj-desc').value = '';
-  document.getElementById('adj-debit').value = 0;
-  document.getElementById('adj-credit').value = 0;
+  fillAdjAccountSelects(null, null);
+  document.getElementById('adj-narration').value = '';
+  document.getElementById('adj-amount').value = 0;
+  document.getElementById('adj-affects').value = 'closing';
   document.getElementById('adj-error').style.display = 'none';
   openModal('modal-addadj');
 }
@@ -3049,27 +3110,29 @@ async function openEditAdjustmentModal(adjId){
     if(!a) return;
     editingAdjId = adjId;
     document.getElementById('adj-modal-title').textContent = 'تعديل قيد التعديل';
-    fillAdjAccountSelect(a.coa_account_id);
-    document.getElementById('adj-desc').value = a.description || '';
-    document.getElementById('adj-debit').value = a.debit || 0;
-    document.getElementById('adj-credit').value = a.credit || 0;
+    fillAdjAccountSelects(a.debit_account_code, a.credit_account_code);
+    document.getElementById('adj-narration').value = a.narration || '';
+    document.getElementById('adj-amount').value = a.amount || 0;
+    document.getElementById('adj-affects').value = a.affects || 'closing';
     document.getElementById('adj-error').style.display = 'none';
     openModal('modal-addadj');
   }catch(e){ showToast('تعذّر التحميل: '+e.message); }
 }
 async function saveAdjustment(){
-  const sel = document.getElementById('adj-account');
-  const opt = sel.options[sel.selectedIndex];
-  const payload = {
-    coa_account_id: sel.value || null,
-    account_code: sel.value ? opt.dataset.code : null,
-    account_name: sel.value ? opt.dataset.name : null,
-    description: document.getElementById('adj-desc').value.trim() || null,
-    debit: parseFloat(document.getElementById('adj-debit').value) || 0,
-    credit: parseFloat(document.getElementById('adj-credit').value) || 0,
-  };
+  const debitSel = document.getElementById('adj-debit-account');
+  const creditSel = document.getElementById('adj-credit-account');
   const errBox = document.getElementById('adj-error');
-  if(!payload.coa_account_id){ errBox.textContent = 'اختر الحساب أولًا'; errBox.style.display='block'; return; }
+  if(!debitSel.value || !creditSel.value){ errBox.textContent = 'اختر الحساب المدين والحساب الدائن'; errBox.style.display='block'; return; }
+  if(debitSel.value === creditSel.value){ errBox.textContent = 'لا يمكن أن يكون الحساب المدين والدائن نفس الحساب'; errBox.style.display='block'; return; }
+  const payload = {
+    debit_account_code: debitSel.value,
+    debit_account_name: debitSel.options[debitSel.selectedIndex].dataset.name,
+    credit_account_code: creditSel.value,
+    credit_account_name: creditSel.options[creditSel.selectedIndex].dataset.name,
+    amount: parseFloat(document.getElementById('adj-amount').value) || 0,
+    affects: document.getElementById('adj-affects').value,
+    narration: document.getElementById('adj-narration').value.trim() || null,
+  };
   try{
     if(editingAdjId) await apiFetch('/api/client-files/'+currentClientFileId+'/adjustments/'+editingAdjId, {method:'PUT', body: JSON.stringify(payload)});
     else await apiFetch('/api/client-files/'+currentClientFileId+'/adjustments', {method:'POST', body: JSON.stringify(payload)});
@@ -3719,7 +3782,7 @@ let editingGroupId = null;
 let editingMainId = null;
 let editingSubId = null;
 let CURRENT_WP_ITEM_ID = null;
-let CHAT_PENDING_ATTACH = { general: null, item: null };
+let CHAT_PENDING_ATTACH = { general: null, item: null, directory: null };
 
 async function loadWorkingPapersLive(){
   if(!isLiveDataMode()) return;
@@ -4023,10 +4086,12 @@ function timeAgoAr(iso){
   const d = new Date(iso);
   return d.toLocaleString('ar-SA', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit'});
 }
-function chatBubbleHtml(m){
+function chatBubbleHtml(m, opts){
+  opts = opts || {};
   const mine = m.sender_user_id === SESSION.userId;
   const u = m.users || {};
   const nm = ((u.first_name_ar||'')+' '+(u.last_name_ar||'')).trim() || 'مستخدم';
+  const role = u.roles ? u.roles.name_ar : '';
   let attachHtml = '';
   if(m.attachment_data){
     const isImg = (m.attachment_mime||'').startsWith('image/');
@@ -4039,8 +4104,16 @@ function chatBubbleHtml(m){
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg> ${m.attachment_name||'مرفق'}</a>`;
     }
   }
+  let contextBadge = '';
+  if(opts.showContext && m.wp_main_items && m.wp_main_items.title){
+    contextBadge = `<div style="font-size:9.5px; opacity:.75; margin-bottom:3px;">📎 بند: ${m.wp_main_items.title}</div>`;
+  }
+  if(opts.showContext && m.client_files && m.client_files.name){
+    contextBadge += `<div style="font-size:9.5px; opacity:.75; margin-bottom:3px;">📁 ${m.client_files.name}</div>`;
+  }
   return `<div class="chat-bubble ${mine?'mine':'theirs'}">
-    <div class="cb-sender">${nm}</div>
+    <div class="cb-sender">${nm}${role?' <span style="opacity:.7; font-weight:400;">— '+role+'</span>':''}</div>
+    ${contextBadge}
     ${m.body ? `<div>${escapeHtml(m.body)}</div>` : ''}
     ${attachHtml}
     <div class="cb-time">${timeAgoAr(m.created_at)}</div>
@@ -4058,7 +4131,8 @@ async function loadChatMessages(scope){
     let url = '/api/client-files/'+currentClientFileId+'/chat';
     if(scope==='item' && CURRENT_WP_ITEM_ID) url += '?mainItemId='+CURRENT_WP_ITEM_ID;
     const msgs = await apiFetch(url);
-    container.innerHTML = msgs.length ? msgs.map(chatBubbleHtml).join('') : '<div class="empty-hint" style="padding:30px;">لا توجد رسائل بعد — ابدأ المحادثة</div>';
+    const showContext = scope === 'general';
+    container.innerHTML = msgs.length ? msgs.map(m=>chatBubbleHtml(m, {showContext})).join('') : '<div class="empty-hint" style="padding:30px;">لا توجد رسائل بعد — ابدأ المحادثة</div>';
     container.scrollTop = container.scrollHeight;
   }catch(e){ container.innerHTML = `<div class="empty-hint" style="padding:30px;">تعذّر تحميل الرسائل: ${e.message}</div>`; }
 }
@@ -4098,27 +4172,97 @@ async function sendChatMessage(scope){
 }
 
 /* ================= دليل الدردشات (الصفحة العامة) ================= */
+let ACTIVE_CONVERSATION = null; // { type: 'client'|'staff_dm'|'staff_group', id, label, sub }
+
 async function loadChatsDirectory(){
-  const container = document.querySelector('#page-chats .panel');
-  if(!container) return;
-  container.innerHTML = '<div class="empty-hint" style="padding:40px;">جارٍ التحميل...</div>';
+  const list = document.getElementById('chats-directory-list');
+  if(!list) return;
+  list.innerHTML = '<div class="empty-hint" style="padding:40px 20px;">جارٍ التحميل...</div>';
   try{
-    const rooms = await apiFetch('/api/chats');
-    container.innerHTML = rooms.length ? `<div class="chat-list">` + rooms.map(r=>`
-      <div class="ch-item" onclick="openChatRoom('${r.client_file_id}')">
-        <div class="av">${(r.client_name||'ع').slice(0,2)}</div>
-        <div style="flex:1; min-width:0;">
-          <div class="cn">${r.client_name} — <span style="font-weight:400; color:var(--muted);">${r.file_name}</span></div>
-          <div class="cl">${r.last_message ? r.last_message : 'لا توجد رسائل بعد'}</div>
-        </div>
-      </div>`).join('') + `</div>`
-      : '<div class="empty-hint" style="padding:60px 20px;">لا توجد ملفات تدقيق بعد لبدء دردشة معها</div>';
-  }catch(e){ container.innerHTML = `<div class="empty-hint" style="padding:40px;">تعذّر التحميل: ${e.message}</div>`; }
+    const dir = await apiFetch('/api/chats');
+    let html = '';
+    html += `<div class="ch-item" onclick="openDirectoryConversation('staff_group', null, 'فريق المكتب', 'مجموعة عامة لكل الموظفين')">
+      <div class="av">فم</div>
+      <div style="flex:1; min-width:0;">
+        <div class="cn">👥 فريق المكتب</div>
+        <div class="cl">${dir.staffGroup.last_message || 'لا توجد رسائل بعد'}</div>
+      </div>
+    </div>`;
+    if(dir.staffDms.length){
+      html += `<div style="padding:9px 16px; font-size:11px; font-weight:700; color:var(--muted); background:var(--paper);">الموظفون</div>`;
+      html += dir.staffDms.map(u=>`
+        <div class="ch-item" onclick="openDirectoryConversation('staff_dm', '${u.user_id}', '${(u.name||'').replace(/'/g,"")}', '${(u.role||'').replace(/'/g,"")}')">
+          <div class="av">${(u.name||'م').slice(0,2)}</div>
+          <div style="flex:1; min-width:0;">
+            <div class="cn">${u.name}${u.role?` <span style="font-weight:400; color:var(--muted); font-size:10.5px;">— ${u.role}</span>`:''}</div>
+            <div class="cl">${u.last_message || 'لا توجد رسائل بعد'}</div>
+          </div>
+        </div>`).join('');
+    }
+    if(dir.clientRooms.length){
+      html += `<div style="padding:9px 16px; font-size:11px; font-weight:700; color:var(--muted); background:var(--paper);">العملاء</div>`;
+      html += dir.clientRooms.map(r=>`
+        <div class="ch-item" onclick="openDirectoryConversation('client', '${r.client_id}', '${(r.client_name||'').replace(/'/g,"")}', 'دردشة جماعية — يراها كل فريق المراجعة')">
+          <div class="av">${(r.client_name||'ع').slice(0,2)}</div>
+          <div style="flex:1; min-width:0;">
+            <div class="cn">${r.client_name}</div>
+            <div class="cl">${r.last_message || 'لا توجد رسائل بعد'}</div>
+          </div>
+        </div>`).join('');
+    }
+    list.innerHTML = html || '<div class="empty-hint" style="padding:60px 20px;">لا توجد محادثات بعد</div>';
+  }catch(e){ list.innerHTML = `<div class="empty-hint" style="padding:40px;">تعذّر التحميل: ${e.message}</div>`; }
 }
-function openChatRoom(fileId){
-  openClientFileDetail(fileId).then(()=>{
-    switchCfdTab(document.querySelector('#page-clientfiledetail .tab-strip .tab:nth-child(3)'), 'chat');
-  });
+
+function openDirectoryConversation(type, id, label, sub){
+  ACTIVE_CONVERSATION = { type, id, label, sub };
+  document.querySelectorAll('#chats-directory-list .ch-item').forEach(x=>x.classList.remove('active'));
+  if(event && event.currentTarget) event.currentTarget.classList.add('active');
+  document.getElementById('chats-active-empty').style.display = 'none';
+  document.getElementById('chats-active-header').style.display = 'flex';
+  document.getElementById('chats-active-thread').style.display = 'flex';
+  document.getElementById('chats-active-composer').style.display = 'flex';
+  document.getElementById('chats-active-av').textContent = (label||'؟').slice(0,2);
+  document.getElementById('chats-active-title').textContent = label;
+  document.getElementById('chats-active-sub').textContent = sub || '';
+  loadDirectoryMessages();
+}
+
+async function loadDirectoryMessages(){
+  const container = document.getElementById('chats-active-thread');
+  if(!ACTIVE_CONVERSATION || !container) return;
+  container.innerHTML = '<div class="empty-hint" style="padding:30px;">جارٍ التحميل...</div>';
+  try{
+    let url;
+    if(ACTIVE_CONVERSATION.type === 'client') url = '/api/clients/'+ACTIVE_CONVERSATION.id+'/chat';
+    else if(ACTIVE_CONVERSATION.type === 'staff_dm') url = '/api/staff-chat/dm/'+ACTIVE_CONVERSATION.id;
+    else url = '/api/staff-chat/group';
+    const msgs = await apiFetch(url);
+    const showContext = ACTIVE_CONVERSATION.type === 'client';
+    container.innerHTML = msgs.length ? msgs.map(m=>chatBubbleHtml(m, {showContext})).join('') : '<div class="empty-hint" style="padding:30px;">لا توجد رسائل بعد — ابدأ المحادثة</div>';
+    container.scrollTop = container.scrollHeight;
+  }catch(e){ container.innerHTML = `<div class="empty-hint" style="padding:30px;">تعذّر تحميل الرسائل: ${e.message}</div>`; }
+}
+
+async function sendDirectoryMessage(){
+  if(!ACTIVE_CONVERSATION) return;
+  const input = document.getElementById('chat-input-directory');
+  const text = input.value.trim();
+  const attach = CHAT_PENDING_ATTACH['directory'];
+  if(!text && !attach) return;
+  const payload = { body: text || null };
+  if(attach){ payload.attachment_name = attach.name; payload.attachment_mime = attach.mime; payload.attachment_data = attach.data; }
+  try{
+    let url;
+    if(ACTIVE_CONVERSATION.type === 'client'){ showToast('لإرسال رسالة لعميل، افتحها من داخل أحد ملفاته التدقيقية'); return; }
+    else if(ACTIVE_CONVERSATION.type === 'staff_dm') url = '/api/staff-chat/dm/'+ACTIVE_CONVERSATION.id;
+    else url = '/api/staff-chat/group';
+    await apiFetch(url, {method:'POST', body: JSON.stringify(payload)});
+    input.value = '';
+    clearChatAttachment('directory');
+    loadDirectoryMessages();
+    loadChatsDirectory();
+  }catch(e){ showToast('تعذّر إرسال الرسالة: '+e.message); }
 }
 </script>
 
