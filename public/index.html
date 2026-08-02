@@ -496,17 +496,22 @@
   .coa-link-box.show{display:block;}
 
   /* ===== working papers: master list + detail panel ===== */
-  .wp-shell{display:grid; grid-template-columns:250px 1fr; gap:16px; align-items:start;}
+  .wp-shell{display:grid; grid-template-columns:340px 1fr; gap:16px; align-items:start;}
   .wp-list-col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; max-height:calc(100vh - 200px); overflow-y:auto;}
   .wp-group-head{display:flex; align-items:center; gap:8px; padding:12px 14px; background:#FBF8F0; border-bottom:1px solid var(--line); cursor:pointer; font-size:12.8px; font-weight:700; color:var(--ink);}
   .wp-group-head .add-child-btn{margin-inline-start:auto; font-size:10.5px;}
   .wp-mains{}
   .wp-mains.collapsed{display:none;}
-  .wp-main-item{display:flex; align-items:center; gap:8px; padding:10px 14px 10px 14px; padding-inline-start:30px; font-size:12.3px;
-    cursor:pointer; border-bottom:1px solid var(--line); color:var(--text);}
+  .wp-main-item{display:flex; align-items:center; gap:8px; padding:10px 14px 8px 14px; padding-inline-start:30px; font-size:12.3px;
+    cursor:pointer; border-bottom:1px solid var(--line); color:var(--text); flex-wrap:wrap;}
   .wp-main-item:hover{background:#FBF8F1;}
   .wp-main-item.active{background:var(--paper); border-inline-start:3px solid var(--brass); font-weight:700; padding-inline-start:27px;}
   .wp-main-item .badge{margin-inline-start:auto;}
+  .wp-main-item .wp-mini-stats{flex:0 0 100%; display:flex; align-items:center; gap:8px; margin-top:5px;}
+  .wp-main-item .wp-mini-bar{flex:1; height:5px; background:var(--paper); border-radius:4px; overflow:hidden;}
+  .wp-main-item .wp-mini-bar-fill{height:100%; background:var(--brass); border-radius:4px;}
+  .wp-main-item .wp-mini-pct{font-size:10px; color:var(--muted); font-weight:600; white-space:nowrap;}
+  .wp-main-item .wp-req-badge{font-size:9.5px; padding:2px 7px; border-radius:10px; background:#E4F0EA; color:#2F6F4E; white-space:nowrap;}
   .wp-detail-col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; min-height:420px;}
   .wp-detail{display:none;}
   .wp-detail.active{display:block; animation:fadein .2s ease;}
@@ -559,11 +564,23 @@
   .yn-row label{display:flex; align-items:center; gap:7px; font-size:13px; cursor:pointer;}
   .notes-label{font-size:11.5px; color:var(--muted); font-weight:600; margin-bottom:6px; display:block;}
   .big-notes{width:100%; min-height:64px; padding:11px 13px; border:1.3px solid var(--line-strong); border-radius:8px;
-    background:var(--paper); font-family:inherit; font-size:13px; resize:vertical; line-height:1.7;}
+    background:var(--paper); font-family:inherit; font-size:13px; resize:vertical; line-height:1.7; height:72px;}
   .big-notes:focus{outline:none; border-color:var(--brass); background:var(--card);}
-  .signoff-row{display:flex; gap:22px; flex-wrap:wrap; font-size:13px; margin-bottom:4px;}
+  .signoff-row{display:flex; gap:18px; flex-wrap:wrap; font-size:13px; margin-bottom:4px;}
   .signoff-row label{display:flex; align-items:center; gap:7px; cursor:pointer;}
   .signoff-row input{width:17px; height:17px; accent-color:#2F6F4E;}
+  .signoff-chip-wrap{display:flex; flex-direction:column; gap:2px;}
+  .signoff-chip{display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; color:var(--text);}
+  .signoff-chip input{width:15px; height:15px; accent-color:#2F6F4E;}
+  .signoff-meta{font-size:9.5px; color:var(--muted-2); padding-inline-start:21px;}
+
+  /* زر "لا ينطبق" — يظهر على الأوراق الرئيسية والبنود الفرعية */
+  .na-toggle-btn{display:inline-flex; align-items:center; padding:6px 12px; border-radius:16px; font-size:11px; font-weight:600;
+    border:1.3px solid var(--line-strong); color:var(--muted); cursor:pointer; white-space:nowrap; transition:all .12s;}
+  .na-toggle-btn:hover{border-color:var(--red);}
+  .na-toggle-btn.active{background:var(--red-bg); border-color:var(--red); color:var(--red);}
+  .proc-item.is-na{opacity:.55;}
+  .proc-item.is-na .proc-answer, .proc-item.is-na .proc-notes{pointer-events:none;}
 
   /* ===== الاستجابة للجوال ===== */
   .menu-toggle{display:none; width:36px; height:36px; border-radius:8px; align-items:center; justify-content:center; cursor:pointer; color:var(--text); flex-shrink:0;}
@@ -592,6 +609,9 @@
   @media (max-width:1100px){
     .stat-grid{grid-template-columns:repeat(2,1fr);}
     .grid-2{grid-template-columns:1fr;}
+  }
+  @media print{
+    body > *:not(#print-full-wp-container){ display:none !important; }
   }
 </style>
 </head>
@@ -1152,12 +1172,22 @@
           </div>
         </div>
 
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+          <span style="font-size:11.5px; color:var(--muted); white-space:nowrap;">نسبة الإنجاز الكلية</span>
+          <div style="flex:1; height:8px; background:var(--paper); border-radius:5px; overflow:hidden;">
+            <div id="cfd-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg, var(--brass), #2F6F4E); transition:width .3s;"></div>
+          </div>
+          <span id="cfd-progress-text" style="font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap;">0%</span>
+        </div>
+
         <div class="tab-strip">
           <div class="tab active" onclick="switchCfdTab(this,'general')">التفاصيل العامة</div>
           <div class="tab" onclick="switchCfdTab(this,'tb')">تهيئة الميزان</div>
           <div class="tab" onclick="switchCfdTab(this,'chat')">الدردشة</div>
           <div class="tab" onclick="switchCfdTab(this,'wp')">أوراق العمل</div>
           <div class="tab" onclick="switchCfdTab(this,'adj')">قيود التعديل</div>
+          <div class="tab" onclick="switchCfdTab(this,'req')">المتطلبات</div>
+          <div class="tab" onclick="switchCfdTab(this,'attach')">المرفقات</div>
         </div>
 
         <!-- تبويب: التفاصيل العامة -->
@@ -1290,6 +1320,41 @@
             <table>
               <thead><tr><th>الحساب المدين</th><th>الحساب الدائن</th><th>المبلغ</th><th>يؤثر على</th><th>البيان</th><th></th></tr></thead>
               <tbody id="cfd-adj-tbody"><tr><td colspan="6" class="empty-hint">لا توجد قيود تعديل بعد</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- تبويب: المتطلبات -->
+        <div class="ptab" id="cfd-req">
+          <div class="completion-stats">
+            <div class="completion-card done"><div class="num" id="req-done-count">0</div><div class="lbl">تم استيفاؤها</div></div>
+            <div class="completion-card notstarted"><div class="num" id="req-pending-count">0</div><div class="lbl">بانتظار العميل</div></div>
+            <div class="completion-card"><div class="num" id="req-total-count">0</div><div class="lbl">الإجمالي</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>المتطلبات المطلوبة من العميل</h3>
+              <span class="add-child-btn" onclick="openAddRequirementModal()">+ طلب متطلب</span>
+            </div>
+            <table>
+              <thead><tr><th>المتطلب</th><th>مرتبط بورقة</th><th>الحالة</th><th>تاريخ الطلب</th><th></th></tr></thead>
+              <tbody id="cfd-req-tbody"><tr><td colspan="5" class="empty-hint">لا توجد متطلبات بعد</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- تبويب: المرفقات -->
+        <div class="ptab" id="cfd-attach">
+          <div class="page-head" style="margin-bottom:14px;">
+            <div></div>
+            <button class="btn" onclick="printWorkingPapers()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+              طباعة/تصدير أوراق العمل كاملة
+            </button>
+          </div>
+          <div class="panel">
+            <table>
+              <thead><tr><th>الملف</th><th>المصدر</th><th>بواسطة</th><th>التاريخ</th><th></th></tr></thead>
+              <tbody id="cfd-attach-tbody"><tr><td colspan="5" class="empty-hint">لا توجد مرفقات بعد</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -1876,6 +1941,52 @@
     <div class="modal-foot">
       <button class="btn" onclick="closeModal('modal-addadj')">إلغاء</button>
       <button class="btn dark" onclick="saveAdjustment()">حفظ القيد</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة طلب متطلب من العميل ===== -->
+<div class="modal-overlay" id="modal-addreq">
+  <div class="modal-box" style="max-width:460px;">
+    <div class="modal-head">
+      <div><h3>طلب متطلب من العميل</h3><span>سيُرسل تلقائيًا كرسالة بالدردشة</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addreq')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label>اسم المتطلب <span class="req">*</span></label><input id="req-title" placeholder="مثال: صورة السجل التجاري"></div>
+        <div class="form-field full"><label>مرتبط بورقة عمل (اختياري)</label><select id="req-main-item"><option value="">— عام (غير مرتبط ببند) —</option></select></div>
+      </div>
+      <div id="req-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addreq')">إلغاء</button>
+      <button class="btn dark" onclick="saveRequirement()">إرسال الطلب</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة استيفاء متطلب (رفع المرفق المستلم من العميل) ===== -->
+<div class="modal-overlay" id="modal-fulfillreq">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-head">
+      <div><h3>استيفاء المتطلب</h3><span id="fulfillreq-title">—</span></div>
+      <div class="modal-close" onclick="closeModal('modal-fulfillreq')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="upload-mini" onclick="document.getElementById('fulfillreq-input').click()" style="cursor:pointer;">
+        <input type="file" id="fulfillreq-input" style="display:none;">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+        <b id="fulfillreq-filename">اختر الملف المستلم من العميل</b><span>PDF أو صورة أو أي ملف</span>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-fulfillreq')">إلغاء</button>
+      <button class="btn dark" onclick="submitFulfillRequirement()">حفظ كمستوفى</button>
     </div>
   </div>
 </div>
@@ -3006,6 +3117,8 @@ function switchCfdTab(el, key){
   if(key==='chat') loadChatMessages('general');
   if(key==='adj') loadAdjustments();
   if(key==='general') loadClientFileTeam();
+  if(key==='req') loadRequirements();
+  if(key==='attach') loadFileAttachments();
 }
 
 /* ---------------- تهيئة الميزان ---------------- */
@@ -3150,6 +3263,143 @@ async function deleteAdjustment(adjId){
     loadTrialBalanceLive();
   }catch(e){ showToast('تعذّر الحذف: '+e.message); }
 }
+
+/* ---------------- المتطلبات ---------------- */
+let WP_MAIN_ITEMS_CACHE = []; // {id, code, title} — تُملأ عند تحميل أوراق العمل المطابقة
+let fulfillingReqId = null;
+async function loadRequirements(){
+  if(!currentClientFileId) return;
+  const tbody = document.getElementById('cfd-req-tbody');
+  try{
+    const rows = await apiFetch('/api/client-files/'+currentClientFileId+'/requirements');
+    document.getElementById('req-total-count').textContent = rows.length;
+    document.getElementById('req-done-count').textContent = rows.filter(r=>r.is_fulfilled).length;
+    document.getElementById('req-pending-count').textContent = rows.filter(r=>!r.is_fulfilled).length;
+    tbody.innerHTML = rows.length ? rows.map(r=>`
+      <tr><td>${r.title}</td>
+      <td>${r.wp_main_items ? r.wp_main_items.title : '<span class="empty-hint" style="padding:0;">عام</span>'}</td>
+      <td><span class="badge ${r.is_fulfilled?'ok':'flag'}">${r.is_fulfilled?'مستوفى':'بانتظار العميل'}</span></td>
+      <td>${new Date(r.created_at).toLocaleDateString('ar-SA')}</td>
+      <td><div class="row-actions">
+        ${!r.is_fulfilled ? `<span class="row-icon-btn lead" title="رفع المرفق المستلم" onclick="openFulfillRequirementModal('${r.id}','${(r.title||'').replace(/'/g,"")}')">${ICON_LINK}</span>` : ''}
+        ${btnDelete(`deleteRequirement('${r.id}')`)}
+      </div></td></tr>`).join('')
+      : '<tr><td colspan="5" class="empty-hint">لا توجد متطلبات بعد</td></tr>';
+  }catch(e){ showToast('تعذّر تحميل المتطلبات: '+e.message); }
+}
+function openAddRequirementModal(){
+  document.getElementById('req-title').value = '';
+  const sel = document.getElementById('req-main-item');
+  sel.innerHTML = '<option value="">— عام (غير مرتبط ببند) —</option>' +
+    WP_MAIN_ITEMS_CACHE.map(m=>`<option value="${m.id}">${m.code||''} — ${m.title}</option>`).join('');
+  document.getElementById('req-error').style.display = 'none';
+  openModal('modal-addreq');
+}
+async function saveRequirement(){
+  const title = document.getElementById('req-title').value.trim();
+  const mainId = document.getElementById('req-main-item').value || null;
+  const errBox = document.getElementById('req-error');
+  if(!title){ errBox.textContent = 'اسم المتطلب إلزامي'; errBox.style.display='block'; return; }
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/requirements', {method:'POST', body: JSON.stringify({title, wp_main_item_id: mainId})});
+    closeModal('modal-addreq');
+    showToast('تم إرسال الطلب بالدردشة');
+    loadRequirements();
+  }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
+}
+function openFulfillRequirementModal(reqId, title){
+  fulfillingReqId = reqId;
+  document.getElementById('fulfillreq-title').textContent = title;
+  document.getElementById('fulfillreq-filename').textContent = 'اختر الملف المستلم من العميل';
+  document.getElementById('fulfillreq-input').value = '';
+  openModal('modal-fulfillreq');
+}
+async function submitFulfillRequirement(){
+  const input = document.getElementById('fulfillreq-input');
+  const file = input.files[0];
+  if(!file){ showToast('اختر الملف أولًا'); return; }
+  if(file.size > 8*1024*1024){ showToast('الملف كبير جدًا (الحد الأقصى 8 ميجا)'); return; }
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try{
+      await apiFetch('/api/client-files/'+currentClientFileId+'/requirements/'+fulfillingReqId+'/fulfill', {
+        method:'POST', body: JSON.stringify({attachment_name:file.name, attachment_mime:file.type, attachment_data:reader.result})
+      });
+      closeModal('modal-fulfillreq');
+      showToast('تم تسجيل المتطلب كمستوفى');
+      loadRequirements();
+    }catch(e){ showToast('تعذّر الحفظ: '+e.message); }
+  };
+  reader.readAsDataURL(file);
+}
+async function deleteRequirement(reqId){
+  if(!confirm('هل تريد حذف هذا المتطلب؟')) return;
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/requirements/'+reqId, {method:'DELETE'});
+    loadRequirements();
+  }catch(e){ showToast('تعذّر الحذف: '+e.message); }
+}
+
+/* ---------------- المرفقات (تجميع من كل المصادر) ---------------- */
+async function loadFileAttachments(){
+  if(!currentClientFileId) return;
+  const tbody = document.getElementById('cfd-attach-tbody');
+  try{
+    const rows = await apiFetch('/api/client-files/'+currentClientFileId+'/attachments');
+    const SOURCE_LABEL = {chat:'دردشة', requirement:'متطلب', workpaper:'ورقة عمل'};
+    tbody.innerHTML = rows.length ? rows.map((a,i)=>`
+      <tr><td>${a.context||'—'}</td>
+      <td><span class="badge neutral">${SOURCE_LABEL[a.source]||a.source}</span></td>
+      <td>${a.by||'—'}</td>
+      <td>${a.created_at ? new Date(a.created_at).toLocaleString('ar-SA') : '—'}</td>
+      <td><a href="${a.data}" download="${a.name||'file'}" class="row-icon-btn edit" title="تنزيل">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      </a></td></tr>`).join('')
+      : '<tr><td colspan="5" class="empty-hint">لا توجد مرفقات بعد</td></tr>';
+  }catch(e){ showToast('تعذّر تحميل المرفقات: '+e.message); }
+}
+async function printWorkingPapers(){
+  if(!currentClientFileId) return;
+  showToast('جارٍ تجهيز الملف للطباعة...');
+  try{
+    const matched = await apiFetch('/api/client-files/'+currentClientFileId+'/working-papers');
+    let printHtml = `<div id="print-full-wp"><h1 style="font-size:20px; margin-bottom:4px;">${CURRENT_CLIENT_FILE ? CURRENT_CLIENT_FILE.name : 'أوراق العمل'}</h1>
+      <p style="font-size:12px; color:#666; margin-bottom:24px;">أوراق العمل الكاملة — طُبعت بتاريخ ${new Date().toLocaleDateString('ar-SA')}</p>`;
+    for(const it of matched){
+      const mainId = it.wp_main_items.id;
+      let data;
+      try{ data = await apiFetch('/api/client-files/'+currentClientFileId+'/wp-main-items/'+mainId); }catch(e){ continue; }
+      const answersBySub = {}; (data.answers||[]).forEach(a=> answersBySub[a.wp_sub_item_id] = a);
+      printHtml += `<div style="page-break-inside:avoid; margin-bottom:26px; border-bottom:2px solid #ccc; padding-bottom:16px;">
+        <h2 style="font-size:15px; margin-bottom:8px;">${data.main.code||''} — ${data.main.title}</h2>
+        ${data.main.objective ? `<p style="font-size:12px; color:#555; margin-bottom:10px;"><b>الهدف:</b> ${data.main.objective}</p>` : ''}
+        ${(data.subs||[]).map((s,i)=>{
+          const a = answersBySub[s.id];
+          const ans = a ? (Array.isArray(a.answer_value) ? a.answer_value.join('، ') : (a.answer_value ?? '—')) : '—';
+          return `<div style="border:1px solid #ddd; border-radius:6px; padding:10px 14px; margin-bottom:8px; font-size:12px;">
+            <b>${i+1}. ${s.label}</b>${a && a.not_applicable ? ' <span style="color:#b33;">(لا ينطبق)</span>' : ''}
+            <div style="margin-top:4px;">الإجابة: ${ans}</div>
+            ${a && a.comment ? `<div style="margin-top:2px; color:#555;">ملاحظات: ${a.comment}</div>` : ''}
+          </div>`;
+        }).join('') || '<p style="font-size:12px; color:#999;">لا توجد بنود فرعية</p>'}
+      </div>`;
+    }
+    printHtml += '</div>';
+    let container = document.getElementById('print-full-wp-container');
+    if(!container){ container = document.createElement('div'); container.id = 'print-full-wp-container'; document.body.appendChild(container); }
+    container.innerHTML = printHtml;
+    container.style.cssText = 'display:none;';
+    const style = document.createElement('style');
+    style.id = 'print-full-wp-style';
+    style.textContent = '@media print{ body>*:not(#print-full-wp-container){display:none !important;} #print-full-wp-container{display:block !important;} }';
+    document.head.appendChild(style);
+    setTimeout(()=>{
+      window.print();
+      style.remove();
+    }, 200);
+  }catch(e){ showToast('تعذّر التجهيز للطباعة: '+e.message); }
+}
+
 async function saveTrialBalance(){
   if(!currentClientFileId) return;
   const rows = [...document.querySelectorAll('#tb-tbody tr')].map(tr=>({
@@ -3247,40 +3497,75 @@ async function refreshWorkingPapersForFile(){
 }
 async function loadMatchedWorkingPapers(){
   if(!currentClientFileId) return;
-  let matched;
-  try{ matched = await apiFetch('/api/client-files/'+currentClientFileId+'/working-papers'); }
-  catch(e){ return; }
+  let matched, progress, requirements;
+  try{
+    [matched, progress, requirements] = await Promise.all([
+      apiFetch('/api/client-files/'+currentClientFileId+'/working-papers'),
+      apiFetch('/api/client-files/'+currentClientFileId+'/progress').catch(()=>({overallPercent:0, byMain:{}})),
+      apiFetch('/api/client-files/'+currentClientFileId+'/requirements').catch(()=>[]),
+    ]);
+  }catch(e){ return; }
   const listCol = document.getElementById('cfd-wp-list');
   if(!matched.length){
     listCol.innerHTML = '<div class="empty-hint">لا توجد أوراق عمل مطابقة بعد — اضغط "تحديث أوراق العمل"</div>';
     document.getElementById('cfd-done-count').textContent = 0;
     document.getElementById('cfd-progress-count').textContent = 0;
     document.getElementById('cfd-notstarted-count').textContent = 0;
+    document.getElementById('cfd-progress-bar').style.width = '0%';
+    document.getElementById('cfd-progress-text').textContent = '0%';
     return;
   }
+  const reqByMain = {};
+  (requirements||[]).forEach(r=>{
+    const k = r.wp_main_item_id || '_general';
+    reqByMain[k] = reqByMain[k] || {total:0, done:0};
+    reqByMain[k].total++; if(r.is_fulfilled) reqByMain[k].done++;
+  });
   const byGroup = {};
   matched.forEach(m=>{
     const g = m.wp_main_items.wp_groups;
     (byGroup[g.id] = byGroup[g.id] || {group:g, items:[]}).items.push(m);
   });
+  WP_MAIN_ITEMS_CACHE = matched.map(m=>({id:m.wp_main_items.id, code:m.wp_main_items.code, title:m.wp_main_items.title}));
   listCol.innerHTML = Object.values(byGroup).map(g=>`
     <div class="wp-group">
       <div class="wp-group-head" onclick="toggleWpGroup(this)"><span class="tree-toggle open">▸</span><span>${g.group.code} — ${g.group.name}</span></div>
       <div class="wp-mains">
-        ${g.items.map(it=>`<div class="wp-main-item" onclick="loadWpMainDetail(this,'${it.wp_main_items.id}')">
+        ${g.items.map(it=>{
+          const pct = progress.byMain ? (progress.byMain[it.wp_main_items.id] ?? 0) : 0;
+          const req = reqByMain[it.wp_main_items.id];
+          return `<div class="wp-main-item" onclick="loadWpMainDetail(this,'${it.wp_main_items.id}')">
           <span>${it.wp_main_items.code||''} — ${it.wp_main_items.title}</span>
           <span class="badge ${it.status==='completed'?'ok':it.status==='in_progress'?'warn':'neutral'}">${it.status==='completed'?'مكتملة':it.status==='in_progress'?'قيد التنفيذ':'لم تبدأ'}</span>
-        </div>`).join('')}
+          <div class="wp-mini-stats">
+            <div class="wp-mini-bar"><div class="wp-mini-bar-fill" style="width:${pct}%;"></div></div>
+            <span class="wp-mini-pct">${pct}%</span>
+            ${req ? `<span class="wp-req-badge">📋 ${req.done}/${req.total}</span>` : ''}
+          </div>
+        </div>`;
+        }).join('')}
       </div>
     </div>`).join('');
   document.getElementById('cfd-done-count').textContent = matched.filter(m=>m.status==='completed').length;
   document.getElementById('cfd-progress-count').textContent = matched.filter(m=>m.status==='in_progress').length;
   document.getElementById('cfd-notstarted-count').textContent = matched.filter(m=>m.status==='not_started').length;
+  document.getElementById('cfd-progress-bar').style.width = (progress.overallPercent||0) + '%';
+  document.getElementById('cfd-progress-text').textContent = (progress.overallPercent||0) + '%';
+}
+async function loadFileProgress(){
+  if(!currentClientFileId) return;
+  try{
+    const progress = await apiFetch('/api/client-files/'+currentClientFileId+'/progress');
+    document.getElementById('cfd-progress-bar').style.width = (progress.overallPercent||0) + '%';
+    document.getElementById('cfd-progress-text').textContent = (progress.overallPercent||0) + '%';
+  }catch(e){}
 }
 
-function procItemHtml(sub, answer){
+function procItemHtml(sub, answer, index){
   const val = answer ? answer.answer_value : null;
   const comment = answer ? (answer.comment || '') : '';
+  const isNA = answer ? !!answer.not_applicable : false;
+  const attachUrl = answer ? answer.attachment_url : null;
   let answerHtml = '', notesLabel = 'ملاحظات', notesHtml = '';
   if(sub.item_type === 'yesno'){
     answerHtml = `<div class="yn-row">
@@ -3296,10 +3581,12 @@ function procItemHtml(sub, answer){
     </div>`;
     notesHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
   } else if(sub.item_type === 'qa_attach'){
-    answerHtml = `<div class="upload-mini">
+    answerHtml = `<div class="upload-mini" id="attach-box-${sub.id}" onclick="document.getElementById('attach-input-${sub.id}').click()" style="cursor:pointer;">
+      <input type="file" id="attach-input-${sub.id}" style="display:none;" onchange="onSubAttachSelected(this,'${sub.id}')">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
-      <b>${val ? 'مرفق محفوظ' : 'إرفاق مستند'}</b><span>PDF أو صورة أو ملف Excel</span>
-    </div>`;
+      <b class="attach-label-${sub.id}">${attachUrl ? '📎 مرفق محفوظ — اضغط للاستبدال' : 'إرفاق مستند'}</b><span>PDF أو صورة أو ملف Excel</span>
+    </div>
+    <input type="hidden" class="attach-hidden" data-sub="${sub.id}" data-kind="attachment" value="${attachUrl ? escapeHtml(attachUrl) : ''}">`;
     notesLabel = 'تعليق';
     notesHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="comment">${comment}</textarea>`;
   } else if(sub.item_type === 'list'){
@@ -3312,11 +3599,31 @@ function procItemHtml(sub, answer){
     answerHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="text" placeholder="اكتب الإجابة هنا...">${val || ''}</textarea>`;
     notesHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="comment" placeholder="ملاحظات إضافية (اختياري)">${comment}</textarea>`;
   }
-  return `<div class="proc-item">
-    <div class="proc-q"><span class="proc-num">${sub.sort_order||''}</span> ${sub.label}</div>
+  return `<div class="proc-item ${isNA?'is-na':''}" data-sub-row="${sub.id}">
+    <div class="proc-q"><span class="proc-num">${index}</span> ${sub.label}</div>
     <div class="proc-answer"><label class="notes-label">الإجابة</label>${answerHtml}</div>
     <div class="proc-notes"><label class="notes-label">${notesLabel}</label>${notesHtml}</div>
+    <div style="flex:0 0 auto; padding-top:22px;">
+      <span class="na-toggle-btn ${isNA?'active':''}" data-sub="${sub.id}" data-kind="na" onclick="toggleSubNA(this)">لا ينطبق</span>
+    </div>
   </div>`;
+}
+function toggleSubNA(el){
+  el.classList.toggle('active');
+  const row = el.closest('.proc-item');
+  row.classList.toggle('is-na', el.classList.contains('active'));
+}
+function onSubAttachSelected(input, subId){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 8*1024*1024){ showToast('الملف كبير جدًا (الحد الأقصى 8 ميجا)'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.querySelector(`.attach-hidden[data-sub="${subId}"]`).value = reader.result;
+    document.querySelector(`.attach-label-${subId}`).textContent = '📎 ' + file.name + ' — اضغط للاستبدال';
+    showToast('أُرفق الملف — اضغط "حفظ الإجابات" لتثبيته');
+  };
+  reader.readAsDataURL(file);
 }
 
 async function loadWpMainDetail(item, mainId){
@@ -3325,37 +3632,45 @@ async function loadWpMainDetail(item, mainId){
   let data;
   try{ data = await apiFetch('/api/client-files/'+currentClientFileId+'/wp-main-items/'+mainId); }
   catch(e){ showToast('تعذّر تحميل الورقة: '+e.message); return; }
-  const { main, subs, answers } = data;
+  const { main, subs, answers, signoffs, not_applicable } = data;
   const answersBySub = {}; (answers||[]).forEach(a=> answersBySub[a.wp_sub_item_id] = a);
+  const signoffByType = {}; (signoffs||[]).forEach(s=> signoffByType[s.signoff_type] = s);
   const detailCol = document.getElementById('cfd-wp-detail');
+
+  const SIGNOFF_LABELS = { prepared:'أعدت بواسطة', updated:'حُدثت بواسطة', reviewed:'روجعت بواسطة', approved:'اعتمدت بواسطة' };
+  const signoffsHtml = Object.keys(SIGNOFF_LABELS).map(type=>{
+    const s = signoffByType[type];
+    const nm = s && s.users ? ((s.users.first_name_ar||'')+' '+(s.users.last_name_ar||'')).trim() : '';
+    return `<div class="signoff-chip-wrap">
+      <label class="signoff-chip"><input type="checkbox" ${s?'checked':''} onchange="toggleSignoff('${mainId}','${type}',this.checked,this)"> ${SIGNOFF_LABELS[type]}</label>
+      ${s ? `<div class="signoff-meta">${nm} — ${timeAgoAr(s.signed_at)}</div>` : ''}
+    </div>`;
+  }).join('');
+
   detailCol.innerHTML = `
     <div class="wp-detail active" data-main-id="${mainId}">
-      <div class="profile-head" style="margin-bottom:14px;">
+      <div class="profile-head" style="margin-bottom:10px; align-items:flex-start;">
         <div class="seal2">${main.code||''}</div>
-        <div><div class="pn">${main.title}</div></div>
+        <div style="flex:1;">
+          <div class="pn">${main.title}</div>
+          <div class="signoff-row" style="margin-top:8px;">${signoffsHtml}</div>
+        </div>
+        <span class="na-toggle-btn ${not_applicable?'active':''}" style="margin-top:2px;" onclick="toggleMainNA('${mainId}', this)">لا ينطبق على هذا الملف</span>
       </div>
       <div class="item-subtabs">
         <div class="ist active" onclick="switchWpItemSubtab(this,'details')">تفاصيل البند</div>
         <div class="ist" onclick="switchWpItemSubtab(this,'chat')">الدردشة</div>
       </div>
       <div class="wp-item-pane" id="wp-item-pane-details">
-        <div class="form-section">
-          <div class="signoff-row">
-            <label><input type="checkbox" data-signoff="prepared"> أعدت بواسطة</label>
-            <label><input type="checkbox" data-signoff="updated"> خدثت بواسطة</label>
-            <label><input type="checkbox" data-signoff="reviewed"> روجعت بواسطة</label>
-            <label><input type="checkbox" data-signoff="approved"> اعتمدت بواسطة</label>
-          </div>
-        </div>
         ${main.objective ? `<div class="form-section"><div class="form-section-title">الهدف</div><div style="font-size:13px; line-height:1.8;">${main.objective}</div></div>` : ''}
-        ${(subs||[]).map(s=>procItemHtml(s, answersBySub[s.id])).join('') || '<div class="empty-hint">لا توجد بنود فرعية بهذه الورقة</div>'}
+        ${(subs||[]).map((s,i)=>procItemHtml(s, answersBySub[s.id], i+1)).join('') || '<div class="empty-hint">لا توجد بنود فرعية بهذه الورقة</div>'}
         <button class="btn dark" style="margin-top:6px;" onclick="saveWpAnswers('${mainId}')">حفظ الإجابات</button>
       </div>
       <div class="wp-item-pane" id="wp-item-pane-chat" style="display:none;">
         <div class="chat-shell" style="height:460px; grid-template-columns:1fr;">
           <div id="chat-messages-item" class="chat-thread"></div>
         </div>
-        <div class="chat-composer">
+        <div class="chat-composer" style="position:relative;">
           <input type="file" id="chat-file-item" style="display:none;" onchange="onChatFileSelected(this,'item')">
           <span class="row-icon-btn edit" title="إرفاق ملف" onclick="document.getElementById('chat-file-item').click()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 015 5l-9.2 9.19a1.5 1.5 0 01-2.12-2.12l8.49-8.48"/></svg>
@@ -3367,6 +3682,21 @@ async function loadWpMainDetail(item, mainId){
       </div>
     </div>`;
   CURRENT_WP_ITEM_ID = mainId;
+}
+async function toggleSignoff(mainId, type, checked, checkboxEl){
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/wp-main-items/'+mainId+'/signoff', {method:'POST', body: JSON.stringify({signoff_type:type, checked})});
+    loadWpMainDetail(document.querySelector('#cfd-wp-list .wp-main-item.active'), mainId);
+  }catch(e){ showToast('تعذّر الحفظ: '+e.message); checkboxEl.checked = !checked; }
+}
+async function toggleMainNA(mainId, el){
+  const newVal = !el.classList.contains('active');
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/wp-main-items/'+mainId+'/toggle-na', {method:'POST', body: JSON.stringify({not_applicable:newVal})});
+    el.classList.toggle('active', newVal);
+    loadMatchedWorkingPapers();
+    loadFileProgress();
+  }catch(e){ showToast('تعذّر الحفظ: '+e.message); }
 }
 function switchWpItemSubtab(el, key){
   document.querySelectorAll('#cfd-wp-detail .item-subtabs .ist').forEach(t=>t.classList.remove('active'));
@@ -3385,6 +3715,8 @@ async function saveWpAnswers(mainId){
     if(kind === 'comment') bySub[subId].comment = el.value;
     else if(kind === 'text') bySub[subId].answer_value = el.value;
     else if(kind === 'select') bySub[subId].answer_value = el.value;
+    else if(kind === 'attachment'){ if(el.value) bySub[subId].attachment_url = el.value; }
+    else if(kind === 'na'){ bySub[subId].not_applicable = el.classList.contains('active'); }
     else if(kind === 'multi'){
       if(!Array.isArray(bySub[subId].answer_value)) bySub[subId].answer_value = [];
       if(el.checked) bySub[subId].answer_value.push(el.value);
@@ -3401,6 +3733,7 @@ async function saveWpAnswers(mainId){
     });
     showToast('تم حفظ الإجابات');
     loadMatchedWorkingPapers();
+    loadFileProgress();
   }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
 }
 
@@ -4111,12 +4444,15 @@ function chatBubbleHtml(m, opts){
   if(opts.showContext && m.client_files && m.client_files.name){
     contextBadge += `<div style="font-size:9.5px; opacity:.75; margin-bottom:3px;">📁 ${m.client_files.name}</div>`;
   }
+  const reassignBtn = opts.allowReassign
+    ? `<span onclick="reassignChatMessage('${m.id}')" style="cursor:pointer; font-size:9px; opacity:.7; text-decoration:underline; margin-inline-start:6px;">ربط ببند</span>`
+    : '';
   return `<div class="chat-bubble ${mine?'mine':'theirs'}">
     <div class="cb-sender">${nm}${role?' <span style="opacity:.7; font-weight:400;">— '+role+'</span>':''}</div>
     ${contextBadge}
     ${m.body ? `<div>${escapeHtml(m.body)}</div>` : ''}
     ${attachHtml}
-    <div class="cb-time">${timeAgoAr(m.created_at)}</div>
+    <div class="cb-time">${timeAgoAr(m.created_at)}${reassignBtn}</div>
   </div>`;
 }
 function escapeHtml(s){
@@ -4132,7 +4468,7 @@ async function loadChatMessages(scope){
     if(scope==='item' && CURRENT_WP_ITEM_ID) url += '?mainItemId='+CURRENT_WP_ITEM_ID;
     const msgs = await apiFetch(url);
     const showContext = scope === 'general';
-    container.innerHTML = msgs.length ? msgs.map(m=>chatBubbleHtml(m, {showContext})).join('') : '<div class="empty-hint" style="padding:30px;">لا توجد رسائل بعد — ابدأ المحادثة</div>';
+    container.innerHTML = msgs.length ? msgs.map(m=>chatBubbleHtml(m, {showContext, allowReassign: showContext})).join('') : '<div class="empty-hint" style="padding:30px;">لا توجد رسائل بعد — ابدأ المحادثة</div>';
     container.scrollTop = container.scrollHeight;
   }catch(e){ container.innerHTML = `<div class="empty-hint" style="padding:30px;">تعذّر تحميل الرسائل: ${e.message}</div>`; }
 }
@@ -4160,8 +4496,37 @@ async function sendChatMessage(scope){
   const text = input.value.trim();
   const attach = CHAT_PENDING_ATTACH[scope];
   if(!text && !attach) return;
-  const payload = { body: text || null };
-  if(scope==='item' && CURRENT_WP_ITEM_ID) payload.wp_main_item_id = CURRENT_WP_ITEM_ID;
+
+  // "/" بأول الرسالة = طلب متطلب مرفق جديد يُرسَل تلقائيًا للعميل بالدردشة
+  if(text.startsWith('/')){
+    const title = text.slice(1).trim();
+    if(!title){ showToast('اكتب اسم المتطلب بعد /'); return; }
+    try{
+      await apiFetch('/api/client-files/'+currentClientFileId+'/requirements', {
+        method:'POST', body: JSON.stringify({title, wp_main_item_id: (scope==='item' ? CURRENT_WP_ITEM_ID : null)})
+      });
+      input.value = '';
+      showToast('تم إرسال طلب المتطلب');
+      loadChatMessages(scope);
+    }catch(e){ showToast('تعذّر إرسال الطلب: '+e.message); }
+    return;
+  }
+
+  // "@" بأول الرسالة = ربط هذه الرسالة ببند عمل رئيسي محدد (اختره من القائمة)
+  let taggedMainId = (scope==='item' && CURRENT_WP_ITEM_ID) ? CURRENT_WP_ITEM_ID : null;
+  let finalText = text;
+  if(text.startsWith('@')){
+    if(!WP_MAIN_ITEMS_CACHE.length){ showToast('لا توجد أوراق عمل مطابقة لهذا الملف بعد'); return; }
+    const options = WP_MAIN_ITEMS_CACHE.map((m,i)=>`${i+1}) ${m.code||''} — ${m.title}`).join('\n');
+    const choice = prompt('اختر رقم ورقة العمل لربط هذه الرسالة بها:\n'+options);
+    const idx = parseInt(choice,10) - 1;
+    if(!choice || isNaN(idx) || !WP_MAIN_ITEMS_CACHE[idx]){ showToast('لم يتم الاختيار'); return; }
+    taggedMainId = WP_MAIN_ITEMS_CACHE[idx].id;
+    finalText = text.replace(/^@\S*\s*/, '').trim() || ('بخصوص: ' + WP_MAIN_ITEMS_CACHE[idx].title);
+  }
+
+  const payload = { body: finalText || null };
+  if(taggedMainId) payload.wp_main_item_id = taggedMainId;
   if(attach){ payload.attachment_name = attach.name; payload.attachment_mime = attach.mime; payload.attachment_data = attach.data; }
   try{
     await apiFetch('/api/client-files/'+currentClientFileId+'/chat', {method:'POST', body: JSON.stringify(payload)});
@@ -4169,6 +4534,19 @@ async function sendChatMessage(scope){
     clearChatAttachment(scope);
     loadChatMessages(scope);
   }catch(e){ showToast('تعذّر إرسال الرسالة: '+e.message); }
+}
+async function reassignChatMessage(msgId){
+  if(!WP_MAIN_ITEMS_CACHE.length){ showToast('لا توجد أوراق عمل مطابقة لهذا الملف بعد'); return; }
+  const options = ['0) عام (بدون ربط)', ...WP_MAIN_ITEMS_CACHE.map((m,i)=>`${i+1}) ${m.code||''} — ${m.title}`)].join('\n');
+  const choice = prompt('اربط هذه الرسالة بورقة عمل:\n'+options);
+  if(choice === null) return;
+  const idx = parseInt(choice,10) - 1;
+  const mainId = (idx>=0 && WP_MAIN_ITEMS_CACHE[idx]) ? WP_MAIN_ITEMS_CACHE[idx].id : null;
+  try{
+    await apiFetch('/api/client-files/'+currentClientFileId+'/chat/'+msgId, {method:'PUT', body: JSON.stringify({wp_main_item_id: mainId})});
+    showToast('تم الربط');
+    loadChatMessages('general');
+  }catch(e){ showToast('تعذّر الربط: '+e.message); }
 }
 
 /* ================= دليل الدردشات (الصفحة العامة) ================= */
