@@ -726,7 +726,7 @@ app.get('/api/client-files/:id/chat', requireAuth, async (req, res) => {
   const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   let q = sb.from('chat_messages')
-    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title)')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, requirement_id, note_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title), wp_requirements(title, is_fulfilled), wp_notes(body, is_resolved)')
     .eq('client_file_id', req.params.id).order('created_at');
   // بدون تحديد بند: تُعرض كل رسائل الملف (العامة وأي رسالة مرتبطة ببند). بتحديد بند: تُصفَّى لرسائله فقط.
   if (req.query.mainItemId) q = q.eq('wp_main_item_id', req.query.mainItemId);
@@ -746,6 +746,8 @@ app.post('/api/client-files/:id/chat', requireAuth, async (req, res) => {
     client_id: file.client_id,
     client_file_id: req.params.id,
     wp_main_item_id: b.wp_main_item_id || null,
+    requirement_id: b.requirement_id || null,
+    note_id: b.note_id || null,
     sender_user_id: req.session.userId,
     body: b.body || null,
     attachment_name: b.attachment_name || null,
@@ -753,9 +755,37 @@ app.post('/api/client-files/:id/chat', requireAuth, async (req, res) => {
     attachment_data: b.attachment_data || null,
   };
   const { data, error } = await sb.from('chat_messages').insert(payload)
-    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title)')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, requirement_id, note_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title), wp_requirements(title, is_fulfilled), wp_notes(body, is_resolved)')
     .single();
   if (error) return res.status(500).json({ message: error.message });
+  // ربط الرسالة بمتطلب = استيفاؤه تلقائيًا، وربطها بملاحظة = حلّها تلقائيًا
+  if (b.requirement_id) {
+    await sb.from('wp_requirements').update({
+      is_fulfilled: true, fulfilled_at: new Date().toISOString(),
+      fulfilled_attachment_name: b.attachment_name || null, fulfilled_attachment_mime: b.attachment_mime || null, fulfilled_attachment_data: b.attachment_data || null,
+    }).eq('id', b.requirement_id);
+  }
+  if (b.note_id) {
+    await sb.from('wp_notes').update({ is_resolved: true, resolved_by: req.session.userId, resolved_at: new Date().toISOString() }).eq('id', b.note_id);
+  }
+  res.json(data);
+});
+
+app.put('/api/client-files/:id/chat/:msgId/link', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const b = req.body || {};
+  const payload = {};
+  if (b.wp_main_item_id !== undefined) payload.wp_main_item_id = b.wp_main_item_id || null;
+  if (b.requirement_id !== undefined) payload.requirement_id = b.requirement_id || null;
+  if (b.note_id !== undefined) payload.note_id = b.note_id || null;
+  const { data, error } = await sb.from('chat_messages').update(payload)
+    .eq('id', req.params.msgId).eq('client_file_id', req.params.id)
+    .select('id, wp_main_item_id, requirement_id, note_id').single();
+  if (error) return res.status(500).json({ message: error.message });
+  if (payload.requirement_id) await sb.from('wp_requirements').update({ is_fulfilled: true, fulfilled_at: new Date().toISOString() }).eq('id', payload.requirement_id);
+  if (payload.note_id) await sb.from('wp_notes').update({ is_resolved: true, resolved_by: req.session.userId, resolved_at: new Date().toISOString() }).eq('id', payload.note_id);
   res.json(data);
 });
 
@@ -977,7 +1007,7 @@ app.get('/api/clients/:id/chat', requireAuth, async (req, res) => {
   const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
   if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
   const { data, error } = await sb.from('chat_messages')
-    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title), client_files(name)')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, requirement_id, note_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title), client_files(name), wp_requirements(title, is_fulfilled), wp_notes(body, is_resolved)')
     .eq('client_id', req.params.id).order('created_at');
   if (error) return res.status(500).json({ message: error.message });
   res.json(data || []);
