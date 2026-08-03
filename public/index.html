@@ -299,21 +299,33 @@
   .chat-list .cl{font-size:11.5px; color:var(--muted-2); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
   /* ===== دردشة ملف التدقيق (فريق المراجعة) ===== */
-  .chat-thread{overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; background:var(--paper); border:1px solid var(--line); border-radius:var(--radius) var(--radius) 0 0; flex:1; min-height:0; overscroll-behavior:contain;}
-  .chat-bubble{max-width:62%; padding:9px 13px; border-radius:12px; font-size:12.8px; line-height:1.6; position:relative;}
-  .chat-bubble.mine{align-self:flex-start; background:var(--ink); color:#F3EFE2; border-bottom-right-radius:3px;}
-  .chat-bubble.theirs{align-self:flex-end; background:var(--card); border:1px solid var(--line); border-bottom-left-radius:3px;}
-  .chat-bubble .cb-sender{font-size:10.5px; font-weight:700; color:var(--brass-light); margin-bottom:3px;}
-  .chat-bubble.theirs .cb-sender{color:var(--brass);}
+  .chat-thread{overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; background:var(--paper); border:1px solid var(--line); border-radius:var(--radius) var(--radius) 0 0; flex:1; min-height:0; overscroll-behavior:contain;}
+  .chat-msg-wrap{display:flex; flex-direction:column; max-width:64%; position:relative;}
+  .chat-msg-wrap.mine{align-self:flex-start; align-items:flex-start;}
+  .chat-msg-wrap.theirs{align-self:flex-end; align-items:flex-end;}
+  .cb-sender-row{display:flex; align-items:center; gap:6px; margin-bottom:4px; font-size:10.5px; font-weight:700; color:var(--brass);}
+  .cb-menu-btn{cursor:pointer; color:var(--muted); font-weight:900; padding:0 4px; border-radius:4px; user-select:none;}
+  .cb-menu-btn:hover{background:var(--line); color:var(--ink);}
+  .cb-menu-dropdown{position:absolute; top:22px; z-index:20; background:var(--card); border:1px solid var(--line); border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.12); min-width:180px; overflow:hidden;}
+  .chat-msg-wrap.mine .cb-menu-dropdown{right:0;}
+  .chat-msg-wrap.theirs .cb-menu-dropdown{left:0;}
+  .cb-menu-dropdown div{padding:9px 13px; font-size:12px; cursor:pointer; color:var(--text);}
+  .cb-menu-dropdown div:hover{background:var(--paper);}
+  .cb-menu-dropdown div.disabled{color:var(--muted-2); cursor:not-allowed;}
+  .chat-bubble{padding:9px 13px; border-radius:12px; font-size:12.8px; line-height:1.6; position:relative;}
+  .chat-bubble.mine{background:var(--ink); color:#F3EFE2; border-bottom-right-radius:3px;}
+  .chat-bubble.theirs{background:var(--card); border:1px solid var(--line); border-bottom-left-radius:3px;}
+  .cb-item-label{font-size:10px; font-weight:700; opacity:.75; margin-bottom:4px; cursor:pointer; text-decoration:underline; text-underline-offset:2px;}
   .chat-bubble .cb-time{font-size:9.5px; opacity:.65; margin-top:4px;}
   .chat-bubble .cb-attach{display:flex; align-items:center; gap:6px; margin-top:6px; padding:6px 9px; border-radius:8px; background:rgba(255,255,255,.08); font-size:11.5px; cursor:pointer;}
   .chat-bubble.theirs .cb-attach{background:var(--paper);}
   .chat-bubble .cb-attach svg{width:13px; height:13px; flex-shrink:0;}
   .chat-bubble .cb-attach img{max-width:180px; max-height:140px; border-radius:6px; display:block; margin-top:4px;}
+  .cb-badges-row{display:flex; gap:6px; margin-top:5px; flex-wrap:wrap;}
   .chat-composer{display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--card); border:1px solid var(--line); border-top:none; border-radius:0 0 var(--radius) var(--radius);}
   .chat-linkbar{display:flex; gap:8px; padding:7px 12px; background:var(--paper); border:1px solid var(--line); border-top:none; border-bottom:none;}
   .chat-linkbar select{flex:1; font-size:10.5px; padding:5px 8px; border:1.2px solid var(--line-strong); border-radius:6px; background:var(--card); min-width:0;}
-  .chat-link-badge{display:inline-flex; align-items:center; gap:4px; font-size:9.5px; padding:2px 8px; border-radius:10px; margin-bottom:4px; cursor:default;}
+  .chat-link-badge{display:inline-flex; align-items:center; gap:4px; font-size:9.5px; padding:2px 8px; border-radius:10px; cursor:pointer;}
   .chat-link-badge.req{background:#E4F0EA; color:#2F6F4E;}
   .chat-link-badge.req.pending{background:#FBEFE0; color:#B5762C;}
   .chat-link-badge.note{background:#FBEFE0; color:#B5762C;}
@@ -1461,8 +1473,12 @@
             </div>
             <div id="chats-active-thread" class="chat-thread" style="display:none; flex:1; border-radius:0; border:none;"></div>
             <div id="chats-active-linkbar" style="display:none; padding:8px 12px; border-top:1px solid var(--line); background:var(--paper);">
-              <select id="chats-active-file-select" onchange="onDirectoryFileChange()" style="width:100%; font-size:11.5px; padding:6px 10px;"></select>
-              <select id="chats-active-item-select" style="width:100%; font-size:11.5px; padding:6px 10px; margin-top:6px;"></select>
+              <select id="chats-active-file-select" onchange="onDirectoryFileChange()" style="width:100%; font-size:11.5px; padding:6px 10px; margin-bottom:6px;"></select>
+              <div class="chat-linkbar" style="padding:0; background:none; border:none;">
+                <select id="chat-link-item-directory" onchange="onChatLinkItemChange('directory')"><option value="">— بدون ربط ببند —</option></select>
+                <select id="chat-link-req-directory"><option value="">— بدون ربط بمتطلب —</option></select>
+                <select id="chat-link-note-directory"><option value="">— بدون ربط بملاحظة —</option></select>
+              </div>
             </div>
             <div id="chats-active-composer" class="chat-composer" style="display:none; border-radius:0; border-inline:none; border-bottom:none;">
               <input type="file" id="chat-file-directory" style="display:none;" onchange="onChatFileSelected(this,'directory')">
@@ -4869,28 +4885,106 @@ function chatBubbleHtml(m, opts){
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg> ${m.attachment_name||'مرفق'}</a>`;
     }
   }
-  let contextBadge = '';
-  if(opts.showContext && m.wp_main_items && m.wp_main_items.title){
-    contextBadge = `<div style="font-size:9.5px; opacity:.75; margin-bottom:3px;">📎 بند: ${m.wp_main_items.title}</div>`;
-  }
-  // شارة المتطلب/الملاحظة المرتبطة بالرسالة (منفصلة عن جسم الرسالة)
-  let linkBadge = '';
+  const itemLabel = (opts.showContext && m.wp_main_items && m.wp_main_items.title)
+    ? `<div class="cb-item-label" onclick="event.stopPropagation(); navigateToChatItem('${m.wp_main_item_id}')">📎 ${m.wp_main_items.title}</div>` : '';
+  let badges = '';
   if(m.requirement_id && m.wp_requirements){
-    linkBadge = `<div class="chat-link-badge req ${m.wp_requirements.is_fulfilled?'':'pending'}">📋 ${m.wp_requirements.is_fulfilled?'مستوفى':'بانتظار'}: ${m.wp_requirements.title}</div>`;
+    badges += `<span class="chat-link-badge req ${m.wp_requirements.is_fulfilled?'':'pending'}" onclick="navigateToChatTab('req')">📋 ${m.wp_requirements.is_fulfilled?'مستوفى':'بانتظار'}: ${m.wp_requirements.title}</span>`;
   }
   if(m.note_id && m.wp_notes){
-    linkBadge += `<div class="chat-link-badge note ${m.wp_notes.is_resolved?'resolved':''}">📝 ${m.wp_notes.is_resolved?'محلولة':'مفتوحة'}</div>`;
+    badges += `<span class="chat-link-badge note ${m.wp_notes.is_resolved?'resolved':''}" onclick="navigateToChatTab('notes')">📝 ${m.wp_notes.is_resolved?'محلولة':'مفتوحة'}</span>`;
   }
-  const linkBtn = opts.allowReassign
-    ? `<span onclick="linkChatMessage('${m.id}')" class="chat-link-btn">🔗 ربط</span>`
+  const minutesElapsed = (Date.now() - new Date(m.created_at).getTime()) / 60000;
+  const canEditText = mine && minutesElapsed <= 10 && !!m.body;
+  const menuBtn = (opts.allowReassign && mine)
+    ? `<span class="cb-menu-btn" onclick="toggleChatMsgMenu(event,'${m.id}')">⋮</span>`
     : '';
-  return `<div class="chat-bubble ${mine?'mine':'theirs'}">
-    <div class="cb-sender">${nm}${role?' <span style="opacity:.7; font-weight:400;">— '+role+'</span>':''}</div>
-    ${contextBadge}${linkBadge}
-    ${m.body ? `<div>${escapeHtml(m.body)}</div>` : ''}
-    ${attachHtml}
-    <div class="cb-time">${timeAgoAr(m.created_at)}${linkBtn}</div>
+  const menuDropdown = (opts.allowReassign && mine) ? `
+    <div class="cb-menu-dropdown" id="cb-menu-${m.id}" style="display:none;">
+      <div class="${canEditText?'':'disabled'}" onclick="${canEditText?`startEditChatMessage('${m.id}')`:''}">${canEditText?'✏️ تعديل النص':'✏️ تعديل النص (انتهت المهلة)'}</div>
+      <div onclick="linkChatMessageField('${m.id}','item')">📎 تعديل الربط بورقة عمل</div>
+      <div onclick="linkChatMessageField('${m.id}','requirement')">📋 تعديل الربط بمتطلب</div>
+      <div onclick="linkChatMessageField('${m.id}','note')">📝 تعديل الربط بملاحظة</div>
+    </div>` : '';
+  return `<div class="chat-msg-wrap ${mine?'mine':'theirs'}" id="cb-wrap-${m.id}">
+    <div class="cb-sender-row">
+      <span>${nm}${role?' — '+role:''}</span>${menuBtn}
+      ${menuDropdown}
+    </div>
+    <div class="chat-bubble ${mine?'mine':'theirs'}">
+      ${itemLabel}
+      <div class="cb-body" id="cb-body-${m.id}">${m.body ? escapeHtml(m.body) : ''}</div>
+      ${attachHtml}
+      <div class="cb-time">${timeAgoAr(m.created_at)}</div>
+    </div>
+    ${badges ? `<div class="cb-badges-row">${badges}</div>` : ''}
   </div>`;
+}
+function toggleChatMsgMenu(ev, msgId){
+  ev.stopPropagation();
+  const dd = document.getElementById('cb-menu-'+msgId);
+  const isOpen = dd.style.display === 'block';
+  document.querySelectorAll('.cb-menu-dropdown').forEach(x=>x.style.display='none');
+  dd.style.display = isOpen ? 'none' : 'block';
+}
+document.addEventListener('click', ()=>{ document.querySelectorAll('.cb-menu-dropdown').forEach(x=>x.style.display='none'); });
+
+function startEditChatMessage(msgId){
+  document.getElementById('cb-menu-'+msgId).style.display = 'none';
+  const bodyEl = document.getElementById('cb-body-'+msgId);
+  const current = bodyEl.textContent;
+  const updated = prompt('عدّل نص الرسالة:', current);
+  if(updated === null || !updated.trim() || updated === current) return;
+  const fileId = ACTIVE_CONVERSATION && ACTIVE_CONVERSATION.type==='client' ? document.getElementById('chats-active-file-select').value : currentClientFileId;
+  apiFetch('/api/client-files/'+fileId+'/chat/'+msgId+'/edit', {method:'PUT', body: JSON.stringify({body: updated.trim()})})
+    .then(()=>{ bodyEl.textContent = updated.trim(); showToast('تم تعديل الرسالة'); })
+    .catch(e=>showToast('تعذّر التعديل: '+e.message));
+}
+async function linkChatMessageField(msgId, kind){
+  document.getElementById('cb-menu-'+msgId).style.display = 'none';
+  const fileId = ACTIVE_CONVERSATION && ACTIVE_CONVERSATION.type==='client' ? document.getElementById('chats-active-file-select').value : currentClientFileId;
+  const payload = {};
+  if(kind === 'item'){
+    if(!WP_MAIN_ITEMS_CACHE.length){ showToast('لا توجد أوراق عمل مطابقة لهذا الملف بعد'); return; }
+    const options = ['0) عام (بدون ربط)', ...WP_MAIN_ITEMS_CACHE.map((m,i)=>`${i+1}) ${m.code||''} — ${m.title}`)].join('\n');
+    const choice = prompt('اربط الرسالة ببند عمل:\n'+options);
+    if(choice === null) return;
+    const idx = parseInt(choice,10) - 1;
+    payload.wp_main_item_id = (idx>=0 && WP_MAIN_ITEMS_CACHE[idx]) ? WP_MAIN_ITEMS_CACHE[idx].id : null;
+  } else if(kind === 'requirement'){
+    const openReqs = REQUIREMENTS_CACHE_CHAT.filter(r=>!r.is_fulfilled);
+    if(!openReqs.length){ showToast('لا توجد متطلبات مفتوحة'); return; }
+    const options = ['0) بدون ربط', ...openReqs.map((r,i)=>`${i+1}) ${r.title}`)].join('\n');
+    const choice = prompt('اربط الرسالة بمتطلب (يجب أن تحتوي الرسالة على مرفق):\n'+options);
+    if(choice === null) return;
+    const idx = parseInt(choice,10) - 1;
+    payload.requirement_id = (idx>=0 && openReqs[idx]) ? openReqs[idx].id : null;
+  } else {
+    const openNotes = NOTES_CACHE_CHAT.filter(n=>!n.is_resolved);
+    if(!openNotes.length){ showToast('لا توجد ملاحظات مفتوحة'); return; }
+    const options = ['0) بدون ربط', ...openNotes.map((n,i)=>`${i+1}) ${(n.body||'').slice(0,40)}`)].join('\n');
+    const choice = prompt('اربط الرسالة بملاحظة:\n'+options);
+    if(choice === null) return;
+    const idx = parseInt(choice,10) - 1;
+    payload.note_id = (idx>=0 && openNotes[idx]) ? openNotes[idx].id : null;
+  }
+  try{
+    await apiFetch('/api/client-files/'+fileId+'/chat/'+msgId+'/link', {method:'PUT', body: JSON.stringify(payload)});
+    showToast('تم الربط');
+    if(ACTIVE_CONVERSATION && ACTIVE_CONVERSATION.type==='client') loadDirectoryMessages();
+    else loadChatMessages('general');
+    loadPersistentStats();
+  }catch(e){ showToast('تعذّر الربط: '+e.message); }
+}
+function navigateToChatItem(itemId){
+  if(!itemId) return;
+  switchCfdTab(document.querySelector('#page-clientfiledetail .tab-strip .tab:nth-child(2)'), 'wp');
+  setTimeout(()=>loadWpMainDetail(null, itemId), 150);
+}
+function navigateToChatTab(key){
+  const idx = key==='req' ? 4 : 5;
+  const tab = document.querySelector('#page-clientfiledetail .tab-strip .tab:nth-child('+idx+')');
+  if(tab) switchCfdTab(tab, key);
 }
 function renderChatThread(msgs, opts){
   opts = opts || {};
@@ -5038,42 +5132,6 @@ function onChatLinkItemChange(scope){
   noteSel.innerHTML = '<option value="">— بدون ربط بملاحظة —</option>' + notes.map(n=>`<option value="${n.id}">${(n.body||'').slice(0,40)}</option>`).join('');
 }
 
-async function linkChatMessage(msgId){
-  if(!WP_MAIN_ITEMS_CACHE.length && !REQUIREMENTS_CACHE_CHAT.length && !NOTES_CACHE_CHAT.length){ showToast('لا توجد بنود أو متطلبات أو ملاحظات لهذا الملف بعد'); return; }
-  const itemOptions = ['0) عام (بدون ربط ببند)', ...WP_MAIN_ITEMS_CACHE.map((m,i)=>`${i+1}) ${m.code||''} — ${m.title}`)].join('\n');
-  const choice = prompt('اربط هذه الرسالة ببند عمل — اختر رقمًا (أو ألغِ للتخطي):\n'+itemOptions);
-  const payload = {};
-  if(choice !== null){
-    const idx = parseInt(choice,10) - 1;
-    payload.wp_main_item_id = (idx>=0 && WP_MAIN_ITEMS_CACHE[idx]) ? WP_MAIN_ITEMS_CACHE[idx].id : null;
-  }
-  const openReqs = REQUIREMENTS_CACHE_CHAT.filter(r=>!r.is_fulfilled);
-  if(openReqs.length){
-    const reqOptions = ['0) بدون ربط بمتطلب', ...openReqs.map((r,i)=>`${i+1}) ${r.title}`)].join('\n');
-    const reqChoice = prompt('اربطها بمتطلب (سيصبح مستوفى تلقائيًا) — أو ألغِ للتخطي:\n'+reqOptions);
-    if(reqChoice !== null){
-      const idx = parseInt(reqChoice,10) - 1;
-      if(idx>=0 && openReqs[idx]) payload.requirement_id = openReqs[idx].id;
-    }
-  }
-  const openNotes = NOTES_CACHE_CHAT.filter(n=>!n.is_resolved);
-  if(openNotes.length){
-    const noteOptions = ['0) بدون ربط بملاحظة', ...openNotes.map((n,i)=>`${i+1}) ${(n.body||'').slice(0,40)}`)].join('\n');
-    const noteChoice = prompt('اربطها بملاحظة (ستُحل تلقائيًا) — أو ألغِ للتخطي:\n'+noteOptions);
-    if(noteChoice !== null){
-      const idx = parseInt(noteChoice,10) - 1;
-      if(idx>=0 && openNotes[idx]) payload.note_id = openNotes[idx].id;
-    }
-  }
-  if(!Object.keys(payload).length) return;
-  try{
-    await apiFetch('/api/client-files/'+currentClientFileId+'/chat/'+msgId+'/link', {method:'PUT', body: JSON.stringify(payload)});
-    showToast('تم الربط');
-    loadChatMessages('general');
-    loadPersistentStats();
-  }catch(e){ showToast('تعذّر الربط: '+e.message); }
-}
-
 /* ================= دليل الدردشات (الصفحة العامة) ================= */
 let ACTIVE_CONVERSATION = null; // { type: 'client'|'staff_dm'|'staff_group'|'custom_group', id, label, sub }
 let CHATS_DIR_CACHE = null;
@@ -5162,9 +5220,9 @@ function openDirectoryConversation(type, id, label, sub){
 
 async function loadDirectoryClientFiles(clientId){
   const fileSel = document.getElementById('chats-active-file-select');
-  const itemSel = document.getElementById('chats-active-item-select');
+  const itemSel = document.getElementById('chat-link-item-directory');
   fileSel.innerHTML = '<option value="">جارٍ التحميل...</option>';
-  itemSel.innerHTML = '<option value="">(بدون ربط ببند)</option>';
+  itemSel.innerHTML = '<option value="">— بدون ربط ببند —</option>';
   try{
     const { files } = await apiFetch('/api/clients/'+clientId);
     if(!files.length){ fileSel.innerHTML = '<option value="">— لا توجد ملفات تدقيق لهذا العميل —</option>'; return; }
@@ -5174,12 +5232,19 @@ async function loadDirectoryClientFiles(clientId){
 }
 async function onDirectoryFileChange(){
   const fileId = document.getElementById('chats-active-file-select').value;
-  const itemSel = document.getElementById('chats-active-item-select');
-  itemSel.innerHTML = '<option value="">(بدون ربط ببند)</option>';
+  const itemSel = document.getElementById('chat-link-item-directory');
+  itemSel.innerHTML = '<option value="">— بدون ربط ببند —</option>';
+  WP_MAIN_ITEMS_CACHE = [];
+  REQUIREMENTS_CACHE_CHAT = [];
+  NOTES_CACHE_CHAT = [];
   if(!fileId) return;
   try{
     const matched = await apiFetch('/api/client-files/'+fileId+'/working-papers');
-    itemSel.innerHTML = '<option value="">(بدون ربط ببند)</option>' + matched.map(m=>`<option value="${m.wp_main_items.id}">${m.wp_main_items.title}</option>`).join('');
+    WP_MAIN_ITEMS_CACHE = matched.map(m=>({id:m.wp_main_items.id, code:m.wp_main_items.code, title:m.wp_main_items.title}));
+    itemSel.innerHTML = '<option value="">— بدون ربط ببند —</option>' + matched.map(m=>`<option value="${m.wp_main_items.id}">${m.wp_main_items.code||''} — ${m.wp_main_items.title}</option>`).join('');
+    REQUIREMENTS_CACHE_CHAT = await apiFetch('/api/client-files/'+fileId+'/requirements');
+    NOTES_CACHE_CHAT = await apiFetch('/api/client-files/'+fileId+'/notes');
+    onChatLinkItemChange('directory');
   }catch(e){}
 }
 
@@ -5195,7 +5260,7 @@ async function loadDirectoryMessages(){
     else url = '/api/staff-chat/group';
     const msgs = await apiFetch(url);
     const showContext = ACTIVE_CONVERSATION.type === 'client';
-    container.innerHTML = msgs.length ? renderChatThread(msgs, {showContext, showFileSeparator: showContext}) : '<div class="empty-hint" style="padding:30px;">لا توجد رسائل بعد — ابدأ المحادثة</div>';
+    container.innerHTML = msgs.length ? renderChatThread(msgs, {showContext, showFileSeparator: showContext, allowReassign: showContext}) : '<div class="empty-hint" style="padding:30px;">لا توجد رسائل بعد — ابدأ المحادثة</div>';
     container.scrollTop = container.scrollHeight;
   }catch(e){ container.innerHTML = `<div class="empty-hint" style="padding:30px;">تعذّر تحميل الرسائل: ${e.message}</div>`; }
 }
@@ -5210,20 +5275,20 @@ async function sendDirectoryMessage(){
   if(ACTIVE_CONVERSATION.type === 'client' && (text.startsWith('/') || text.startsWith('!'))){
     const fileId = document.getElementById('chats-active-file-select').value;
     if(!fileId){ showToast('اختر ملف التدقيق أولًا من القائمة أسفل الرسائل'); return; }
-    const itemId = document.getElementById('chats-active-item-select').value || null;
+    const itemId = document.getElementById('chat-link-item-directory').value || null;
     if(text.startsWith('/')){
       const title = text.slice(1).trim();
       if(!title){ showToast('اكتب اسم المتطلب بعد /'); return; }
       try{
         await apiFetch('/api/client-files/'+fileId+'/requirements', {method:'POST', body: JSON.stringify({title, wp_main_item_id: itemId})});
-        input.value = ''; showToast('تم إرسال طلب المتطلب'); loadDirectoryMessages(); loadChatsDirectory();
+        input.value = ''; showToast('تم إرسال طلب المتطلب'); loadDirectoryMessages(); loadChatsDirectory(); onDirectoryFileChange();
       }catch(e){ showToast('تعذّر إرسال الطلب: '+e.message); }
     } else {
       const body = text.slice(1).trim();
       if(!body){ showToast('اكتب نص الملاحظة بعد !'); return; }
       try{
         await apiFetch('/api/client-files/'+fileId+'/notes', {method:'POST', body: JSON.stringify({body, wp_main_item_id: itemId})});
-        input.value = ''; showToast('تم تسجيل الملاحظة'); loadDirectoryMessages(); loadChatsDirectory();
+        input.value = ''; showToast('تم تسجيل الملاحظة'); loadDirectoryMessages(); loadChatsDirectory(); onDirectoryFileChange();
       }catch(e){ showToast('تعذّر تسجيل الملاحظة: '+e.message); }
     }
     return;
@@ -5236,8 +5301,12 @@ async function sendDirectoryMessage(){
     if(ACTIVE_CONVERSATION.type === 'client'){
       const fileId = document.getElementById('chats-active-file-select').value;
       if(!fileId){ showToast('اختر ملف التدقيق أولًا من القائمة أسفل الرسائل'); return; }
-      const itemId = document.getElementById('chats-active-item-select').value;
+      const itemId = document.getElementById('chat-link-item-directory').value;
+      const reqId = document.getElementById('chat-link-req-directory').value;
+      const noteId = document.getElementById('chat-link-note-directory').value;
       if(itemId) payload.wp_main_item_id = itemId;
+      if(reqId) payload.requirement_id = reqId;
+      if(noteId) payload.note_id = noteId;
       url = '/api/client-files/'+fileId+'/chat';
     }
     else if(ACTIVE_CONVERSATION.type === 'staff_dm') url = '/api/staff-chat/dm/'+ACTIVE_CONVERSATION.id;
@@ -5248,6 +5317,7 @@ async function sendDirectoryMessage(){
     clearChatAttachment('directory');
     loadDirectoryMessages();
     loadChatsDirectory();
+    if(ACTIVE_CONVERSATION.type === 'client' && (payload.requirement_id || payload.note_id)) onDirectoryFileChange();
   }catch(e){ showToast('تعذّر إرسال الرسالة: '+e.message); }
 }
 
