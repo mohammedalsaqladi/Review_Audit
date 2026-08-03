@@ -880,7 +880,6 @@
         <div class="nav-sub">
           <div class="nav-item" data-page="clients">العملاء</div>
           <div class="nav-item" data-page="clientfiles">ملفات التدقيق</div>
-          <div class="nav-item" data-page="trialbalance">رفع موازين المراجعة</div>
         </div>
       </div>
 
@@ -1484,30 +1483,6 @@
           </div>
         </div>
       </div>
-      <div class="page" id="page-trialbalance">
-        <div class="page-head">
-          <div><div class="crumb">إدارة العملاء</div><h1>رفع موازين المراجعة</h1></div>
-        </div>
-        <div class="upload-box">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
-          <b>اسحب ملف ميزان المراجعة هنا أو اخترْه من جهازك</b>
-          <span>يدعم النظام صيغ Excel وCSV — ويربط الملف تلقائيًا بالعميل والفترة المحددة</span>
-          <div style="margin-top:16px;"><button class="btn dark">اختيار ملف</button></div>
-        </div>
-        <div class="panel">
-          <div class="panel-head"><h3>الموازين المرفوعة</h3></div>
-          <table>
-            <thead><tr><th>العميل</th><th>الفترة</th><th>رفع بواسطة</th><th>الإصدار</th><th>الحالة</th><th></th></tr></thead>
-            <tbody>
-              <tr><td><b>شركة الرواد التجارية</b></td><td>الربع الثاني 2026</td><td>نورة السبيعي</td><td>v3</td><td><span class="badge ok">مطابَق</span></td><td><span class="link" style="color:#AD8A3F; cursor:pointer;">فتح</span></td></tr>
-              <tr><td><b>مصنع الخليج للبلاستيك</b></td><td>الربع الثاني 2026</td><td>عبدالله الحربي</td><td>v1</td><td><span class="badge warn">قيد المطابقة</span></td><td><span class="link" style="color:#AD8A3F; cursor:pointer;">فتح</span></td></tr>
-              <tr><td><b>مؤسسة النخبة للمقاولات</b></td><td>السنوي 2025</td><td>نورة السبيعي</td><td>v5</td><td><span class="badge ok">مطابَق</span></td><td><span class="link" style="color:#AD8A3F; cursor:pointer;">فتح</span></td></tr>
-              <tr><td><b>شركة أفق للاستثمار</b></td><td>الربع الأول 2026</td><td>بندر العتيبي</td><td>v2</td><td><span class="badge flag">فروقات غير مفسّرة</span></td><td><span class="link" style="color:#AD8A3F; cursor:pointer;">فتح</span></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       <!-- ========== الدردشات ========== -->
       <div class="page" id="page-chats">
         <div class="page-head"><div><div class="crumb">التواصل</div><h1>الدردشات</h1></div>
@@ -1565,14 +1540,14 @@
           <div style="display:flex; gap:10px;">
             <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg> استيراد</button>
             <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:14px;height:14px;"><path d="M12 4v12M6 10l6 6 6-6M4 20h16"/></svg> تصدير</button>
-            <button class="btn dark" onclick="openModal('modal-addaccount'); populateParentSelect();">+ إضافة حساب</button>
+            <button class="btn dark" onclick="openAddAccountModal()">+ إضافة حساب</button>
           </div>
         </div>
 
         <div class="panel">
           <table class="tree-table">
             <thead><tr>
-              <th style="width:34%;">الحساب</th><th>المستوى</th><th>اللغة</th><th>حساب بند الإيداع</th><th>كود القوائم</th><th>الشركة</th><th>الحالة</th>
+              <th style="width:30%;">الحساب</th><th>المستوى</th><th>اللغة</th><th>حساب بند الإيداع</th><th>كود القوائم</th><th>الشركة</th><th>الحالة</th><th></th>
             </tr></thead>
             <tbody>
               <tr class="tree-row" data-id="r1">
@@ -1822,9 +1797,12 @@
 
       <!-- ========== النماذج الجاهزة ========== -->
       <div class="page" id="page-templates">
-        <div class="page-head"><div><div class="crumb">المكتبة</div><h1>النماذج الجاهزة</h1></div></div>
-        <div class="panel">
-          <div class="empty-hint" style="padding:60px 20px;">هذا القسم لم يُربط بقاعدة البيانات بعد — لا توجد نماذج لعرضها حاليًا</div>
+        <div class="page-head">
+          <div><div class="crumb">المكتبة</div><h1>النماذج الجاهزة</h1></div>
+          <button class="btn dark" onclick="openAddTemplateModal()">+ إضافة نموذج</button>
+        </div>
+        <div id="templates-groups-container">
+          <div class="panel"><div class="empty-hint" style="padding:60px 20px;">جارٍ التحميل...</div></div>
         </div>
       </div>
 
@@ -2274,6 +2252,39 @@
   </div>
 </div>
 
+<!-- ===== نافذة إضافة نموذج جاهز ===== -->
+<div class="modal-overlay" id="modal-addtemplate">
+  <div class="modal-box" style="max-width:460px;">
+    <div class="modal-head">
+      <div><h3>إضافة نموذج جاهز</h3><span>ارفع الملف وحدد اسمه ومجموعته</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addtemplate')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label>اسم النموذج <span class="req">*</span></label><input id="tpl-name" placeholder="مثال: نموذج مصادقة بنكية"></div>
+        <div class="form-field full"><label>المجموعة</label>
+          <select id="tpl-category"></select>
+        </div>
+        <div class="form-field full">
+          <label>الملف <span class="req">*</span></label>
+          <div class="upload-mini" id="tpl-upload-box" onclick="document.getElementById('tpl-file-input').click()" style="cursor:pointer;">
+            <input type="file" id="tpl-file-input" style="display:none;" onchange="onTemplateFileSelected(this)">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+            <b id="tpl-file-label">إرفاق الملف</b><span>Word أو Excel أو PDF أو أي صيغة</span>
+          </div>
+        </div>
+      </div>
+      <div id="tpl-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addtemplate')">إلغاء</button>
+      <button class="btn dark" onclick="saveNewTemplate()">حفظ النموذج</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== نافذة إضافة مستخدم (موظف مكتب) ===== -->
 <div class="modal-overlay" id="modal-adduser">
   <div class="modal-box" style="max-width:640px;">
@@ -2343,7 +2354,7 @@
 <div class="modal-overlay" id="modal-addaccount">
   <div class="modal-box">
     <div class="modal-head">
-      <div><h3>إضافة حساب</h3><span>حتى 4 مستويات — اختر المستوى والحساب الأب إن وُجد</span></div>
+      <div><h3 id="acc-modal-title">إضافة حساب</h3><span>حتى 4 مستويات — اختر المستوى والحساب الأب إن وُجد</span></div>
       <div class="modal-close" onclick="closeModal('modal-addaccount')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </div>
@@ -2363,7 +2374,7 @@
         <div class="form-field"><label>اللغة</label><select id="acc-lang"><option value="ar">عربي فقط</option><option value="both" selected>عربي وإنجليزي</option><option value="en">إنجليزي فقط</option></select></div>
         <div class="form-field full"><label>اسم الحساب (عربي) <span class="req">*</span></label><input id="acc-name-ar" placeholder="مثال: نقدية بنك الأهلي"></div>
         <div class="form-field full"><label>اسم الحساب (إنجليزي)</label><input id="acc-name-en" placeholder="e.g. NCB Bank Cash"></div>
-        <div class="form-field"><label>حساب بند الإيداع</label><select id="acc-deposit"><option value="">— بدون —</option><option>الصندوق الرئيسي</option><option>بنك الراجحي — حساب تشغيلي</option></select></div>
+        <div class="form-field"><label>حساب بند الإيداع</label><select id="acc-deposit"></select></div>
         <div class="form-field"><label>كود القوائم <span style="font-weight:400; color:var(--muted); font-size:11px;">(يُحدَّد لاحقًا)</span></label><input placeholder="—" disabled></div>
         <div class="form-field"><label>الشركة</label><input value="مكتب القحطاني وشركاه" disabled></div>
         <div class="form-field">
@@ -2749,6 +2760,7 @@ document.querySelectorAll('.nav-item[data-page]').forEach(item=>{
     document.getElementById('page-'+target).classList.add('active');
     document.querySelector('.content').scrollTop=0;
     if(target==='chats') loadChatsDirectory();
+    if(target==='templates') loadTemplatesLive();
     if(document.querySelector('.sidebar').classList.contains('mobile-open')) toggleSidebar();
   });
 });
@@ -4569,7 +4581,8 @@ async function loadChartOfAccountsLive(){
   try{
     const rows = await apiFetch('/api/chart-of-accounts');
     coaData.length = 0;
-    rows.forEach(a => coaData.push({id:a.id, code:a.code, name:a.name_ar, level:a.level, parent:a.parent_id}));
+    rows.forEach(a => coaData.push({id:a.id, code:a.code, name:a.name_ar, level:a.level, parent:a.parent_id,
+      name_en:a.name_en, language:a.language, deposit_account_id:a.deposit_account_id, is_active:a.is_active}));
     renderCoaTreeLive(rows);
   }catch(e){ console.error(e); showToast('تعذّر تحميل دليل الحسابات: '+e.message); }
 }
@@ -4592,11 +4605,66 @@ function renderCoaTreeLive(rows){
         <td>${r.statement_code || '—'}</td>
         <td>${SESSION.companyName || 'مكتبكم'}</td>
         <td><span class="badge ${r.is_active?'ok':'neutral'}">${r.is_active?'فعّال':'غير فعّال'}</span></td>
+        <td style="white-space:nowrap;"><div class="row-actions">${btnEdit(`openEditAccountModal('${r.id}')`)}${btnDelete(`deleteAccountLive('${r.id}')`)}</div></td>
       </tr>`;
       if(hasChildren) walk(r.id, depth+1);
     });
   })('root', 0);
-  tbody.innerHTML = html || '<tr><td colspan="7" class="empty-hint">لا توجد حسابات بعد</td></tr>';
+  tbody.innerHTML = html || '<tr><td colspan="8" class="empty-hint">لا توجد حسابات بعد</td></tr>';
+}
+let editingAccountId = null;
+function fillDepositAccountSelect(selectedId){
+  const sel = document.getElementById('acc-deposit');
+  sel.innerHTML = '<option value="">— بدون —</option><option value="__new__">+ إضافة حساب جديد...</option>' +
+    coaData.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${a.code} — ${a.name}</option>`).join('');
+  sel.onchange = async function(){
+    if(this.value !== '__new__') return;
+    const code = prompt('رمز الحساب الجديد:');
+    if(!code || !code.trim()){ this.value=''; return; }
+    const name = prompt('اسم الحساب الجديد:');
+    if(!name || !name.trim()){ this.value=''; return; }
+    try{
+      const created = await apiFetch('/api/chart-of-accounts', {method:'POST', body: JSON.stringify({
+        code: code.trim(), name_ar: name.trim(), level: 4, language: 'ar', is_active: true
+      })});
+      coaData.push({id:created.id, code:created.code, name:created.name_ar, level:created.level, parent:created.parent_id});
+      fillDepositAccountSelect(created.id);
+      showToast('تمت إضافة الحساب');
+    }catch(e){ showToast('تعذّر الإضافة: '+e.message); this.value=''; }
+  };
+}
+function openAddAccountModal(){
+  editingAccountId = null;
+  document.getElementById('acc-modal-title').textContent = 'إضافة حساب';
+  document.getElementById('acc-level').value = '4';
+  document.getElementById('acc-code').value = '';
+  document.getElementById('acc-name-ar').value = '';
+  document.getElementById('acc-name-en').value = '';
+  document.getElementById('acc-lang').value = 'both';
+  document.querySelector('input[name="accStatus"][value="1"]').checked = true;
+  populateParentSelect();
+  fillDepositAccountSelect(null);
+  openModal('modal-addaccount');
+}
+function openEditAccountModal(accId){
+  const acc = coaData.find(a=>a.id===accId);
+  if(!acc) return;
+  editingAccountId = accId;
+  document.getElementById('acc-modal-title').textContent = 'تعديل حساب';
+  document.getElementById('acc-level').value = String(acc.level);
+  document.getElementById('acc-code').value = acc.code || '';
+  document.getElementById('acc-name-ar').value = acc.name || '';
+  document.getElementById('acc-name-en').value = acc.name_en || '';
+  document.getElementById('acc-lang').value = acc.language || 'both';
+  document.querySelector(`input[name="accStatus"][value="${acc.is_active===false?'0':'1'}"]`).checked = true;
+  populateParentSelect();
+  const parentSel = document.getElementById('acc-parent');
+  if(acc.parent){
+    const p = coaData.find(x=>x.id===acc.parent);
+    if(p) parentSel.value = `${p.code} — ${p.name}`;
+  }
+  fillDepositAccountSelect(acc.deposit_account_id || null);
+  openModal('modal-addaccount');
 }
 async function saveAccountFromForm(){
   const payload = {
@@ -4606,17 +4674,24 @@ async function saveAccountFromForm(){
     name_en: document.getElementById('acc-name-en').value.trim() || null,
     language: document.getElementById('acc-lang').value,
     is_active: document.querySelector('input[name="accStatus"]:checked').value === '1',
+    deposit_account_id: document.getElementById('acc-deposit').value || null,
   };
   if(!payload.code || !payload.name_ar){ showToast('رمز الحساب واسمه بالعربي إلزاميان'); return; }
   if(!isLiveDataMode()){ showToast('وضع تجريبي — سجّل الدخول فعليًا لحفظ البيانات في قاعدة البيانات'); closeModal('modal-addaccount'); return; }
   const parentSelectVal = document.getElementById('acc-parent').value;
   const parentMatch = coaData.find(a => `${a.code} — ${a.name}` === parentSelectVal);
-  if(parentMatch) payload.parent_id = parentMatch.id;
+  payload.parent_id = parentMatch ? parentMatch.id : null;
   try{
-    await apiFetch('/api/chart-of-accounts', {method:'POST', body: JSON.stringify(payload)});
+    if(editingAccountId) await apiFetch('/api/chart-of-accounts/'+editingAccountId, {method:'PUT', body: JSON.stringify(payload)});
+    else await apiFetch('/api/chart-of-accounts', {method:'POST', body: JSON.stringify(payload)});
     closeModal('modal-addaccount');
     loadChartOfAccountsLive();
   }catch(e){ showToast('خطأ أثناء الحفظ: '+e.message); }
+}
+async function deleteAccountLive(accId){
+  if(!confirm('هل تريد حذف هذا الحساب؟ (يجب ألا يكون له حسابات فرعية أو بيانات مرتبطة به)')) return;
+  try{ await apiFetch('/api/chart-of-accounts/'+accId, {method:'DELETE'}); showToast('تم الحذف'); loadChartOfAccountsLive(); }
+  catch(e){ showToast('تعذّر الحذف: '+e.message); }
 }
 
 /* ---------------- أوراق العمل: تحميل حقيقي ---------------- */
@@ -4937,6 +5012,98 @@ async function deleteReqTemplate(id){
     loadReqTemplates();
     if(CURRENT_WP_SETUP_MAIN_ID) loadItemReqTemplates(CURRENT_WP_SETUP_MAIN_ID);
   }catch(e){ showToast('تعذّر الحذف: '+e.message); }
+}
+
+/* ---------------- مكتبة النماذج الجاهزة ---------------- */
+let TEMPLATES_CACHE = [];
+let TEMPLATE_PENDING_FILE = null;
+async function loadTemplatesLive(){
+  const container = document.getElementById('templates-groups-container');
+  container.innerHTML = '<div class="panel"><div class="empty-hint" style="padding:60px 20px;">جارٍ التحميل...</div></div>';
+  try{
+    TEMPLATES_CACHE = await apiFetch('/api/templates');
+    if(!TEMPLATES_CACHE.length){
+      container.innerHTML = '<div class="panel"><div class="empty-hint" style="padding:60px 20px;">لا توجد نماذج بعد — اضغط "+ إضافة نموذج"</div></div>';
+      return;
+    }
+    const byCat = {};
+    TEMPLATES_CACHE.forEach(t=>{
+      const cat = t.category || 'بدون مجموعة';
+      (byCat[cat] = byCat[cat] || []).push(t);
+    });
+    container.innerHTML = Object.keys(byCat).map(cat=>`
+      <div class="panel">
+        <div class="panel-head"><h3>${escapeHtml(cat)}</h3></div>
+        <table>
+          <thead><tr><th>اسم النموذج</th><th>نوع الملف</th><th></th></tr></thead>
+          <tbody>${byCat[cat].map(t=>`
+            <tr><td><b>${escapeHtml(t.name)}</b></td><td><span class="badge neutral">${(t.file_type||'ملف').toUpperCase()}</span></td>
+            <td style="white-space:nowrap;">
+              <div class="row-actions">
+                <a class="row-icon-btn edit" title="تنزيل" href="${t.file_url}" download="${escapeHtml(t.name)}">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                </a>
+                ${btnDelete(`deleteTemplateLive('${t.id}')`)}
+              </div>
+            </td></tr>`).join('')}</tbody>
+        </table>
+      </div>`).join('');
+  }catch(e){ container.innerHTML = `<div class="panel"><div class="empty-hint" style="padding:60px 20px;">تعذّر التحميل: ${e.message}</div></div>`; }
+}
+function openAddTemplateModal(){
+  document.getElementById('tpl-name').value = '';
+  TEMPLATE_PENDING_FILE = null;
+  document.getElementById('tpl-file-label').textContent = 'إرفاق الملف';
+  document.getElementById('tpl-file-input').value = '';
+  const cats = [...new Set(TEMPLATES_CACHE.map(t=>t.category).filter(Boolean))];
+  const sel = document.getElementById('tpl-category');
+  sel.innerHTML = '<option value="">— بدون مجموعة —</option>' +
+    cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') +
+    '<option value="__new__">+ إضافة مجموعة جديدة...</option>';
+  sel.onchange = function(){
+    if(this.value === '__new__'){
+      const name = prompt('اسم المجموعة الجديدة:');
+      if(name && name.trim()){
+        const opt = document.createElement('option');
+        opt.value = name.trim(); opt.textContent = name.trim(); opt.selected = true;
+        this.insertBefore(opt, this.lastElementChild);
+      } else { this.value = ''; }
+    }
+  };
+  document.getElementById('tpl-error').style.display = 'none';
+  openModal('modal-addtemplate');
+}
+function onTemplateFileSelected(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 8*1024*1024){ showToast('الملف كبير جدًا (الحد الأقصى 8 ميجا)'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    TEMPLATE_PENDING_FILE = { name:file.name, mime:file.type, data:reader.result };
+    document.getElementById('tpl-file-label').textContent = '📎 ' + file.name;
+  };
+  reader.readAsDataURL(file);
+}
+async function saveNewTemplate(){
+  const name = document.getElementById('tpl-name').value.trim();
+  const category = document.getElementById('tpl-category').value.trim();
+  const errBox = document.getElementById('tpl-error');
+  if(!name){ errBox.textContent = 'اسم النموذج إلزامي'; errBox.style.display='block'; return; }
+  if(!TEMPLATE_PENDING_FILE){ errBox.textContent = 'أرفق الملف أولًا'; errBox.style.display='block'; return; }
+  try{
+    await apiFetch('/api/templates', {method:'POST', body: JSON.stringify({
+      name, category: category || null,
+      file_url: TEMPLATE_PENDING_FILE.data, file_type: (TEMPLATE_PENDING_FILE.name.split('.').pop()||'').toLowerCase(),
+    })});
+    closeModal('modal-addtemplate');
+    showToast('تم إضافة النموذج');
+    loadTemplatesLive();
+  }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
+}
+async function deleteTemplateLive(id){
+  if(!confirm('هل تريد حذف هذا النموذج؟')) return;
+  try{ await apiFetch('/api/templates/'+id, {method:'DELETE'}); showToast('تم الحذف'); loadTemplatesLive(); }
+  catch(e){ showToast('تعذّر الحذف: '+e.message); }
 }
 
 async function deleteGroupLive(groupId){
