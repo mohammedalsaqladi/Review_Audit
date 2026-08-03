@@ -513,7 +513,23 @@ app.get('/api/client-files', requireAuth, async (req, res) => {
   if (req.query.clientId) query = query.eq('client_id', req.query.clientId);
   const { data, error } = await query;
   if (error) return res.status(500).json({ message: error.message });
-  res.json(data);
+
+  // نسبة إنجاز تقريبية سريعة لكل ملف (بناءً على حالة أوراق العمل المطابقة، بدون فحص كل بند فرعي لتفادي بطء القائمة)
+  const fileIds = (data || []).map(f => f.id);
+  let progressByFile = {};
+  if (fileIds.length) {
+    const { data: cfwpRows } = await sb.from('client_file_working_papers').select('client_file_id, status, not_applicable').in('client_file_id', fileIds);
+    (cfwpRows || []).forEach(r => {
+      const acc = progressByFile[r.client_file_id] = progressByFile[r.client_file_id] || { total: 0, done: 0 };
+      acc.total++;
+      if (r.not_applicable || r.status === 'completed') acc.done++;
+    });
+  }
+  const withProgress = (data || []).map(f => {
+    const p = progressByFile[f.id];
+    return { ...f, progress_percent: p && p.total ? Math.round((p.done / p.total) * 100) : 0 };
+  });
+  res.json(withProgress);
 });
 
 app.post('/api/clients/:id/files', requireAuth, async (req, res) => {
@@ -750,6 +766,28 @@ app.get('/api/client-files/:id/client-employees', requireAuth, async (req, res) 
   const { data, error } = await sb.from('client_employees').select('id, full_name, job_title, email').eq('client_id', file.client_id).order('full_name');
   if (error) return res.status(500).json({ message: error.message });
   res.json(data || []);
+});
+
+app.get('/api/client-files/:id/chat/unread-count', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data: state } = await sb.from('chat_read_state').select('last_read_at').eq('client_file_id', req.params.id).eq('user_id', req.session.userId).maybeSingle();
+  let q = sb.from('chat_messages').select('id', { count: 'exact', head: true }).eq('client_file_id', req.params.id).neq('sender_user_id', req.session.userId);
+  if (state) q = q.gt('created_at', state.last_read_at);
+  const { count, error } = await q;
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ unread: count || 0 });
+});
+
+app.post('/api/client-files/:id/chat/mark-read', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { error } = await sb.from('chat_read_state')
+    .upsert({ client_file_id: req.params.id, user_id: req.session.userId, last_read_at: new Date().toISOString() }, { onConflict: 'client_file_id,user_id' });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------
