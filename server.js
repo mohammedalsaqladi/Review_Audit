@@ -315,7 +315,7 @@ app.post('/api/signup', async (req, res) => {
 app.get('/api/chart-of-accounts', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const { data, error } = await sb.from('chart_of_accounts')
-    .select('id,code,name_ar,level,parent_id,language,deposit_account_id,statement_code,is_active')
+    .select('id,code,name_ar,name_en,level,parent_id,language,deposit_account_id,statement_code,is_active')
     .eq('company_id', req.session.companyId)
     .order('code');
   if (error) return res.status(500).json({ message: error.message });
@@ -328,6 +328,29 @@ app.post('/api/chart-of-accounts', requireAuth, async (req, res) => {
   const { data, error } = await sb.from('chart_of_accounts').insert(payload).select().single();
   if (error) return res.status(500).json({ message: error.message });
   res.json(data);
+});
+
+app.put('/api/chart-of-accounts/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('chart_of_accounts').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'الحساب غير موجود' });
+  const b = req.body || {};
+  const payload = {};
+  ['code', 'name_ar', 'name_en', 'language', 'level', 'parent_id', 'deposit_account_id', 'statement_code', 'is_active'].forEach(f => {
+    if (b[f] !== undefined) payload[f] = b[f];
+  });
+  const { data, error } = await sb.from('chart_of_accounts').update(payload).eq('id', req.params.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.delete('/api/chart-of-accounts/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: existing } = await sb.from('chart_of_accounts').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!existing) return res.status(404).json({ message: 'الحساب غير موجود' });
+  const { error } = await sb.from('chart_of_accounts').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ message: 'تعذّر الحذف (تأكد عدم وجود حسابات فرعية أو بيانات مرتبطة بهذا الحساب): ' + error.message });
+  res.json({ ok: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -1517,6 +1540,39 @@ app.delete('/api/requirement-templates/:id', requireAuth, async (req, res) => {
   const { error } = await sb.from('wp_requirement_templates').delete().eq('id', req.params.id).eq('company_id', req.session.companyId);
   if (error) return res.status(500).json({ message: error.message });
   await sb.from('wp_visibility_targets').delete().eq('entity_type', 'requirement_template').eq('entity_id', req.params.id);
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// مكتبة النماذج الجاهزة (اسم + مجموعة + الملف نفسه)
+// ---------------------------------------------------------------------------
+app.get('/api/templates', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('templates').select('*')
+    .or(`company_id.eq.${req.session.companyId},company_id.is.null`).order('category').order('name');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/templates', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.name || !b.name.trim()) return res.status(400).json({ message: 'اسم النموذج إلزامي' });
+  if (!b.file_url) return res.status(400).json({ message: 'أرفق الملف' });
+  const payload = {
+    company_id: req.session.companyId, name: b.name.trim(),
+    category: b.category ? b.category.trim() : null,
+    file_url: b.file_url, file_type: b.file_type || null,
+  };
+  const { data, error } = await sb.from('templates').insert(payload).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.delete('/api/templates/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { error } = await sb.from('templates').delete().eq('id', req.params.id).eq('company_id', req.session.companyId);
+  if (error) return res.status(500).json({ message: error.message });
   res.json({ ok: true });
 });
 
