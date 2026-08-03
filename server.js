@@ -121,6 +121,117 @@ app.post('/api/login', async (req, res) => {
   });
 });
 
+// ============================================================================
+// بوابة العميل (Client Portal) — دخول محدود لموظفي العميل فقط: يشاهدون بيانات
+// عميلهم، يشاركون بالدردشة، ويرفعون مرفقات المتطلبات — لا شيء آخر إطلاقًا.
+// ============================================================================
+function requirePortalAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ message: 'يلزم تسجيل الدخول' });
+  try {
+    const payload = jwt.verify(token, SESSION_SECRET || 'dev-insecure-secret-change-me');
+    if (payload.type !== 'client_portal') return res.status(401).json({ message: 'جلسة غير صالحة' });
+    req.portal = payload; // { type, employeeId, clientId, companyId }
+    next();
+  } catch (e) {
+    return res.status(401).json({ message: 'الجلسة منتهية أو غير صالحة، سجّل الدخول مجددًا' });
+  }
+}
+
+app.post('/api/portal/login', async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ message: 'عبّئ اسم المستخدم وكلمة المرور' });
+  const { data: emp, error } = await sb.from('client_employees')
+    .select('id, full_name, job_title, username, password_hash, is_portal_enabled, client_id, clients(id, name, company_id)')
+    .eq('username', username.trim()).maybeSingle();
+  if (error) return res.status(500).json({ message: 'خطأ بالخادم أثناء التحقق' });
+  if (!emp || !emp.is_portal_enabled) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+  const ok = await bcrypt.compare(password, emp.password_hash || '');
+  if (!ok) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+  await sb.from('client_employees').update({ last_login_at: new Date().toISOString() }).eq('id', emp.id);
+  const token = jwt.sign(
+    { type: 'client_portal', employeeId: emp.id, clientId: emp.client_id, companyId: emp.clients.company_id },
+    SESSION_SECRET || 'dev-insecure-secret-change-me', { expiresIn: '12h' }
+  );
+  res.json({ token, employeeId: emp.id, fullName: emp.full_name, jobTitle: emp.job_title, clientId: emp.client_id, clientName: emp.clients.name });
+});
+
+app.get('/api/portal/dashboard', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id, name, email, phone, status').eq('id', req.portal.clientId).maybeSingle();
+  const { data: files } = await sb.from('client_files').select('id, name, status, period_end').eq('client_id', req.portal.clientId).order('created_at', { ascending: false });
+  const fileIds = (files || []).map(f => f.id);
+  let reqStats = { total: 0, pending: 0 };
+  if (fileIds.length) {
+    const { data: reqs } = await sb.from('wp_requirements').select('is_fulfilled').in('client_file_id', fileIds);
+    reqStats.total = (reqs || []).length;
+    reqStats.pending = (reqs || []).filter(r => !r.is_fulfilled).length;
+  }
+  res.json({ client, files: files || [], requirementStats: reqStats });
+});
+
+app.get('/api/portal/requirements', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: files } = await sb.from('client_files').select('id, name').eq('client_id', req.portal.clientId);
+  const fileIds = (files || []).map(f => f.id);
+  if (!fileIds.length) return res.json([]);
+  const { data, error } = await sb.from('wp_requirements')
+    .select('*, client_files(name)').in('client_file_id', fileIds).order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/portal/requirements/:reqId/fulfill', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: reqRow } = await sb.from('wp_requirements').select('id, client_file_id, client_files(client_id)').eq('id', req.params.reqId).maybeSingle();
+  if (!reqRow || reqRow.client_files.client_id !== req.portal.clientId) return res.status(404).json({ message: 'المتطلب غير موجود' });
+  const b = req.body || {};
+  if (!b.attachment_data) return res.status(400).json({ message: 'أرفق الملف أولًا' });
+  const { data, error } = await sb.from('wp_requirements').update({
+    is_fulfilled: true, fulfilled_at: new Date().toISOString(),
+    fulfilled_attachment_name: b.attachment_name || null, fulfilled_attachment_mime: b.attachment_mime || null, fulfilled_attachment_data: b.attachment_data,
+    fulfilled_by_client_employee_id: req.portal.employeeId,
+  }).eq('id', req.params.reqId).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  // رسالة تلقائية بالدردشة توضح إتمام الاستيفاء
+  await sb.from('chat_messages').insert({
+    company_id: req.portal.companyId, client_id: req.portal.clientId, client_file_id: reqRow.client_file_id,
+    sender_client_employee_id: req.portal.employeeId, body: '✅ تم إرفاق المطلوب: ' + data.title,
+    attachment_name: b.attachment_name || null, attachment_mime: b.attachment_mime || null, attachment_data: b.attachment_data,
+    requirement_id: req.params.reqId,
+  });
+  res.json(data);
+});
+
+app.get('/api/portal/chat', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('chat_messages')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, sender_client_employee_id, requirement_id, note_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), client_employees(id, full_name, job_title), wp_main_items(title), client_files(name)')
+    .eq('client_id', req.portal.clientId).order('created_at');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.post('/api/portal/chat', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.body && !b.attachment_data) return res.status(400).json({ message: 'الرسالة فارغة' });
+  if (!b.client_file_id) return res.status(400).json({ message: 'اختر ملف التدقيق أولًا' });
+  const { data: file } = await sb.from('client_files').select('id, client_id').eq('id', b.client_file_id).maybeSingle();
+  if (!file || file.client_id !== req.portal.clientId) return res.status(403).json({ message: 'لا تملك صلاحية الوصول لهذا الملف' });
+  const payload = {
+    company_id: req.portal.companyId, client_id: req.portal.clientId, client_file_id: b.client_file_id,
+    sender_client_employee_id: req.portal.employeeId,
+    body: b.body || null, attachment_name: b.attachment_name || null, attachment_mime: b.attachment_mime || null, attachment_data: b.attachment_data || null,
+  };
+  const { data, error } = await sb.from('chat_messages').insert(payload)
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, client_file_id, sender_client_employee_id, client_employees(id, full_name, job_title)').single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
 // ---------------------------------------------------------------------------
 // إنشاء مكتب جديد (حساب شركة جديدة) + أول مستخدم فيه (الشريك المسؤول)
 // ---------------------------------------------------------------------------
@@ -442,7 +553,9 @@ app.get('/api/clients/:id', requireAuth, async (req, res) => {
     .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
   if (error) return res.status(500).json({ message: error.message });
   if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
-  const { data: employees, error: empErr } = await sb.from('client_employees').select('*').eq('client_id', client.id).order('created_at');
+  const { data: employees, error: empErr } = await sb.from('client_employees')
+    .select('id, client_id, full_name, job_title, email, phone, is_primary_contact, username, is_portal_enabled, last_login_at, created_at')
+    .eq('client_id', client.id).order('created_at');
   if (empErr) return res.status(500).json({ message: empErr.message });
   const { data: files, error: filesErr } = await sb.from('client_files').select('id,name,period_end,engagement_type,status,created_at').eq('client_id', client.id).order('created_at', { ascending: false });
   if (filesErr) return res.status(500).json({ message: filesErr.message });
@@ -489,6 +602,27 @@ app.put('/api/clients/:id/employees/:empId', requireAuth, async (req, res) => {
   const { data, error } = await sb.from('client_employees').update(payload)
     .eq('id', req.params.empId).eq('client_id', req.params.id).select().single();
   if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// ---------------------------------------------------------------------------
+// إدارة دخول موظف العميل لبوابة العميل (اسم مستخدم + كلمة مرور + تفعيل)
+// ---------------------------------------------------------------------------
+app.put('/api/clients/:id/employees/:empId/portal-access', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const body = req.body || {};
+  const payload = { is_portal_enabled: !!body.is_portal_enabled };
+  if (body.username !== undefined) payload.username = body.username ? body.username.trim() : null;
+  if (body.password) payload.password_hash = await bcrypt.hash(body.password, 10);
+  const { data, error } = await sb.from('client_employees').update(payload)
+    .eq('id', req.params.empId).eq('client_id', req.params.id)
+    .select('id, full_name, username, is_portal_enabled, last_login_at').single();
+  if (error) {
+    if (error.message && error.message.includes('duplicate')) return res.status(400).json({ message: 'اسم المستخدم هذا مستخدم مسبقًا' });
+    return res.status(500).json({ message: error.message });
+  }
   res.json(data);
 });
 
@@ -726,7 +860,7 @@ app.get('/api/client-files/:id/chat', requireAuth, async (req, res) => {
   const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   let q = sb.from('chat_messages')
-    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, requirement_id, note_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title), wp_requirements(title, is_fulfilled), wp_notes(body, is_resolved)')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, sender_client_employee_id, requirement_id, note_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), client_employees(id, full_name, job_title), wp_main_items(title), wp_requirements(title, is_fulfilled), wp_notes(body, is_resolved)')
     .eq('client_file_id', req.params.id).order('created_at');
   // بدون تحديد بند: تُعرض كل رسائل الملف (العامة وأي رسالة مرتبطة ببند). بتحديد بند: تُصفَّى لرسائله فقط.
   if (req.query.mainItemId) q = q.eq('wp_main_item_id', req.query.mainItemId);
@@ -1028,7 +1162,7 @@ app.get('/api/clients/:id/chat', requireAuth, async (req, res) => {
   const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
   if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
   const { data, error } = await sb.from('chat_messages')
-    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, requirement_id, note_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), wp_main_items(title), client_files(name), wp_requirements(title, is_fulfilled), wp_notes(body, is_resolved)')
+    .select('id, body, attachment_name, attachment_mime, attachment_data, created_at, wp_main_item_id, client_file_id, sender_user_id, sender_client_employee_id, requirement_id, note_id, users(id, first_name_ar, last_name_ar, roles(name_ar)), client_employees(id, full_name, job_title), wp_main_items(title), client_files(name), wp_requirements(title, is_fulfilled), wp_notes(body, is_resolved)')
     .eq('client_id', req.params.id).order('created_at');
   if (error) return res.status(500).json({ message: error.message });
   res.json(data || []);
@@ -1308,7 +1442,9 @@ async function autoMatchRequirementTemplates(sb, clientFileId, companyId, userId
 // ---------------------------------------------------------------------------
 app.get('/api/requirement-templates', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
-  const { data, error } = await sb.from('wp_requirement_templates').select('*, chart_of_accounts(code, name_ar)').eq('company_id', req.session.companyId).order('created_at', { ascending: false });
+  let q = sb.from('wp_requirement_templates').select('*, chart_of_accounts(code, name_ar)').eq('company_id', req.session.companyId).order('created_at', { ascending: false });
+  if (req.query.mainItemId) q = q.eq('wp_main_item_id', req.query.mainItemId);
+  const { data, error } = await q;
   if (error) return res.status(500).json({ message: error.message });
   res.json(data || []);
 });
@@ -1326,7 +1462,7 @@ app.post('/api/requirement-templates', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const b = req.body || {};
   if (!b.title || !b.title.trim()) return res.status(400).json({ message: 'اسم القالب إلزامي' });
-  const payload = { company_id: req.session.companyId, title: b.title.trim(), coa_account_id: b.coa_account_id || null, visibility: b.visibility === 'special' ? 'special' : 'general' };
+  const payload = { company_id: req.session.companyId, title: b.title.trim(), coa_account_id: b.coa_account_id || null, wp_main_item_id: b.wp_main_item_id || null, visibility: b.visibility === 'special' ? 'special' : 'general' };
   const { data, error } = await sb.from('wp_requirement_templates').insert(payload).select().single();
   if (error) return res.status(500).json({ message: error.message });
   try { await saveVisibilityTargets(sb, 'requirement_template', data.id, b.visibility_targets); }
