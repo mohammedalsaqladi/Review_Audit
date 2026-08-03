@@ -789,6 +789,71 @@
   </div>
 </div>
 
+<!-- =============== بوابة العميل (نفس البرنامج، وضع محدود) =============== -->
+<div id="portal-app" style="display:none; min-height:100vh; flex-direction:column; background:var(--paper);">
+  <header style="background:var(--card); border-bottom:1px solid var(--line); padding:14px 22px; display:flex; align-items:center; justify-content:space-between;">
+    <div style="font-weight:800; color:var(--ink); font-size:15px;">تمام <span id="portal-client-name" style="color:var(--brass); font-weight:400; font-size:12px; margin-inline-start:8px;"></span></div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div style="text-align:end;">
+        <div id="portal-emp-name" style="font-size:12.5px; font-weight:700; color:var(--ink);">—</div>
+        <div id="portal-emp-title" style="font-size:10.5px; color:var(--muted);">—</div>
+      </div>
+      <button class="btn" onclick="portalLogout()">تسجيل الخروج</button>
+    </div>
+  </header>
+
+  <div class="tab-strip" style="padding:10px 22px 0; background:var(--card); border-bottom:1px solid var(--line); margin:0;">
+    <div class="tab active" onclick="switchPortalMainTab(this,'home')">الرئيسية</div>
+    <div class="tab" onclick="switchPortalMainTab(this,'chat')">الدردشة</div>
+    <div class="tab" onclick="switchPortalMainTab(this,'requirements')">المتطلبات</div>
+  </div>
+
+  <div style="flex:1; padding:24px; max-width:960px; margin:0 auto; width:100%;">
+    <div class="ptab" id="portal-tab-home">
+      <div class="completion-stats">
+        <div class="completion-card"><div class="num" id="portal-stat-files">0</div><div class="lbl">ملفات التدقيق</div></div>
+        <div class="completion-card notstarted"><div class="num" id="portal-stat-req-pending">0</div><div class="lbl">متطلبات بانتظاركم</div></div>
+        <div class="completion-card"><div class="num" id="portal-stat-req-total">0</div><div class="lbl">إجمالي المتطلبات</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h3>ملفات التدقيق الخاصة بكم</h3></div>
+        <table>
+          <thead><tr><th>اسم الملف</th><th>نهاية الفترة</th><th>الحالة</th></tr></thead>
+          <tbody id="portal-home-files-tbody"><tr><td colspan="3" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="ptab" id="portal-tab-chat" style="display:none;">
+      <div class="chat-shell" style="height:calc(100vh - 260px); grid-template-columns:1fr;">
+        <div id="portal-chat-thread" class="chat-thread"></div>
+      </div>
+      <div class="chat-linkbar">
+        <select id="portal-chat-file" onchange="onPortalChatFileChange()" style="flex:1;"></select>
+      </div>
+      <div class="chat-composer">
+        <input type="file" id="portal-chat-file-input" style="display:none;" onchange="onPortalFileSelected(this)">
+        <span class="row-icon-btn edit" title="إرفاق ملف" onclick="document.getElementById('portal-chat-file-input').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 015 5l-9.2 9.19a1.5 1.5 0 01-2.12-2.12l8.49-8.48"/></svg>
+        </span>
+        <div class="chat-file-preview" id="portal-file-preview" style="display:none;"></div>
+        <input id="portal-chat-input" placeholder="اكتب رسالتك..." onkeydown="if(event.key==='Enter') sendPortalMessage();">
+        <button class="btn dark" onclick="sendPortalMessage()">إرسال</button>
+      </div>
+    </div>
+
+    <div class="ptab" id="portal-tab-requirements" style="display:none;">
+      <div class="panel">
+        <div class="panel-head"><h3>المتطلبات المطلوبة منكم</h3></div>
+        <table>
+          <thead><tr><th>المتطلب</th><th>الملف</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="portal-req-tbody"><tr><td colspan="4" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- =============== APP SHELL =============== -->
 <div id="app">
   <!-- SIDEBAR -->
@@ -2550,6 +2615,20 @@ async function doLogin(){
       errBox.style.display = 'block';
       return;
     }
+
+    if(data.portal){
+      SESSION = { token:data.token, companyId:data.companyId, companyName:data.companyName,
+                  portal:true, employeeId:data.employeeId, clientId:data.clientId, clientName:data.clientName };
+      sessionStorage.setItem('tamam_session', JSON.stringify(SESSION));
+      document.getElementById('login-screen').style.display='none';
+      document.getElementById('portal-client-name').textContent = '— ' + (data.clientName||'');
+      document.getElementById('portal-emp-name').textContent = data.fullName || username;
+      document.getElementById('portal-emp-title').textContent = data.jobTitle || '';
+      document.getElementById('portal-app').style.display = 'flex';
+      loadPortalHome();
+      return;
+    }
+
     SESSION = { token:data.token, companyId:data.companyId, companyName:data.companyName,
                 userId:data.userId, role:data.role, username:data.username };
     sessionStorage.setItem('tamam_session', JSON.stringify(SESSION));
@@ -4979,10 +5058,17 @@ function timeAgoAr(iso){
 }
 function chatBubbleHtml(m, opts){
   opts = opts || {};
-  const mine = m.sender_user_id === SESSION.userId;
+  const mine = !!m.sender_user_id && m.sender_user_id === SESSION.userId;
   const u = m.users || {};
-  const nm = ((u.first_name_ar||'')+' '+(u.last_name_ar||'')).trim() || 'مستخدم';
-  const role = u.roles ? u.roles.name_ar : '';
+  const ce = m.client_employees || {};
+  let nm, role;
+  if(m.sender_client_employee_id && ce.full_name){
+    nm = ce.full_name;
+    role = (ce.job_title || 'العميل');
+  } else {
+    nm = ((u.first_name_ar||'')+' '+(u.last_name_ar||'')).trim() || 'مستخدم';
+    role = u.roles ? u.roles.name_ar : '';
+  }
   let attachHtml = '';
   if(m.attachment_data){
     const isImg = (m.attachment_mime||'').startsWith('image/');
@@ -5459,6 +5545,147 @@ async function saveNewGroupChat(){
     showToast('تم إنشاء المجموعة');
     loadChatsDirectory();
   }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
+}
+
+/* ================= وضع بوابة العميل (نفس البرنامج، صلاحيات محدودة) ================= */
+let PORTAL_PENDING_ATTACH = null;
+
+function switchPortalMainTab(el, key){
+  document.querySelectorAll('#portal-app .tab-strip .tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('#portal-app .ptab').forEach(p=>p.style.display='none');
+  document.getElementById('portal-tab-'+key).style.display = '';
+  if(key==='chat') loadPortalChatMsgs();
+  if(key==='requirements') loadPortalRequirementsList();
+}
+
+function portalLogout(){
+  SESSION = { token:null, companyId:null, companyName:null };
+  sessionStorage.removeItem('tamam_session');
+  document.getElementById('portal-app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+async function loadPortalHome(){
+  try{
+    const data = await apiFetch('/api/portal/dashboard');
+    document.getElementById('portal-stat-files').textContent = data.files.length;
+    document.getElementById('portal-stat-req-pending').textContent = data.requirementStats.pending;
+    document.getElementById('portal-stat-req-total').textContent = data.requirementStats.total;
+    const tbody = document.getElementById('portal-home-files-tbody');
+    tbody.innerHTML = data.files.length ? data.files.map(f=>`
+      <tr><td><b>${escapeHtml(f.name)}</b></td><td>${f.period_end||'—'}</td>
+      <td><span class="badge ok">${f.status||'—'}</span></td></tr>`).join('')
+      : '<tr><td colspan="3" class="empty-hint">لا توجد ملفات تدقيق بعد</td></tr>';
+    const sel = document.getElementById('portal-chat-file');
+    sel.innerHTML = data.files.map(f=>`<option value="${f.id}">📁 ${escapeHtml(f.name)}</option>`).join('') || '<option value="">لا توجد ملفات</option>';
+  }catch(e){ showToast('تعذّر التحميل: '+e.message); }
+}
+
+function onPortalChatFileChange(){}
+
+async function loadPortalChatMsgs(){
+  const container = document.getElementById('portal-chat-thread');
+  container.innerHTML = '<div class="empty-hint" style="padding:30px;">جارٍ التحميل...</div>';
+  try{
+    const msgs = await apiFetch('/api/portal/chat');
+    let lastFile = null;
+    container.innerHTML = msgs.length ? msgs.map(m=>{
+      let sep = '';
+      if(m.client_files && m.client_files.name && m.client_file_id !== lastFile){
+        sep = `<div class="chat-file-sep">📁 ${escapeHtml(m.client_files.name)}</div>`;
+        lastFile = m.client_file_id;
+      }
+      return sep + portalBubbleHtml(m);
+    }).join('') : '<div class="empty-hint" style="padding:30px;">لا توجد رسائل بعد — ابدأ المحادثة</div>';
+    container.scrollTop = container.scrollHeight;
+  }catch(e){ container.innerHTML = `<div class="empty-hint" style="padding:30px;">تعذّر التحميل: ${e.message}</div>`; }
+}
+function portalBubbleHtml(m){
+  const mine = !!m.sender_client_employee_id && m.sender_client_employee_id === SESSION.employeeId;
+  let nm = 'فريق المراجعة', role = '';
+  if(m.sender_client_employee_id && m.client_employees){ nm = m.client_employees.full_name; role = m.client_employees.job_title || ''; }
+  else if(m.users){ nm = ((m.users.first_name_ar||'')+' '+(m.users.last_name_ar||'')).trim(); role = m.users.roles ? m.users.roles.name_ar : ''; }
+  let attachHtml = '';
+  if(m.attachment_data){
+    const isImg = (m.attachment_mime||'').startsWith('image/');
+    attachHtml = isImg
+      ? `<div class="cb-attach" onclick="window.open('${m.attachment_data}','_blank')">📎 ${escapeHtml(m.attachment_name||'صورة')}</div>`
+      : `<a class="cb-attach" href="${m.attachment_data}" download="${escapeHtml(m.attachment_name||'file')}" style="color:inherit; text-decoration:none;">📎 ${escapeHtml(m.attachment_name||'مرفق')}</a>`;
+  }
+  const itemLbl = (m.wp_main_items && m.wp_main_items.title) ? `<div class="cb-item-label">📎 ${escapeHtml(m.wp_main_items.title)}</div>` : '';
+  return `<div class="chat-msg-wrap ${mine?'mine':'theirs'}">
+    <div class="cb-sender-row"><span>${escapeHtml(nm)}${role?' — '+escapeHtml(role):''}</span></div>
+    <div class="chat-bubble ${mine?'mine':'theirs'}">
+      ${itemLbl}
+      ${m.body ? `<div>${escapeHtml(m.body)}</div>` : ''}
+      ${attachHtml}
+      <div class="cb-time">${timeAgoAr(m.created_at)}</div>
+    </div>
+  </div>`;
+}
+function onPortalFileSelected(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 8*1024*1024){ showToast('الملف كبير جدًا (الحد الأقصى 8 ميجا)'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    PORTAL_PENDING_ATTACH = { name:file.name, mime:file.type, data:reader.result };
+    const p = document.getElementById('portal-file-preview');
+    p.style.display = 'flex';
+    p.innerHTML = `📎 ${escapeHtml(file.name)} <span class="x" onclick="PORTAL_PENDING_ATTACH=null; document.getElementById('portal-file-preview').style.display='none'; document.getElementById('portal-chat-file-input').value='';">✕</span>`;
+  };
+  reader.readAsDataURL(file);
+}
+async function sendPortalMessage(){
+  const input = document.getElementById('portal-chat-input');
+  const text = input.value.trim();
+  const fileSel = document.getElementById('portal-chat-file');
+  if(!text && !PORTAL_PENDING_ATTACH) return;
+  if(!fileSel.value){ showToast('اختر ملف التدقيق أولًا'); return; }
+  const payload = { body: text || null, client_file_id: fileSel.value };
+  if(PORTAL_PENDING_ATTACH){ payload.attachment_name = PORTAL_PENDING_ATTACH.name; payload.attachment_mime = PORTAL_PENDING_ATTACH.mime; payload.attachment_data = PORTAL_PENDING_ATTACH.data; }
+  try{
+    await apiFetch('/api/portal/chat', {method:'POST', body: JSON.stringify(payload)});
+    input.value = '';
+    PORTAL_PENDING_ATTACH = null;
+    document.getElementById('portal-file-preview').style.display = 'none';
+    document.getElementById('portal-chat-file-input').value = '';
+    loadPortalChatMsgs();
+  }catch(e){ showToast('تعذّر الإرسال: '+e.message); }
+}
+async function loadPortalRequirementsList(){
+  const tbody = document.getElementById('portal-req-tbody');
+  try{
+    const rows = await apiFetch('/api/portal/requirements');
+    tbody.innerHTML = rows.length ? rows.map(r=>`
+      <tr><td>${escapeHtml(r.title)}</td><td>${r.client_files?escapeHtml(r.client_files.name):'—'}</td>
+      <td><span class="badge ${r.is_fulfilled?'ok':'flag'}">${r.is_fulfilled?'تم الإرفاق':'بانتظار الإرفاق'}</span></td>
+      <td>${!r.is_fulfilled ? `<button class="btn dark" onclick="openPortalFulfillPicker('${r.id}')">إرفاق الملف</button>` : ''}</td></tr>`).join('')
+      : '<tr><td colspan="4" class="empty-hint">لا توجد متطلبات حاليًا</td></tr>';
+  }catch(e){ tbody.innerHTML = `<tr><td colspan="4" class="empty-hint">تعذّر التحميل: ${e.message}</td></tr>`; }
+}
+function openPortalFulfillPicker(reqId){
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.onchange = async () => {
+    const file = input.files[0];
+    if(!file) return;
+    if(file.size > 8*1024*1024){ showToast('الملف كبير جدًا (الحد 8 ميجا)'); return; }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try{
+        await apiFetch('/api/portal/requirements/'+reqId+'/fulfill', {method:'POST', body: JSON.stringify({
+          attachment_name: file.name, attachment_mime: file.type, attachment_data: reader.result
+        })});
+        showToast('تم إرفاق الملف بنجاح');
+        loadPortalRequirementsList();
+        loadPortalHome();
+      }catch(e){ showToast('تعذّر الإرفاق: '+e.message); }
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
 }
 </script>
 
