@@ -809,7 +809,7 @@
   </div>
 
   <div style="flex:1; padding:24px; max-width:960px; margin:0 auto; width:100%;">
-    <div class="ptab" id="portal-tab-home">
+    <div class="ptab active" id="portal-tab-home">
       <div class="completion-stats">
         <div class="completion-card"><div class="num" id="portal-stat-files">0</div><div class="lbl">ملفات التدقيق</div></div>
         <div class="completion-card notstarted"><div class="num" id="portal-stat-req-pending">0</div><div class="lbl">متطلبات بانتظاركم</div></div>
@@ -824,7 +824,7 @@
       </div>
     </div>
 
-    <div class="ptab" id="portal-tab-chat" style="display:none;">
+    <div class="ptab" id="portal-tab-chat">
       <div class="chat-shell" style="height:calc(100vh - 260px); grid-template-columns:1fr;">
         <div id="portal-chat-thread" class="chat-thread"></div>
       </div>
@@ -842,7 +842,7 @@
       </div>
     </div>
 
-    <div class="ptab" id="portal-tab-requirements" style="display:none;">
+    <div class="ptab" id="portal-tab-requirements">
       <div class="panel">
         <div class="panel-head"><h3>المتطلبات المطلوبة منكم</h3></div>
         <table>
@@ -5553,8 +5553,8 @@ let PORTAL_PENDING_ATTACH = null;
 function switchPortalMainTab(el, key){
   document.querySelectorAll('#portal-app .tab-strip .tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  document.querySelectorAll('#portal-app .ptab').forEach(p=>p.style.display='none');
-  document.getElementById('portal-tab-'+key).style.display = '';
+  document.querySelectorAll('#portal-app .ptab').forEach(p=>p.classList.remove('active'));
+  document.getElementById('portal-tab-'+key).classList.add('active');
   if(key==='chat') loadPortalChatMsgs();
   if(key==='requirements') loadPortalRequirementsList();
 }
