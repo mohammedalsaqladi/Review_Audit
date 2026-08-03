@@ -741,6 +741,7 @@ app.post('/api/client-files/:id/chat', requireAuth, async (req, res) => {
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   const b = req.body || {};
   if (!b.body && !b.attachment_data) return res.status(400).json({ message: 'الرسالة فارغة' });
+  if (b.requirement_id && !b.attachment_data) return res.status(400).json({ message: 'لا يمكن ربط الرسالة بمتطلب إلا إذا كانت تحتوي على مرفق' });
   const payload = {
     company_id: req.session.companyId,
     client_id: file.client_id,
@@ -776,6 +777,10 @@ app.put('/api/client-files/:id/chat/:msgId/link', requireAuth, async (req, res) 
   const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
   if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
   const b = req.body || {};
+  if (b.requirement_id) {
+    const { data: msg } = await sb.from('chat_messages').select('attachment_data').eq('id', req.params.msgId).maybeSingle();
+    if (!msg || !msg.attachment_data) return res.status(400).json({ message: 'لا يمكن ربط الرسالة بمتطلب إلا إذا كانت تحتوي على مرفق' });
+  }
   const payload = {};
   if (b.wp_main_item_id !== undefined) payload.wp_main_item_id = b.wp_main_item_id || null;
   if (b.requirement_id !== undefined) payload.requirement_id = b.requirement_id || null;
@@ -786,6 +791,22 @@ app.put('/api/client-files/:id/chat/:msgId/link', requireAuth, async (req, res) 
   if (error) return res.status(500).json({ message: error.message });
   if (payload.requirement_id) await sb.from('wp_requirements').update({ is_fulfilled: true, fulfilled_at: new Date().toISOString() }).eq('id', payload.requirement_id);
   if (payload.note_id) await sb.from('wp_notes').update({ is_resolved: true, resolved_by: req.session.userId, resolved_at: new Date().toISOString() }).eq('id', payload.note_id);
+  res.json(data);
+});
+
+app.put('/api/client-files/:id/chat/:msgId/edit', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const file = await assertFileInCompany(sb, req.params.id, req.session.companyId);
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data: msg } = await sb.from('chat_messages').select('sender_user_id, created_at').eq('id', req.params.msgId).eq('client_file_id', req.params.id).maybeSingle();
+  if (!msg) return res.status(404).json({ message: 'الرسالة غير موجودة' });
+  if (msg.sender_user_id !== req.session.userId) return res.status(403).json({ message: 'لا يمكنك تعديل رسالة شخص آخر' });
+  const minutesElapsed = (Date.now() - new Date(msg.created_at).getTime()) / 60000;
+  if (minutesElapsed > 10) return res.status(400).json({ message: 'انتهت مهلة تعديل الرسالة (10 دقائق فقط بعد الإرسال)' });
+  const body = (req.body && req.body.body || '').trim();
+  if (!body) return res.status(400).json({ message: 'نص الرسالة لا يمكن أن يكون فارغًا' });
+  const { data, error } = await sb.from('chat_messages').update({ body }).eq('id', req.params.msgId).select('id, body').single();
+  if (error) return res.status(500).json({ message: error.message });
   res.json(data);
 });
 
