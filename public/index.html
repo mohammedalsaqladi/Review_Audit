@@ -299,7 +299,7 @@
   .chat-list .cl{font-size:11.5px; color:var(--muted-2); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 
   /* ===== دردشة ملف التدقيق (فريق المراجعة) ===== */
-  .chat-thread{overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; background:var(--paper); border:1px solid var(--line); border-radius:var(--radius) var(--radius) 0 0; flex:1;}
+  .chat-thread{overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; background:var(--paper); border:1px solid var(--line); border-radius:var(--radius) var(--radius) 0 0; flex:1; min-height:0; overscroll-behavior:contain;}
   .chat-bubble{max-width:62%; padding:9px 13px; border-radius:12px; font-size:12.8px; line-height:1.6; position:relative;}
   .chat-bubble.mine{align-self:flex-start; background:var(--ink); color:#F3EFE2; border-bottom-right-radius:3px;}
   .chat-bubble.theirs{align-self:flex-end; background:var(--card); border:1px solid var(--line); border-bottom-left-radius:3px;}
@@ -496,8 +496,8 @@
   .coa-link-box.show{display:block;}
 
   /* ===== working papers: master list + detail panel ===== */
-  .wp-shell{display:grid; grid-template-columns:340px 1fr; gap:16px; align-items:start;}
-  .wp-list-col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; max-height:calc(100vh - 200px); overflow-y:auto;}
+  .wp-shell{display:grid; grid-template-columns:270px 1fr; gap:16px; align-items:start;}
+  .wp-list-col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; max-height:calc(100vh - 200px); overflow-y:auto; overscroll-behavior:contain;}
   .wp-group-head{display:flex; align-items:center; gap:8px; padding:12px 14px; background:#FBF8F0; border-bottom:1px solid var(--line); cursor:pointer; font-size:12.8px; font-weight:700; color:var(--ink);}
   .wp-group-head .add-child-btn{margin-inline-start:auto; font-size:10.5px;}
   .wp-mains{}
@@ -512,7 +512,8 @@
   .wp-main-item .wp-mini-bar-fill{height:100%; background:var(--brass); border-radius:4px;}
   .wp-main-item .wp-mini-pct{font-size:10px; color:var(--muted); font-weight:600; white-space:nowrap;}
   .wp-main-item .wp-req-badge{font-size:9.5px; padding:2px 7px; border-radius:10px; background:#E4F0EA; color:#2F6F4E; white-space:nowrap;}
-  .wp-detail-col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; min-height:420px;}
+  .wp-detail-col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; min-height:420px;
+    max-height:calc(100vh - 200px); overflow-y:auto; overscroll-behavior:contain;}
   .wp-detail{display:none;}
   .wp-detail.active{display:block; animation:fadein .2s ease;}
   .wp-empty{display:flex; flex-direction:column; align-items:center; justify-content:center; height:360px; color:var(--muted-2); text-align:center; gap:8px;}
@@ -533,6 +534,18 @@
 
   /* ===== ملف التدقيق: إحصائيات الاكتمال ===== */
   .completion-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px;}
+
+  /* شريط الإحصائيات الثابت أعلى ملف التدقيق — لا يتغير عند التنقل بين التبويبات */
+  .persistent-stats-row{display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px;}
+  .pstat-card{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px;}
+  .pstat-top{display:flex; align-items:center; gap:6px; font-size:11.5px; margin-bottom:8px;}
+  .pstat-top b{font-weight:700; color:var(--ink); flex:1;}
+  .pstat-icon{font-size:13px;}
+  .pstat-pct{font-weight:700; color:var(--brass); font-size:12px;}
+  .pstat-bar{height:6px; background:var(--paper); border-radius:4px; overflow:hidden; margin-bottom:8px;}
+  .pstat-bar-fill{height:100%; transition:width .3s;}
+  .pstat-detail{font-size:10px; color:var(--muted); line-height:1.6;}
+  @media (max-width:1100px){ .persistent-stats-row{grid-template-columns:repeat(2,1fr);} }
   .completion-card{border-radius:10px; padding:16px 18px; text-align:center;}
   .completion-card .num{font-family:'Cairo'; font-size:26px; font-weight:800;}
   .completion-card .lbl{font-size:12px; margin-top:4px;}
@@ -554,8 +567,8 @@
     display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap;}
   .proc-item .proc-num{display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%;
     background:var(--paper); color:var(--muted); font-size:11px; font-weight:700; flex-shrink:0; margin-inline-end:8px;}
-  .proc-item .proc-q{font-size:13.5px; font-weight:700; color:var(--ink); display:flex; align-items:flex-start;
-    flex:1 1 26%; min-width:180px; padding-top:6px;}
+  .proc-item .proc-q{font-size:13.5px; font-weight:700; color:var(--ink); display:flex; align-items:center; gap:8px;
+    flex:1 1 26%; min-width:180px; padding-top:6px; flex-wrap:wrap;}
   .proc-item .proc-answer{flex:1 1 32%; min-width:200px;}
   .proc-item .proc-notes{flex:1 1 32%; min-width:200px;}
   .proc-options label{display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:9px; cursor:pointer; color:var(--text);}
@@ -579,6 +592,7 @@
     border:1.3px solid var(--line-strong); color:var(--muted); cursor:pointer; white-space:nowrap; transition:all .12s;}
   .na-toggle-btn:hover{border-color:var(--red);}
   .na-toggle-btn.active{background:var(--red-bg); border-color:var(--red); color:var(--red);}
+  .na-toggle-sm{padding:2px 9px; font-size:9.5px; margin-inline-start:auto;}
   .proc-item.is-na{opacity:.55;}
   .proc-item.is-na .proc-answer, .proc-item.is-na .proc-notes{pointer-events:none;}
 
@@ -918,9 +932,9 @@
         </div>
         <div class="panel">
           <table>
-            <thead><tr><th>اسم الملف</th><th>العميل</th><th>نهاية الفترة</th><th>البوابة</th><th>الحالة</th></tr></thead>
+            <thead><tr><th>اسم الملف</th><th>العميل</th><th>نهاية الفترة</th><th>البوابة</th><th>الحالة</th><th>نسبة الإنجاز</th></tr></thead>
             <tbody id="clientfiles-tbody">
-              <tr><td colspan="5" class="empty-hint">جارٍ التحميل...</td></tr>
+              <tr><td colspan="6" class="empty-hint">جارٍ التحميل...</td></tr>
             </tbody>
           </table>
         </div>
@@ -1169,12 +1183,30 @@
           </div>
         </div>
 
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
-          <span style="font-size:11.5px; color:var(--muted); white-space:nowrap;">نسبة الإنجاز الكلية</span>
-          <div style="flex:1; height:8px; background:var(--paper); border-radius:5px; overflow:hidden;">
-            <div id="cfd-progress-bar" style="height:100%; width:0%; background:linear-gradient(90deg, var(--brass), #2F6F4E); transition:width .3s;"></div>
+        <div class="persistent-stats-row">
+          <div class="pstat-card">
+            <div class="pstat-top"><span class="pstat-icon">📊</span><b>أوراق العمل</b><span class="pstat-pct" id="pstat-wp-pct">0%</span></div>
+            <div class="pstat-bar"><div class="pstat-bar-fill" id="pstat-wp-bar" style="width:0%; background:linear-gradient(90deg, var(--brass), #2F6F4E);"></div></div>
+            <div class="pstat-detail"><span id="pstat-wp-notstarted">0</span> لم تبدأ · <span id="pstat-wp-progress">0</span> قيد التنفيذ · <span id="pstat-wp-done">0</span> مكتملة</div>
           </div>
-          <span id="cfd-progress-text" style="font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap;">0%</span>
+          <div class="pstat-card">
+            <div class="pstat-top"><span class="pstat-icon">📋</span><b>المتطلبات</b><span class="pstat-pct" id="pstat-req-pct">0%</span></div>
+            <div class="pstat-bar"><div class="pstat-bar-fill" id="pstat-req-bar" style="width:0%; background:#2F6F4E;"></div></div>
+            <div class="pstat-detail"><span id="pstat-req-done">0</span> مستوفى من أصل <span id="pstat-req-total">0</span></div>
+          </div>
+          <div class="pstat-card">
+            <div class="pstat-top"><span class="pstat-icon">📝</span><b>الملاحظات</b><span class="pstat-pct" id="pstat-notes-pct">0%</span></div>
+            <div class="pstat-bar"><div class="pstat-bar-fill" id="pstat-notes-bar" style="width:0%; background:var(--brass);"></div></div>
+            <div class="pstat-detail"><span id="pstat-notes-resolved">0</span> محلولة من أصل <span id="pstat-notes-total">0</span></div>
+          </div>
+          <div class="pstat-card">
+            <div class="pstat-top"><span class="pstat-icon">💬</span><b>الدردشة</b></div>
+            <div class="pstat-detail" style="margin-top:10px;"><span id="pstat-chat-unread" style="font-weight:700; color:var(--red);">0</span> رسالة غير مقروءة</div>
+          </div>
+          <div class="pstat-card">
+            <div class="pstat-top"><span class="pstat-icon">📎</span><b>المرفقات</b></div>
+            <div class="pstat-detail" style="margin-top:10px;"><span id="pstat-attach-count" style="font-weight:700;">0</span> مرفق بالملف بالكامل</div>
+          </div>
         </div>
 
         <div class="tab-strip">
@@ -1270,12 +1302,6 @@
             <button class="btn dark" onclick="refreshWorkingPapersForFile()">↻ تحديث أوراق العمل</button>
           </div>
 
-          <div class="completion-stats">
-            <div class="completion-card done"><div class="num" id="cfd-done-count">0</div><div class="lbl">اكتملت</div></div>
-            <div class="completion-card progress"><div class="num" id="cfd-progress-count">0</div><div class="lbl">في تقدم</div></div>
-            <div class="completion-card notstarted"><div class="num" id="cfd-notstarted-count">0</div><div class="lbl">لم تبدأ</div></div>
-          </div>
-
           <div class="wp-shell">
             <div class="wp-list-col" id="cfd-wp-list">
               <div class="empty-hint">اضغط "تحديث أوراق العمل" لجلب الأوراق المطابقة لهذا الملف</div>
@@ -1324,11 +1350,6 @@
 
         <!-- تبويب: المتطلبات -->
         <div class="ptab" id="cfd-req">
-          <div class="completion-stats">
-            <div class="completion-card done"><div class="num" id="req-done-count">0</div><div class="lbl">تم استيفاؤها</div></div>
-            <div class="completion-card notstarted"><div class="num" id="req-pending-count">0</div><div class="lbl">بانتظار العميل</div></div>
-            <div class="completion-card"><div class="num" id="req-total-count">0</div><div class="lbl">الإجمالي</div></div>
-          </div>
           <div class="panel">
             <div class="panel-head"><h3>المتطلبات المطلوبة من العميل</h3>
               <span class="add-child-btn" onclick="openAddRequirementModal()">+ طلب متطلب</span>
@@ -1342,11 +1363,6 @@
 
         <!-- تبويب: الملاحظات -->
         <div class="ptab" id="cfd-notes">
-          <div class="completion-stats">
-            <div class="completion-card done"><div class="num" id="notes-resolved-count">0</div><div class="lbl">محلولة</div></div>
-            <div class="completion-card notstarted"><div class="num" id="notes-open-count">0</div><div class="lbl">مفتوحة</div></div>
-            <div class="completion-card"><div class="num" id="notes-total-count">0</div><div class="lbl">الإجمالي</div></div>
-          </div>
           <div class="panel">
             <div class="panel-head"><h3>الملاحظات الداخلية</h3>
               <span class="add-child-btn" onclick="openAddNoteModal()">+ إضافة ملاحظة</span>
@@ -1415,7 +1431,7 @@
               <div class="empty-hint" style="padding:40px 20px;">جارٍ التحميل...</div>
             </div>
           </div>
-          <div style="display:flex; flex-direction:column;">
+          <div style="display:flex; flex-direction:column; min-height:0; overflow:hidden;">
             <div id="chats-active-header" style="display:none; align-items:center; gap:11px; padding:13px 18px; border-bottom:1px solid var(--line); background:var(--card);">
               <div class="av" id="chats-active-av">-</div>
               <div>
@@ -2714,8 +2730,14 @@ async function loadClientFilesGlobalLive(){
         <td><span class="link" style="color:#AD8A3F; cursor:pointer;" onclick="openClientProfile('${f.client_id}')">${f.clients ? f.clients.name : ''}</span></td>
         <td>${f.period_end || '—'}</td><td>${f.engagement_type || '—'}</td>
         <td><span class="badge neutral">${f.status || '—'}</span></td>
-      </tr>`).join('') : '<tr><td colspan="5" class="empty-hint">لا توجد ملفات تدقيق بعد</td></tr>';
-  }catch(e){ tbody.innerHTML = `<tr><td colspan="5" class="empty-hint">تعذّر تحميل الملفات: ${e.message}</td></tr>`; }
+        <td style="min-width:120px;">
+          <div style="display:flex; align-items:center; gap:7px;">
+            <div style="flex:1; height:6px; background:var(--paper); border-radius:4px; overflow:hidden;"><div style="height:100%; width:${f.progress_percent||0}%; background:linear-gradient(90deg, var(--brass), #2F6F4E);"></div></div>
+            <span style="font-size:10.5px; color:var(--muted); font-weight:600; white-space:nowrap;">${f.progress_percent||0}%</span>
+          </div>
+        </td>
+      </tr>`).join('') : '<tr><td colspan="6" class="empty-hint">لا توجد ملفات تدقيق بعد</td></tr>';
+  }catch(e){ tbody.innerHTML = `<tr><td colspan="6" class="empty-hint">تعذّر تحميل الملفات: ${e.message}</td></tr>`; }
 }
 
 /* ---------------- ملف عميل واحد (كل التبويبات) ---------------- */
@@ -3053,6 +3075,7 @@ async function openClientFileDetail(fileId){
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
     اختر ورقة عمل من القائمة لعرض تفاصيلها</div>`;
   loadMatchedWorkingPapers(); // إن كانت موجودة مسبقًا من تحديث سابق
+  loadPersistentStats();
   loadClientFileTeam();
 }
 
@@ -3195,11 +3218,16 @@ function switchCfdTab(el, key){
   el.classList.add('active');
   document.querySelectorAll('#page-clientfiledetail .ptab').forEach(t=>t.classList.remove('active'));
   document.getElementById('cfd-'+key).classList.add('active');
-  if(key==='chat') loadChatMessages('general');
+  if(key==='chat'){
+    loadChatMessages('general');
+    apiFetch('/api/client-files/'+currentClientFileId+'/chat/mark-read', {method:'POST'}).then(()=>{
+      document.getElementById('pstat-chat-unread').textContent = 0;
+    }).catch(()=>{});
+  }
   if(key==='adj') loadAdjustments();
   if(key==='general') loadClientFileTeam();
-  if(key==='req') loadRequirements();
-  if(key==='notes') loadNotes();
+  if(key==='req') loadRequirements().then(()=>loadPersistentStats());
+  if(key==='notes') loadNotes().then(()=>loadPersistentStats());
   if(key==='attach') loadFileAttachments();
 }
 
@@ -3354,9 +3382,7 @@ async function loadRequirements(){
   const tbody = document.getElementById('cfd-req-tbody');
   try{
     const rows = await apiFetch('/api/client-files/'+currentClientFileId+'/requirements');
-    document.getElementById('req-total-count').textContent = rows.length;
-    document.getElementById('req-done-count').textContent = rows.filter(r=>r.is_fulfilled).length;
-    document.getElementById('req-pending-count').textContent = rows.filter(r=>!r.is_fulfilled).length;
+    updateReqStatCards(rows);
     tbody.innerHTML = rows.length ? rows.map(r=>`
       <tr><td>${r.title}</td>
       <td>${r.wp_main_items ? r.wp_main_items.title : '<span class="empty-hint" style="padding:0;">عام</span>'}</td>
@@ -3387,6 +3413,7 @@ async function saveRequirement(){
     closeModal('modal-addreq');
     showToast('تم إرسال الطلب بالدردشة');
     loadRequirements();
+    loadPersistentStats();
     if(document.getElementById('wp-item-pane-req')) loadItemRequirements(CURRENT_WP_ITEM_ID);
   }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
 }
@@ -3411,6 +3438,7 @@ async function submitFulfillRequirement(){
       closeModal('modal-fulfillreq');
       showToast('تم تسجيل المتطلب كمستوفى');
       loadRequirements();
+      loadPersistentStats();
     }catch(e){ showToast('تعذّر الحفظ: '+e.message); }
   };
   reader.readAsDataURL(file);
@@ -3420,6 +3448,7 @@ async function deleteRequirement(reqId){
   try{
     await apiFetch('/api/client-files/'+currentClientFileId+'/requirements/'+reqId, {method:'DELETE'});
     loadRequirements();
+    loadPersistentStats();
   }catch(e){ showToast('تعذّر الحذف: '+e.message); }
 }
 
@@ -3429,9 +3458,7 @@ async function loadNotes(){
   const tbody = document.getElementById('cfd-notes-tbody');
   try{
     const rows = await apiFetch('/api/client-files/'+currentClientFileId+'/notes');
-    document.getElementById('notes-total-count').textContent = rows.length;
-    document.getElementById('notes-resolved-count').textContent = rows.filter(n=>n.is_resolved).length;
-    document.getElementById('notes-open-count').textContent = rows.filter(n=>!n.is_resolved).length;
+    updateNotesStatCards(rows);
     tbody.innerHTML = rows.length ? rows.map(n=>`
       <tr><td>${n.body}</td>
       <td>${n.wp_main_items ? n.wp_main_items.title : '<span class="empty-hint" style="padding:0;">عامة</span>'}</td>
@@ -3464,6 +3491,7 @@ async function saveNote(){
     closeModal('modal-addnote');
     showToast('تم حفظ الملاحظة');
     loadNotes();
+    loadPersistentStats();
     if(document.getElementById('wp-item-pane-notes')) loadItemNotes(CURRENT_WP_ITEM_ID);
   }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
 }
@@ -3471,6 +3499,7 @@ async function toggleNoteResolved(noteId, resolved){
   try{
     await apiFetch('/api/client-files/'+currentClientFileId+'/notes/'+noteId+'/resolve', {method:'POST', body: JSON.stringify({is_resolved:resolved})});
     loadNotes();
+    loadPersistentStats();
   }catch(e){ showToast('تعذّر التحديث: '+e.message); }
 }
 async function deleteNote(noteId){
@@ -3478,6 +3507,7 @@ async function deleteNote(noteId){
   try{
     await apiFetch('/api/client-files/'+currentClientFileId+'/notes/'+noteId, {method:'DELETE'});
     loadNotes();
+    loadPersistentStats();
   }catch(e){ showToast('تعذّر الحذف: '+e.message); }
 }
 
@@ -3650,11 +3680,9 @@ async function loadMatchedWorkingPapers(){
   const listCol = document.getElementById('cfd-wp-list');
   if(!matched.length){
     listCol.innerHTML = '<div class="empty-hint">لا توجد أوراق عمل مطابقة بعد — اضغط "تحديث أوراق العمل"</div>';
-    document.getElementById('cfd-done-count').textContent = 0;
-    document.getElementById('cfd-progress-count').textContent = 0;
-    document.getElementById('cfd-notstarted-count').textContent = 0;
-    document.getElementById('cfd-progress-bar').style.width = '0%';
-    document.getElementById('cfd-progress-text').textContent = '0%';
+    updateWpStatCards([], progress);
+    updateReqStatCards(requirements||[]);
+    updateNotesStatCards(notes||[]);
     return;
   }
   const reqByMain = {};
@@ -3696,18 +3724,59 @@ async function loadMatchedWorkingPapers(){
         }).join('')}
       </div>
     </div>`).join('');
-  document.getElementById('cfd-done-count').textContent = matched.filter(m=>m.status==='completed').length;
-  document.getElementById('cfd-progress-count').textContent = matched.filter(m=>m.status==='in_progress').length;
-  document.getElementById('cfd-notstarted-count').textContent = matched.filter(m=>m.status==='not_started').length;
-  document.getElementById('cfd-progress-bar').style.width = (progress.overallPercent||0) + '%';
-  document.getElementById('cfd-progress-text').textContent = (progress.overallPercent||0) + '%';
+  updateWpStatCards(matched, progress);
+  updateReqStatCards(requirements||[]);
+  updateNotesStatCards(notes||[]);
+}
+function updateWpStatCards(matched, progress){
+  document.getElementById('pstat-wp-done').textContent = matched.filter(m=>m.status==='completed').length;
+  document.getElementById('pstat-wp-progress').textContent = matched.filter(m=>m.status==='in_progress').length;
+  document.getElementById('pstat-wp-notstarted').textContent = matched.filter(m=>m.status==='not_started').length;
+  document.getElementById('pstat-wp-bar').style.width = (progress.overallPercent||0) + '%';
+  document.getElementById('pstat-wp-pct').textContent = (progress.overallPercent||0) + '%';
+}
+function updateReqStatCards(requirements){
+  const done = requirements.filter(r=>r.is_fulfilled).length;
+  const total = requirements.length;
+  const pct = total ? Math.round((done/total)*100) : 0;
+  document.getElementById('pstat-req-done').textContent = done;
+  document.getElementById('pstat-req-total').textContent = total;
+  document.getElementById('pstat-req-pct').textContent = pct + '%';
+  document.getElementById('pstat-req-bar').style.width = pct + '%';
+}
+function updateNotesStatCards(notes){
+  const resolved = notes.filter(n=>n.is_resolved).length;
+  const total = notes.length;
+  const pct = total ? Math.round((resolved/total)*100) : 0;
+  document.getElementById('pstat-notes-resolved').textContent = resolved;
+  document.getElementById('pstat-notes-total').textContent = total;
+  document.getElementById('pstat-notes-pct').textContent = pct + '%';
+  document.getElementById('pstat-notes-bar').style.width = pct + '%';
+}
+async function loadPersistentStats(){
+  if(!currentClientFileId) return;
+  try{
+    const [progress, requirements, notes, unread, attachments] = await Promise.all([
+      apiFetch('/api/client-files/'+currentClientFileId+'/progress').catch(()=>({overallPercent:0, byMain:{}})),
+      apiFetch('/api/client-files/'+currentClientFileId+'/requirements').catch(()=>[]),
+      apiFetch('/api/client-files/'+currentClientFileId+'/notes').catch(()=>[]),
+      apiFetch('/api/client-files/'+currentClientFileId+'/chat/unread-count').catch(()=>({unread:0})),
+      apiFetch('/api/client-files/'+currentClientFileId+'/attachments').catch(()=>[]),
+    ]);
+    updateReqStatCards(requirements);
+    updateNotesStatCards(notes);
+    document.getElementById('pstat-wp-bar').style.width = (progress.overallPercent||0) + '%';
+    document.getElementById('pstat-wp-pct').textContent = (progress.overallPercent||0) + '%';
+    document.getElementById('pstat-chat-unread').textContent = unread.unread || 0;
+    document.getElementById('pstat-attach-count').textContent = attachments.length || 0;
+  }catch(e){}
 }
 async function loadFileProgress(){
   if(!currentClientFileId) return;
   try{
     const progress = await apiFetch('/api/client-files/'+currentClientFileId+'/progress');
-    document.getElementById('cfd-progress-bar').style.width = (progress.overallPercent||0) + '%';
-    document.getElementById('cfd-progress-text').textContent = (progress.overallPercent||0) + '%';
+    document.getElementById('pstat-wp-bar').style.width = (progress.overallPercent||0) + '%';
+    document.getElementById('pstat-wp-pct').textContent = (progress.overallPercent||0) + '%';
   }catch(e){}
 }
 
@@ -3750,12 +3819,11 @@ function procItemHtml(sub, answer, index){
     notesHtml = `<textarea class="big-notes" data-sub="${sub.id}" data-kind="comment" placeholder="ملاحظات إضافية (اختياري)">${comment}</textarea>`;
   }
   return `<div class="proc-item ${isNA?'is-na':''}" data-sub-row="${sub.id}">
-    <div class="proc-q"><span class="proc-num">${index}</span> ${sub.label}</div>
+    <div class="proc-q"><span class="proc-num">${index}</span> ${sub.label}
+      <span class="na-toggle-btn na-toggle-sm ${isNA?'active':''}" data-sub="${sub.id}" data-kind="na" onclick="toggleSubNA(this)">لا ينطبق</span>
+    </div>
     <div class="proc-answer"><label class="notes-label">الإجابة</label>${answerHtml}</div>
     <div class="proc-notes"><label class="notes-label">${notesLabel}</label>${notesHtml}</div>
-    <div style="flex:0 0 auto; padding-top:22px;">
-      <span class="na-toggle-btn ${isNA?'active':''}" data-sub="${sub.id}" data-kind="na" onclick="toggleSubNA(this)">لا ينطبق</span>
-    </div>
   </div>`;
 }
 function toggleSubNA(el){
