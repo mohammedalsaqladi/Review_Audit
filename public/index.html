@@ -497,6 +497,7 @@
 
   /* ===== working papers: master list + detail panel ===== */
   .wp-shell{display:grid; grid-template-columns:270px 1fr; gap:16px; align-items:start;}
+  #page-workpapers .wp-shell{grid-template-columns:360px 1fr;}
   .wp-list-col{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; max-height:calc(100vh - 200px); overflow-y:auto; overscroll-behavior:contain;}
   .wp-group-head{display:flex; align-items:center; gap:8px; padding:12px 14px; background:#FBF8F0; border-bottom:1px solid var(--line); cursor:pointer; font-size:12.8px; font-weight:700; color:var(--ink);}
   .wp-group-head .add-child-btn{margin-inline-start:auto; font-size:10.5px;}
@@ -1541,8 +1542,15 @@
       <div class="page" id="page-workpapers">
         <div class="page-head">
           <div><div class="crumb">تهيئة النظام</div><h1>أوراق العمل</h1><p class="desc">اختر ورقة عمل رئيسية من القائمة لعرض تفاصيلها وبنودها الفرعية</p></div>
-          <button class="btn dark" onclick="openAddGroupModal()">+ إضافة مجموعة</button>
+          <button class="btn dark" id="wp-setup-add-btn" onclick="openAddGroupModal()">+ إضافة مجموعة</button>
         </div>
+
+        <div class="item-subtabs" style="margin-bottom:18px;">
+          <div class="ist active" onclick="switchWpSetupTab(this,'papers')">أوراق العمل</div>
+          <div class="ist" onclick="switchWpSetupTab(this,'requirements')">المتطلبات</div>
+        </div>
+
+        <div id="wp-setup-papers-pane">
 
         <div class="wp-shell">
           <!-- ===== القائمة: المجموعات + البنود الرئيسية ===== -->
@@ -1673,6 +1681,20 @@
               <div class="panel"><div class="empty-hint">لا توجد بنود فرعية بعد</div></div>
             </div>
 
+          </div>
+        </div>
+        </div>
+
+        <div id="wp-setup-requirements-pane" style="display:none;">
+          <div class="page-head" style="margin-bottom:16px;">
+            <div class="desc" style="font-size:12.5px; color:var(--muted);">قوالب متطلبات عامة على مستوى المكتب — تُضاف تلقائيًا لأي ملف تدقيق يظهر بميزانه الحساب المرتبط، أو لكل الملفات إن كانت "دائمًا"</div>
+            <button class="btn dark" onclick="openAddReqTemplateModal()">+ إضافة قالب متطلب</button>
+          </div>
+          <div class="panel">
+            <table>
+              <thead><tr><th>المتطلب</th><th>يظهر عند وجود حساب</th><th>الظهور</th><th>الحالة</th><th></th></tr></thead>
+              <tbody id="reqtpl-tbody"><tr><td colspan="5" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -2080,6 +2102,47 @@
     <div class="modal-foot">
       <button class="btn" onclick="closeModal('modal-addgroupchat')">إلغاء</button>
       <button class="btn dark" onclick="saveNewGroupChat()">إنشاء المجموعة</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة إضافة/تعديل قالب متطلب تلقائي ===== -->
+<div class="modal-overlay" id="modal-addreqtpl">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-head">
+      <div><h3 id="reqtpl-modal-title">إضافة قالب متطلب</h3><span>يُضاف تلقائيًا لكل ملف تدقيق مطابق</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addreqtpl')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label>اسم المتطلب <span class="req">*</span></label><input id="reqtpl-title" placeholder="مثال: صورة السجل التجاري ساري المفعول"></div>
+        <div class="form-field full"><label>يظهر عند وجود حساب (اختياري)</label><select id="reqtpl-coa"><option value="">— دائمًا لكل الملفات —</option></select></div>
+      </div>
+      <div class="radio-group" style="margin:14px 0 10px;">
+        <label><input type="radio" name="visReqTpl" value="general" checked onchange="toggleSpecialVisibility(this,'visSpecial-reqtpl')" style="accent-color:#AD8A3F;"> عام — يظهر لكل العملاء المطابقين للحساب</label>
+        <label><input type="radio" name="visReqTpl" value="special" onchange="toggleSpecialVisibility(this,'visSpecial-reqtpl')" style="accent-color:#AD8A3F;"> خاص — حسب نوع/قطاع عميل محدد</label>
+      </div>
+      <div class="form-grid vis-special" id="visSpecial-reqtpl">
+        <div class="form-field"><label>نوع العميل</label>
+          <div class="ms-dd">
+            <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">لا شيء محدد</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+            <div class="ms-panel" id="ms-panel-reqtpl-ctype"></div>
+          </div>
+        </div>
+        <div class="form-field"><label>قطاع العميل</label>
+          <div class="ms-dd">
+            <div class="ms-trigger" onclick="toggleMs(this)"><span class="ms-trigger-text">لا شيء محدد</span><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></div>
+            <div class="ms-panel" id="ms-panel-reqtpl-sector"></div>
+          </div>
+        </div>
+      </div>
+      <div id="reqtpl-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-addreqtpl')">إلغاء</button>
+      <button class="btn dark" onclick="saveReqTemplate()">حفظ القالب</button>
     </div>
   </div>
 </div>
@@ -3705,8 +3768,8 @@ async function loadMatchedWorkingPapers(){
   WP_MAIN_ITEMS_CACHE = matched.map(m=>({id:m.wp_main_items.id, code:m.wp_main_items.code, title:m.wp_main_items.title}));
   listCol.innerHTML = Object.values(byGroup).map(g=>`
     <div class="wp-group">
-      <div class="wp-group-head" onclick="toggleWpGroup(this)"><span class="tree-toggle open">▸</span><span>${g.group.code} — ${g.group.name}</span></div>
-      <div class="wp-mains">
+      <div class="wp-group-head" onclick="toggleWpGroup(this)"><span class="tree-toggle">▸</span><span>${g.group.code} — ${g.group.name}</span></div>
+      <div class="wp-mains collapsed">
         ${g.items.map(it=>{
           const pct = progress.byMain ? (progress.byMain[it.wp_main_items.id] ?? 0) : 0;
           const req = reqByMain[it.wp_main_items.id];
@@ -4345,9 +4408,9 @@ function renderCoaTreeLive(rows){
   (function walk(parentKey, depth){
     (byParent[parentKey] || []).forEach(r=>{
       const hasChildren = !!byParent[r.id];
-      html += `<tr class="tree-row" data-id="${r.id}" data-parent="${r.parent_id || ''}">
+      html += `<tr class="tree-row" data-id="${r.id}" data-parent="${r.parent_id || ''}" style="${depth>0?'display:none;':''}">
         <td><div class="tree-cell" style="padding-inline-start:${depth*22}px;">
-          <span class="tree-toggle ${hasChildren?'open':'leaf'}" ${hasChildren?`onclick="toggleTree(this,'${r.id}')"`:''}>▸</span>
+          <span class="tree-toggle ${hasChildren?'':'leaf'}" ${hasChildren?`onclick="toggleTree(this,'${r.id}')"`:''}>▸</span>
           ${r.code} — ${r.name_ar}</div></td>
         <td><span class="lvl-badge l${r.level}">مستوى ${r.level}</span></td>
         <td>${r.language==='ar'?'عربي':r.language==='en'?'إنجليزي':'عربي/إنجليزي'}</td>
@@ -4405,7 +4468,7 @@ function renderWorkingPapersLive(groups, mains){
     const groupMains = mains.filter(m => m.group_id === g.id);
     return `<div class="wp-group">
       <div class="wp-group-head" onclick="toggleWpGroup(this)">
-        <span class="tree-toggle open">▸</span><span>${g.code} — ${g.name}</span>
+        <span class="tree-toggle">▸</span><span>${g.code} — ${g.name}</span>
         ${g.coa_account_id ? `<span class="mini-icon-badge" title="مرتبطة بدليل الحسابات">${ICON_LINK}</span>` : ''}
         <div class="row-actions" style="margin-inline-start:auto;">
           ${btnEdit(`event.stopPropagation(); openEditGroupModal('${g.id}')`)}
@@ -4413,7 +4476,7 @@ function renderWorkingPapersLive(groups, mains){
         </div>
         <span class="add-child-btn" onclick="event.stopPropagation(); openAddMainModal('${g.id}')">+ رئيسي</span>
       </div>
-      <div class="wp-mains">
+      <div class="wp-mains collapsed">
         ${groupMains.map(m=>`<div class="wp-main-item" onclick="selectWpMainLive(this,'${m.id}')">
           <span>${m.code || ''} — ${m.title}</span>
           <span class="badge ${m.visibility==='general'?'ok':'flag'}">${m.visibility==='general'?'عام':'خاص'}</span>
@@ -4576,6 +4639,83 @@ async function openEditGroupModal(groupId){
     openModal('modal-addgroup');
   }catch(e){ showToast('تعذّر تحميل المجموعة: '+e.message); }
 }
+/* ---------------- تهيئة قوالب المتطلبات التلقائية (نظام) ---------------- */
+function switchWpSetupTab(el, key){
+  document.querySelectorAll('#page-workpapers .item-subtabs .ist').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('wp-setup-papers-pane').style.display = key==='papers' ? '' : 'none';
+  document.getElementById('wp-setup-requirements-pane').style.display = key==='requirements' ? '' : 'none';
+  document.getElementById('wp-setup-add-btn').style.display = key==='papers' ? '' : 'none';
+  if(key==='requirements') loadReqTemplates();
+}
+async function loadReqTemplates(){
+  const tbody = document.getElementById('reqtpl-tbody');
+  try{
+    const rows = await apiFetch('/api/requirement-templates');
+    tbody.innerHTML = rows.length ? rows.map(t=>`
+      <tr><td>${t.title}</td>
+      <td>${t.chart_of_accounts ? `${t.chart_of_accounts.code} — ${t.chart_of_accounts.name_ar}` : '<span class="empty-hint" style="padding:0;">دائمًا</span>'}</td>
+      <td><span class="badge ${t.visibility==='general'?'ok':'flag'}">${t.visibility==='general'?'عام':'خاص'}</span></td>
+      <td><span class="badge ${t.is_active?'ok':'neutral'}">${t.is_active?'فعّال':'غير فعّال'}</span></td>
+      <td><div class="row-actions">${btnEdit(`openEditReqTemplateModal('${t.id}')`)}${btnDelete(`deleteReqTemplate('${t.id}')`)}</div></td></tr>`).join('')
+      : '<tr><td colspan="5" class="empty-hint">لا توجد قوالب متطلبات بعد</td></tr>';
+  }catch(e){ tbody.innerHTML = `<tr><td colspan="5" class="empty-hint">تعذّر التحميل: ${e.message}</td></tr>`; }
+}
+function fillReqTplCoaSelect(selectedId){
+  const level4 = coaData.filter(a=>a.level===4);
+  document.getElementById('reqtpl-coa').innerHTML = '<option value="">— دائمًا لكل الملفات —</option>' +
+    level4.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${a.code} — ${a.name}</option>`).join('');
+}
+let editingReqTplId = null;
+function openAddReqTemplateModal(){
+  editingReqTplId = null;
+  document.getElementById('reqtpl-modal-title').textContent = 'إضافة قالب متطلب';
+  document.getElementById('reqtpl-title').value = '';
+  fillReqTplCoaSelect(null);
+  document.querySelector('input[name="visReqTpl"][value="general"]').checked = true;
+  toggleSpecialVisibility(document.querySelector('input[name="visReqTpl"][value="general"]'), 'visSpecial-reqtpl');
+  populateAllVisPanels('reqtpl', []);
+  document.getElementById('reqtpl-error').style.display = 'none';
+  openModal('modal-addreqtpl');
+}
+async function openEditReqTemplateModal(id){
+  try{
+    const { template, targets } = await apiFetch('/api/requirement-templates/'+id);
+    editingReqTplId = id;
+    document.getElementById('reqtpl-modal-title').textContent = 'تعديل قالب المتطلب';
+    document.getElementById('reqtpl-title').value = template.title || '';
+    fillReqTplCoaSelect(template.coa_account_id);
+    const visRadio = document.querySelector(`input[name="visReqTpl"][value="${template.visibility||'general'}"]`);
+    if(visRadio){ visRadio.checked = true; toggleSpecialVisibility(visRadio, 'visSpecial-reqtpl'); }
+    populateAllVisPanels('reqtpl', targets);
+    document.getElementById('reqtpl-error').style.display = 'none';
+    openModal('modal-addreqtpl');
+  }catch(e){ showToast('تعذّر تحميل القالب: '+e.message); }
+}
+async function saveReqTemplate(){
+  const title = document.getElementById('reqtpl-title').value.trim();
+  const coaId = document.getElementById('reqtpl-coa').value || null;
+  const visibility = document.querySelector('input[name="visReqTpl"]:checked').value;
+  const errBox = document.getElementById('reqtpl-error');
+  if(!title){ errBox.textContent = 'اسم المتطلب إلزامي'; errBox.style.display='block'; return; }
+  const payload = {
+    title, coa_account_id: coaId, visibility,
+    visibility_targets: visibility === 'special' ? buildVisibilityTargets('ms-panel-reqtpl-ctype','ms-panel-reqtpl-sector') : [],
+  };
+  try{
+    if(editingReqTplId) await apiFetch('/api/requirement-templates/'+editingReqTplId, {method:'PUT', body: JSON.stringify(payload)});
+    else await apiFetch('/api/requirement-templates', {method:'POST', body: JSON.stringify(payload)});
+    closeModal('modal-addreqtpl');
+    showToast('تم الحفظ');
+    loadReqTemplates();
+  }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
+}
+async function deleteReqTemplate(id){
+  if(!confirm('هل تريد حذف قالب المتطلب هذا؟ (لن يؤثر على المتطلبات المُضافة مسبقًا بالملفات)')) return;
+  try{ await apiFetch('/api/requirement-templates/'+id, {method:'DELETE'}); showToast('تم الحذف'); loadReqTemplates(); }
+  catch(e){ showToast('تعذّر الحذف: '+e.message); }
+}
+
 async function deleteGroupLive(groupId){
   if(!confirm('حذف المجموعة سيحذف كل أوراق العمل الرئيسية والفرعية التابعة لها. هل أنت متأكد؟')) return;
   try{ await apiFetch('/api/wp-groups/'+groupId, {method:'DELETE'}); showToast('تم الحذف'); loadWorkingPapersLive(); }
