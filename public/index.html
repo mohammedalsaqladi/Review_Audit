@@ -2178,6 +2178,37 @@
   </div>
 </div>
 
+<!-- ===== نافذة دخول موظف العميل لبوابة العميل ===== -->
+<div class="modal-overlay" id="modal-portalaccess">
+  <div class="modal-box" style="max-width:460px;">
+    <div class="modal-head">
+      <div><h3>بوابة العميل</h3><span id="portalaccess-emp-name">—</span></div>
+      <div class="modal-close" onclick="closeModal('modal-portalaccess')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="notice" style="margin-bottom:16px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4M12 17h.01M10.3 3.86L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.86a2 2 0 00-3.4 0z"/></svg>
+        عند التفعيل، يقدر هذا الموظف الدخول على بوابة العميل المحدودة (بيانات عميله فقط + الدردشة + رفع مرفقات المتطلبات) عبر الرابط: <b>/portal.html</b>
+      </div>
+      <div class="form-grid">
+        <div class="form-field full">
+          <label>تفعيل الدخول</label>
+          <select id="portalaccess-enabled"><option value="0">معطّل</option><option value="1">مفعّل</option></select>
+        </div>
+        <div class="form-field full"><label>اسم المستخدم</label><input id="portalaccess-username" placeholder="مثال: ahmed.finance"></div>
+        <div class="form-field full"><label>كلمة المرور <span style="color:var(--muted); font-weight:400;">(اتركها فارغة إن كنت لا تريد تغييرها)</span></label><input id="portalaccess-password" type="text" placeholder="كلمة مرور جديدة"></div>
+      </div>
+      <div id="portalaccess-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-portalaccess')">إلغاء</button>
+      <button class="btn dark" onclick="savePortalAccess()">حفظ</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== نافذة إضافة مستخدم (موظف مكتب) ===== -->
 <div class="modal-overlay" id="modal-adduser">
   <div class="modal-box" style="max-width:640px;">
@@ -2939,9 +2970,14 @@ function renderClientProfile(client, employees, files){
   CURRENT_CLIENT_EMPLOYEES = employees;
   empBody.innerHTML = employees.length ? employees.map(e=>`
     <tr><td><b>${e.full_name}</b></td><td>${e.job_title||'—'}</td><td>${e.email||'—'}</td><td>${e.phone||'—'}</td>
-    <td><span class="badge ${e.is_primary_contact?'ok':'neutral'}">${e.is_primary_contact?'جهة اتصال رئيسية':'نشط'}</span></td>
+    <td><span class="badge ${e.is_primary_contact?'ok':'neutral'}">${e.is_primary_contact?'جهة اتصال رئيسية':'نشط'}</span>
+      ${e.is_portal_enabled ? `<span class="badge ok" style="margin-inline-start:5px;" title="${e.username||''}">🔑 دخول مفعّل</span>` : ''}
+    </td>
     <td style="white-space:nowrap;">
       <div class="row-actions">
+        <span class="row-icon-btn lead" title="بوابة العميل" onclick="openPortalAccessModal('${e.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a5 5 0 00-5 5v3H6a2 2 0 00-2 2v9a2 2 0 002 2h12a2 2 0 002-2v-9a2 2 0 00-2-2h-1V6a5 5 0 00-5-5zm3 8H9V6a3 3 0 016 0v3z"/></svg>
+        </span>
         ${btnEdit(`openEditEmployeeForm('${e.id}')`)}
         ${btnDelete(`deleteClientEmployee('${e.id}')`)}
       </div>
@@ -3038,6 +3074,33 @@ function openEditEmployeeForm(empId){
   document.getElementById('emp-email').value = e.email || '';
   document.getElementById('emp-phone').value = e.phone || '';
   document.getElementById('add-employee-box').style.display = 'block';
+}
+let portalAccessEmpId = null;
+function openPortalAccessModal(empId){
+  const emp = CURRENT_CLIENT_EMPLOYEES.find(x=>x.id===empId);
+  if(!emp) return;
+  portalAccessEmpId = empId;
+  document.getElementById('portalaccess-emp-name').textContent = emp.full_name;
+  document.getElementById('portalaccess-enabled').value = emp.is_portal_enabled ? '1' : '0';
+  document.getElementById('portalaccess-username').value = emp.username || '';
+  document.getElementById('portalaccess-password').value = '';
+  document.getElementById('portalaccess-error').style.display = 'none';
+  openModal('modal-portalaccess');
+}
+async function savePortalAccess(){
+  const isEnabled = document.getElementById('portalaccess-enabled').value === '1';
+  const username = document.getElementById('portalaccess-username').value.trim();
+  const password = document.getElementById('portalaccess-password').value;
+  const errBox = document.getElementById('portalaccess-error');
+  if(isEnabled && !username){ errBox.textContent = 'اسم المستخدم إلزامي عند التفعيل'; errBox.style.display='block'; return; }
+  const payload = { is_portal_enabled: isEnabled, username };
+  if(password) payload.password = password;
+  try{
+    await apiFetch('/api/clients/'+currentClientId+'/employees/'+portalAccessEmpId+'/portal-access', {method:'PUT', body: JSON.stringify(payload)});
+    closeModal('modal-portalaccess');
+    showToast('تم الحفظ');
+    openClientProfile(currentClientId);
+  }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
 }
 async function deleteClientEmployee(empId){
   if(!currentClientId) return;
@@ -4484,6 +4547,7 @@ let editingGroupId = null;
 let editingMainId = null;
 let editingSubId = null;
 let CURRENT_WP_ITEM_ID = null;
+let CURRENT_WP_SETUP_MAIN_ID = null;
 let CHAT_PENDING_ATTACH = { general: null, item: null, directory: null };
 let REQUIREMENTS_CACHE_CHAT = [];
 let NOTES_CACHE_CHAT = [];
@@ -4535,30 +4599,68 @@ async function selectWpMainLive(item, mainId){
   const detailCol = document.querySelector('#page-workpapers .wp-detail-col');
   detailCol.innerHTML = `
     <div class="wp-detail active">
-      <div class="profile-head" style="margin-bottom:18px;">
+      <div class="profile-head" style="margin-bottom:12px;">
         <div class="seal2">${mainRow.code || ''}</div>
         <div><div class="pn">${mainRow.title}</div><div class="pm"><span class="badge ${mainRow.visibility==='general'?'ok':'flag'}">${mainRow.visibility==='general'?'عام':'خاص'}</span></div></div>
-        <button class="btn dark" style="margin-inline-start:auto;" onclick="openAddSubModal('${mainId}')">+ إضافة فرعي</button>
       </div>
-      <div class="form-section">
-        <div class="form-section-title">الهدف والملاحظات</div>
-        <div class="form-grid">
-          <div class="form-field full"><label>الهدف</label><input value="${mainRow.objective || ''}" disabled></div>
-          <div class="form-field full"><label>ملاحظات</label><input value="${mainRow.notes || ''}" disabled></div>
+      <div class="item-subtabs">
+        <div class="ist active" onclick="switchWpSetupItemSubtab(this,'papers')">أوراق العمل</div>
+        <div class="ist" onclick="switchWpSetupItemSubtab(this,'requirements')">المتطلبات</div>
+      </div>
+      <div id="wp-setup-item-papers-pane">
+        <div class="form-section">
+          <div class="form-section-title">الهدف والملاحظات</div>
+          <div class="form-grid">
+            <div class="form-field full"><label>الهدف</label><input value="${mainRow.objective || ''}" disabled></div>
+            <div class="form-field full"><label>ملاحظات</label><input value="${mainRow.notes || ''}" disabled></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><h3>البنود الفرعية</h3>
+            <span class="add-child-btn" onclick="openAddSubModal('${mainId}')">+ إضافة فرعي</span>
+          </div>
+          <table><thead><tr><th>البند</th><th>النوع</th><th>الظهور</th><th>الحالة</th><th></th></tr></thead>
+          <tbody>${(subs||[]).map(s=>`<tr><td>${s.label}</td><td><span class="badge neutral">${s.item_type}</span></td><td><span class="badge ${s.visibility==='general'?'ok':'flag'}">${s.visibility==='general'?'عام':'خاص'}</span></td><td><span class="badge ${s.is_active?'ok':'neutral'}">${s.is_active?'فعّال':'غير فعّال'}</span></td>
+            <td style="white-space:nowrap;">
+              <div class="row-actions">
+                ${btnEdit(`openEditSubModal('${s.id}')`)}
+                ${btnDelete(`deleteSubLive('${s.id}')`)}
+              </div>
+            </td></tr>`).join('') || '<tr><td colspan="5" class="empty-hint">لا توجد بنود فرعية بعد</td></tr>'}</tbody></table>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h3>البنود الفرعية</h3></div>
-        <table><thead><tr><th>البند</th><th>النوع</th><th>الظهور</th><th>الحالة</th><th></th></tr></thead>
-        <tbody>${(subs||[]).map(s=>`<tr><td>${s.label}</td><td><span class="badge neutral">${s.item_type}</span></td><td><span class="badge ${s.visibility==='general'?'ok':'flag'}">${s.visibility==='general'?'عام':'خاص'}</span></td><td><span class="badge ${s.is_active?'ok':'neutral'}">${s.is_active?'فعّال':'غير فعّال'}</span></td>
-          <td style="white-space:nowrap;">
-            <div class="row-actions">
-              ${btnEdit(`openEditSubModal('${s.id}')`)}
-              ${btnDelete(`deleteSubLive('${s.id}')`)}
-            </div>
-          </td></tr>`).join('') || '<tr><td colspan="5" class="empty-hint">لا توجد بنود فرعية بعد</td></tr>'}</tbody></table>
+      <div id="wp-setup-item-req-pane" style="display:none;">
+        <div class="panel">
+          <div class="panel-head"><h3>متطلبات خاصة بهذا البند</h3>
+            <span class="add-child-btn" onclick="openAddReqTemplateModal('${mainId}')">+ إضافة متطلب</span>
+          </div>
+          <table>
+            <thead><tr><th>المتطلب</th><th>الظهور</th><th>الحالة</th><th></th></tr></thead>
+            <tbody id="wp-setup-item-req-tbody"><tr><td colspan="4" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
+          </table>
+        </div>
       </div>
     </div>`;
+  CURRENT_WP_SETUP_MAIN_ID = mainId;
+}
+function switchWpSetupItemSubtab(el, key){
+  document.querySelectorAll('#page-workpapers .item-subtabs .ist').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('wp-setup-item-papers-pane').style.display = key==='papers' ? '' : 'none';
+  document.getElementById('wp-setup-item-req-pane').style.display = key==='requirements' ? '' : 'none';
+  if(key==='requirements') loadItemReqTemplates(CURRENT_WP_SETUP_MAIN_ID);
+}
+async function loadItemReqTemplates(mainId){
+  const tbody = document.getElementById('wp-setup-item-req-tbody');
+  try{
+    const rows = await apiFetch('/api/requirement-templates?mainItemId='+mainId);
+    tbody.innerHTML = rows.length ? rows.map(t=>`
+      <tr><td>${t.title}</td>
+      <td><span class="badge ${t.visibility==='general'?'ok':'flag'}">${t.visibility==='general'?'عام':'خاص'}</span></td>
+      <td><span class="badge ${t.is_active?'ok':'neutral'}">${t.is_active?'فعّال':'غير فعّال'}</span></td>
+      <td><div class="row-actions">${btnEdit(`openEditReqTemplateModal('${t.id}')`)}${btnDelete(`deleteReqTemplate('${t.id}')`)}</div></td></tr>`).join('')
+      : '<tr><td colspan="4" class="empty-hint">لا توجد متطلبات لهذا البند بعد</td></tr>';
+  }catch(e){ tbody.innerHTML = `<tr><td colspan="4" class="empty-hint">تعذّر التحميل: ${e.message}</td></tr>`; }
 }
 /* ===== تعبئة قوائم "نوع العميل / قطاع العميل" الحقيقية داخل نوافذ إضافة/تعديل أوراق العمل ===== */
 function populateMsPanel(panelId, items, selectedIds){
@@ -4701,8 +4803,10 @@ function fillReqTplCoaSelect(selectedId){
     level4.map(a=>`<option value="${a.id}" ${a.id===selectedId?'selected':''}>${a.code} — ${a.name}</option>`).join('');
 }
 let editingReqTplId = null;
-function openAddReqTemplateModal(){
+let reqTplTargetMainId = null;
+function openAddReqTemplateModal(mainItemId){
   editingReqTplId = null;
+  reqTplTargetMainId = mainItemId || null;
   document.getElementById('reqtpl-modal-title').textContent = 'إضافة قالب متطلب';
   document.getElementById('reqtpl-title').value = '';
   fillReqTplCoaSelect(null);
@@ -4716,6 +4820,7 @@ async function openEditReqTemplateModal(id){
   try{
     const { template, targets } = await apiFetch('/api/requirement-templates/'+id);
     editingReqTplId = id;
+    reqTplTargetMainId = template.wp_main_item_id || null;
     document.getElementById('reqtpl-modal-title').textContent = 'تعديل قالب المتطلب';
     document.getElementById('reqtpl-title').value = template.title || '';
     fillReqTplCoaSelect(template.coa_account_id);
@@ -4733,7 +4838,7 @@ async function saveReqTemplate(){
   const errBox = document.getElementById('reqtpl-error');
   if(!title){ errBox.textContent = 'اسم المتطلب إلزامي'; errBox.style.display='block'; return; }
   const payload = {
-    title, coa_account_id: coaId, visibility,
+    title, coa_account_id: coaId, visibility, wp_main_item_id: reqTplTargetMainId,
     visibility_targets: visibility === 'special' ? buildVisibilityTargets('ms-panel-reqtpl-ctype','ms-panel-reqtpl-sector') : [],
   };
   try{
@@ -4741,13 +4846,18 @@ async function saveReqTemplate(){
     else await apiFetch('/api/requirement-templates', {method:'POST', body: JSON.stringify(payload)});
     closeModal('modal-addreqtpl');
     showToast('تم الحفظ');
+    if(reqTplTargetMainId) loadItemReqTemplates(reqTplTargetMainId);
     loadReqTemplates();
   }catch(e){ errBox.textContent = e.message; errBox.style.display='block'; }
 }
 async function deleteReqTemplate(id){
   if(!confirm('هل تريد حذف قالب المتطلب هذا؟ (لن يؤثر على المتطلبات المُضافة مسبقًا بالملفات)')) return;
-  try{ await apiFetch('/api/requirement-templates/'+id, {method:'DELETE'}); showToast('تم الحذف'); loadReqTemplates(); }
-  catch(e){ showToast('تعذّر الحذف: '+e.message); }
+  try{
+    await apiFetch('/api/requirement-templates/'+id, {method:'DELETE'});
+    showToast('تم الحذف');
+    loadReqTemplates();
+    if(CURRENT_WP_SETUP_MAIN_ID) loadItemReqTemplates(CURRENT_WP_SETUP_MAIN_ID);
+  }catch(e){ showToast('تعذّر الحذف: '+e.message); }
 }
 
 async function deleteGroupLive(groupId){
