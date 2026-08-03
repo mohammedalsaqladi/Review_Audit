@@ -1204,17 +1204,39 @@ app.post('/api/client-files/:id/refresh-working-papers', requireAuth, async (req
 async function autoMatchRequirementTemplates(sb, clientFileId, companyId, userId) {
   const { data: templates } = await sb.from('wp_requirement_templates').select('*').eq('company_id', companyId).eq('is_active', true);
   if (!templates || !templates.length) return;
+  const { data: file } = await sb.from('client_files').select('client_id').eq('id', clientFileId).maybeSingle();
+  if (!file) return;
+  const { data: client } = await sb.from('clients').select('client_type_id, sector_id').eq('id', file.client_id).maybeSingle();
+
   const { data: latestTb } = await sb.from('trial_balances').select('id').eq('client_file_id', clientFileId).order('version', { ascending: false }).limit(1).maybeSingle();
   let tbAccountIds = new Set();
   if (latestTb) {
     const { data: lines } = await sb.from('trial_balance_lines').select('coa_account_id').eq('trial_balance_id', latestTb.id).not('coa_account_id', 'is', null);
     (lines || []).forEach(l => tbAccountIds.add(l.coa_account_id));
   }
-  const eligible = templates.filter(t => !t.coa_account_id || tbAccountIds.has(t.coa_account_id));
+  const coaEligible = templates.filter(t => !t.coa_account_id || tbAccountIds.has(t.coa_account_id));
+  if (!coaEligible.length) return;
+
+  // فلترة حسب طبيعة/نوع العميل للقوالب "الخاصة"
+  const specialIds = coaEligible.filter(t => t.visibility === 'special').map(t => t.id);
+  let visTargetsByTpl = {};
+  if (specialIds.length) {
+    const { data: targets } = await sb.from('wp_visibility_targets').select('*').eq('entity_type', 'requirement_template').in('entity_id', specialIds);
+    (targets || []).forEach(vt => { (visTargetsByTpl[vt.entity_id] = visTargetsByTpl[vt.entity_id] || []).push(vt); });
+  }
+  const eligible = coaEligible.filter(t => {
+    if (t.visibility !== 'special') return true;
+    const myTargets = visTargetsByTpl[t.id] || [];
+    if (!myTargets.length) return false;
+    return myTargets.some(vt =>
+      (!vt.client_type_id || vt.client_type_id === (client && client.client_type_id)) &&
+      (!vt.sector_id || vt.sector_id === (client && client.sector_id))
+    );
+  });
   if (!eligible.length) return;
+
   const { data: existing } = await sb.from('wp_requirements').select('template_id').eq('client_file_id', clientFileId).not('template_id', 'is', null);
   const existingTplIds = new Set((existing || []).map(e => e.template_id));
-  const { data: file } = await sb.from('client_files').select('client_id').eq('id', clientFileId).maybeSingle();
   for (const t of eligible) {
     if (existingTplIds.has(t.id)) continue;
     const { data: newReq } = await sb.from('wp_requirements').insert({
@@ -1240,22 +1262,35 @@ app.get('/api/requirement-templates', requireAuth, async (req, res) => {
   res.json(data || []);
 });
 
+app.get('/api/requirement-templates/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: tpl, error } = await sb.from('wp_requirement_templates').select('*').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (error) return res.status(500).json({ message: error.message });
+  if (!tpl) return res.status(404).json({ message: 'القالب غير موجود' });
+  const { data: targets } = await sb.from('wp_visibility_targets').select('*').eq('entity_type', 'requirement_template').eq('entity_id', req.params.id);
+  res.json({ template: tpl, targets: targets || [] });
+});
+
 app.post('/api/requirement-templates', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const b = req.body || {};
   if (!b.title || !b.title.trim()) return res.status(400).json({ message: 'اسم القالب إلزامي' });
-  const payload = { company_id: req.session.companyId, title: b.title.trim(), coa_account_id: b.coa_account_id || null, visibility: b.coa_account_id ? 'general' : 'general' };
+  const payload = { company_id: req.session.companyId, title: b.title.trim(), coa_account_id: b.coa_account_id || null, visibility: b.visibility === 'special' ? 'special' : 'general' };
   const { data, error } = await sb.from('wp_requirement_templates').insert(payload).select().single();
   if (error) return res.status(500).json({ message: error.message });
+  try { await saveVisibilityTargets(sb, 'requirement_template', data.id, b.visibility_targets); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
   res.json(data);
 });
 
 app.put('/api/requirement-templates/:id', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const b = req.body || {};
-  const payload = { title: b.title, coa_account_id: b.coa_account_id || null, is_active: b.is_active !== false };
+  const payload = { title: b.title, coa_account_id: b.coa_account_id || null, visibility: b.visibility === 'special' ? 'special' : 'general', is_active: b.is_active !== false };
   const { data, error } = await sb.from('wp_requirement_templates').update(payload).eq('id', req.params.id).eq('company_id', req.session.companyId).select().single();
   if (error) return res.status(500).json({ message: error.message });
+  try { await saveVisibilityTargets(sb, 'requirement_template', req.params.id, b.visibility_targets); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
   res.json(data);
 });
 
@@ -1263,6 +1298,7 @@ app.delete('/api/requirement-templates/:id', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const { error } = await sb.from('wp_requirement_templates').delete().eq('id', req.params.id).eq('company_id', req.session.companyId);
   if (error) return res.status(500).json({ message: error.message });
+  await sb.from('wp_visibility_targets').delete().eq('entity_type', 'requirement_template').eq('entity_id', req.params.id);
   res.json({ ok: true });
 });
 
