@@ -99,7 +99,30 @@ app.post('/api/login', async (req, res) => {
     .maybeSingle();
 
   if (userErr) return res.status(500).json({ message: 'خطأ بالخادم أثناء التحقق من المستخدم' });
-  if (!user || !user.is_active) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+
+  // إذا لم يوجد كموظف مكتب داخلي، جرّب البحث عنه كموظف عميل (بوابة العميل)
+  if (!user || !user.is_active) {
+    const { data: emp } = await sb.from('client_employees')
+      .select('id, full_name, job_title, username, password_hash, is_portal_enabled, client_id, clients!inner(id, name, company_id)')
+      .eq('username', username.trim()).eq('clients.company_id', company.id).maybeSingle();
+
+    if (emp && emp.is_portal_enabled) {
+      const empPasswordOk = await bcrypt.compare(password, emp.password_hash || '');
+      if (!empPasswordOk) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+      await sb.from('client_employees').update({ last_login_at: new Date().toISOString() }).eq('id', emp.id);
+      const portalToken = jwt.sign(
+        { type: 'client_portal', employeeId: emp.id, clientId: emp.client_id, companyId: company.id },
+        SESSION_SECRET || 'dev-insecure-secret-change-me', { expiresIn: '12h' }
+      );
+      return res.json({
+        token: portalToken, portal: true,
+        companyId: company.id, companyName: company.name_ar,
+        employeeId: emp.id, fullName: emp.full_name, jobTitle: emp.job_title,
+        clientId: emp.client_id, clientName: emp.clients.name,
+      });
+    }
+    return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+  }
 
   const passwordOk = await bcrypt.compare(password, user.password_hash || '');
   if (!passwordOk) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
@@ -111,6 +134,7 @@ app.post('/api/login', async (req, res) => {
 
   res.json({
     token,
+    portal: false,
     companyId: company.id,
     companyName: company.name_ar,
     userId: user.id,
@@ -584,7 +608,14 @@ app.post('/api/clients/:id/employees', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const { data: client } = await sb.from('clients').select('id').eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
   if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
-  const { data, error } = await sb.from('client_employees').insert({ ...req.body, client_id: req.params.id }).select().single();
+  const b = req.body || {};
+  const payload = {
+    client_id: req.params.id,
+    full_name: b.full_name, job_title: b.job_title || null,
+    email: b.email || null, phone: b.phone || null,
+    is_primary_contact: !!b.is_primary_contact,
+  };
+  const { data, error } = await sb.from('client_employees').insert(payload).select().single();
   if (error) return res.status(500).json({ message: error.message });
   res.json(data);
 });
