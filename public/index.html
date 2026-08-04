@@ -1893,6 +1893,8 @@
           <div><div class="crumb">تهيئة النظام</div><h1>تهيئة تقارير المراجعة</h1>
             <p class="desc">قاعدة النصوص المعتمدة التي يُبنى منها كل تقرير: الرأي، أساس الرأي، لفت الانتباه، الأمر الآخر، مسؤوليات الإدارة والمراجع، والمتطلبات النظامية</p></div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn" onclick="openGroupsManager()">إدارة المجموعات</button>
+            <button class="btn" onclick="openTypesManager()">أنواع التقرير والرأي</button>
             <button class="btn" onclick="openRcImport()">استيراد من إكسل</button>
             <button class="btn dark" onclick="openRcEditor(null)">+ إضافة بند</button>
           </div>
@@ -1902,24 +1904,17 @@
           <div style="display:flex; gap:22px; flex-wrap:wrap; align-items:center;">
             <div>
               <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">نوع التقرير</div>
-              <div class="seg" id="rc-seg-kind">
-                <button class="on" onclick="rcSetKind('annual',this)">سنوي</button>
-                <button onclick="rcSetKind('interim',this)">مرحلي / فحص</button>
-              </div>
+              <div class="seg" id="rc-seg-kind"></div>
             </div>
             <div>
               <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">نوع الرأي</div>
-              <div class="seg brass" id="rc-seg-opinion">
-                <button class="on" onclick="rcSetOpinion('unmodified',this)">غير معدل</button>
-                <button onclick="rcSetOpinion('qualified',this)">متحفظ</button>
-                <button onclick="rcSetOpinion('adverse',this)">معارض</button>
-                <button onclick="rcSetOpinion('disclaimer',this)">امتناع</button>
-              </div>
+              <div class="seg brass" id="rc-seg-opinion"></div>
             </div>
             <div style="flex:1; min-width:200px;">
               <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">بحث في النصوص</div>
               <input id="rc-search" placeholder="اكتب كلمة من البند أو نص الفقرة..." oninput="renderRcItems()" style="width:100%;">
             </div>
+
           </div>
         </div>
 
@@ -2119,57 +2114,151 @@
 
       <!-- ========== بيانات المكتب ========== -->
       <div class="page" id="page-company">
-        <div class="page-head"><div><div class="crumb">تهيئة النظام</div><h1>بيانات المكتب</h1><p class="desc">بيانات مكتبكم كما تظهر في تقارير المراجعة، وبيانات الدخول الخاصة بالمكتب</p></div></div>
+        <div class="page-head">
+          <div><div class="crumb">تهيئة النظام</div><h1>بيانات المكتب</h1>
+            <p class="desc">هذه البيانات تُدرَج آليًا في كل تقرير مراجعة: الاكليشة، الشعار، الترخيص، الختم، التوقيع، وتنسيقات الطباعة</p></div>
+          <button class="btn dark" onclick="saveCompany()">حفظ بيانات المكتب</button>
+        </div>
 
         <div class="form-section">
           <div class="form-section-title">هوية المكتب</div>
           <div class="form-grid">
-            <div class="form-field full"><label>اسم المكتب (عربي)</label><input value="مكتب القحطاني وشركاه لمراجعة الحسابات"></div>
-            <div class="form-field full"><label>اسم المكتب (إنجليزي)</label><input value="Alqahtani & Co. Chartered Accountants"></div>
-            <div class="form-field"><label>رمز المكتب <span class="req">*</span> <span style="font-weight:400; color:var(--muted); font-size:11px;">(يُستخدم عند تسجيل الدخول)</span></label><input value="ETQAN" style="text-transform:uppercase;"></div>
-            <div class="form-field"><label>رخصة مزاولة المهنة</label><input value="AUD-4471"></div>
+            <div class="form-field full"><label>اسم المكتب (عربي)</label><input id="co-name-ar" placeholder="مثال: شركة إتقان للاستشارات المهنية"></div>
+            <div class="form-field full"><label>اسم المكتب (إنجليزي)</label><input id="co-name-en"></div>
+            <div class="form-field"><label>رخصة مزاولة المهنة</label><input id="co-license" placeholder="517"></div>
+            <div class="form-field"><label>المدينة (تظهر في سطر التوقيع)</label><input id="co-city" placeholder="الرياض"></div>
+            <div class="form-field"><label>اسم معتمِد التقرير (الشريك الموقّع)</label><input id="co-signer" placeholder="راشد الغامدي"></div>
+            <div class="form-field"><label>صفة الموقّع</label><input id="co-signer-title" placeholder="محاسب قانوني مرخّص"></div>
           </div>
         </div>
 
-        <div class="grid-2" style="align-items:start;">
-          <div class="form-section">
-            <div class="form-section-title">شعار المكتب</div>
-            <div class="upload-mini">
-              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
-              <b>رفع شعار المكتب</b><span>PNG بخلفية شفافة، بحد أقصى 2 ميجابايت</span>
+        <div class="form-section">
+          <div class="form-section-title">الاكليشة والشعار والختم والتوقيع</div>
+          <p style="font-size:11.5px; color:var(--muted); margin-bottom:12px; line-height:1.9;">
+            الاكليشة هي خلفية ورقة A4 كاملة (بمقاس 210×297مم) وتُطبع خلف نص التقرير في كل صفحة تلقائيًا.
+            استخدم صورة PNG/JPG بدقة 150 نقطة/بوصة على الأقل (1240×1754 بكسل) لضمان وضوح الطباعة.
+          </p>
+          <div class="sig-box">
+            <div class="sig-drop" id="co-drop-letterhead" onclick="pickCompanyImage('letterhead_url')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M8 7h8M8 17h8"/></svg>
+              <b>اكليشة A4 (خلفية التقرير)</b><span>210×297مم — بحد أقصى 4 ميجابايت</span>
+            </div>
+            <div class="sig-drop" id="co-drop-logo" onclick="pickCompanyImage('logo_url')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
+              <b>شعار المكتب</b><span>يُستخدم إن لم تُرفع اكليشة</span>
+            </div>
+            <div class="sig-drop" id="co-drop-stamp" onclick="pickCompanyImage('stamp_url')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><circle cx="12" cy="9" r="5"/><path d="M4 20h16M6 20l1-4h10l1 4"/></svg>
+              <b>ختم المكتب</b><span>PNG بخلفية شفافة</span>
+            </div>
+            <div class="sig-drop" id="co-drop-signature" onclick="pickCompanyImage('signature_url')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><path d="M3 17c3 0 3-10 6-10s3 10 6 10 3-4 6-4"/></svg>
+              <b>توقيع الشريك</b><span>PNG بخلفية شفافة</span>
             </div>
           </div>
-          <div class="form-section">
-            <div class="form-section-title">اكليشة التقارير</div>
-            <div class="upload-mini">
-              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>
-              <b>رفع اكليشة تقرير المراجع</b><span>تظهر في ترويسة وتذييل جميع التقارير الصادرة</span>
-            </div>
+          <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="mini-btn danger" onclick="clearCompanyImage('letterhead_url')">حذف الاكليشة</button>
+            <button class="mini-btn danger" onclick="clearCompanyImage('logo_url')">حذف الشعار</button>
+            <button class="mini-btn danger" onclick="clearCompanyImage('stamp_url')">حذف الختم</button>
+            <button class="mini-btn danger" onclick="clearCompanyImage('signature_url')">حذف التوقيع</button>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">تنسيقات طباعة التقارير</div>
+          <div class="form-grid">
+            <div class="form-field"><label>نوع الخط</label>
+              <select id="rs-font">
+                <option value="Dubai">Dubai (دبي)</option>
+                <option value="IBM Plex Sans Arabic">IBM Plex Sans Arabic</option>
+                <option value="Tajawal">Tajawal</option>
+                <option value="Almarai">Almarai</option>
+                <option value="Traditional Arabic">Traditional Arabic</option>
+              </select></div>
+            <div class="form-field"><label>حجم الخط (pt)</label><input id="rs-size" type="number" min="8" max="20" step="0.5" value="13"></div>
+            <div class="form-field"><label>تباعد الأسطر</label><input id="rs-lh" type="number" min="1" max="3" step="0.05" value="1.9"></div>
+            <div class="form-field"><label>حجم عنوان التقرير (pt)</label><input id="rs-title-size" type="number" min="10" max="26" step="0.5" value="15"></div>
+            <div class="form-field"><label>الهامش العلوي (مم)</label><input id="rs-mt" type="number" min="5" max="90" value="45"></div>
+            <div class="form-field"><label>الهامش السفلي (مم)</label><input id="rs-mb" type="number" min="5" max="90" value="35"></div>
+            <div class="form-field"><label>الهامش الأيمن (مم)</label><input id="rs-mr" type="number" min="5" max="60" value="22"></div>
+            <div class="form-field"><label>الهامش الأيسر (مم)</label><input id="rs-ml" type="number" min="5" max="60" value="22"></div>
+          </div>
+
+          <div class="form-section-title" style="margin-top:18px;">حدود مقاسات الصور والباركود (مم)</div>
+          <div class="form-grid">
+            <div class="form-field"><label>أقصى ارتفاع للشعار</label><input id="rs-logo-h" type="number" min="5" max="60" value="18"></div>
+            <div class="form-field"><label>أقصى ارتفاع للختم</label><input id="rs-stamp-h" type="number" min="10" max="70" value="32"></div>
+            <div class="form-field"><label>أقصى ارتفاع للتوقيع</label><input id="rs-sign-h" type="number" min="8" max="60" value="24"></div>
+            <div class="form-field"><label>مقاس الباركود QR</label><input id="rs-qr" type="number" min="8" max="30" value="15"></div>
+            <div class="form-field full"><label>موضع الباركود في الصفحة</label>
+              <select id="rs-qr-pos">
+                <option value="bottom-center">أسفل الوسط</option>
+                <option value="bottom-right">أسفل اليمين</option>
+                <option value="bottom-left">أسفل اليسار</option>
+                <option value="top-center">أعلى الوسط</option>
+                <option value="top-left">أعلى اليسار</option>
+                <option value="top-right">أعلى اليمين</option>
+              </select></div>
+          </div>
+
+          <div style="display:flex; gap:22px; flex-wrap:wrap; margin-top:16px;">
+            <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="rs-letterhead" checked style="accent-color:#AD8A3F;"> طباعة الاكليشة كخلفية لكل صفحة</label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="rs-hijri" checked style="accent-color:#AD8A3F;"> إظهار التاريخ الهجري مع «الموافق» ميلاديًا</label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="rs-arabic-digits" checked style="accent-color:#AD8A3F;"> استخدام الأرقام العربية (٠١٢٣) في الطباعة</label>
+            <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="rs-justify" checked style="accent-color:#AD8A3F;"> ضبط النص من الجهتين</label>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <div class="form-section-title">مقدمة التقرير (قابلة للتعديل)</div>
+          <div class="form-grid">
+            <div class="form-field"><label>عنوان التقرير — سنوي</label><input id="rs-title-annual" placeholder="تقرير مراجع الحسابات"></div>
+            <div class="form-field"><label>عنوان التقرير — مرحلي</label><input id="rs-title-interim" placeholder="تقرير فحص المعلومات المالية الأولية المستقل"></div>
+            <div class="form-field"><label>الكلمة على يسار سطر المخاطبة</label><input id="rs-respect" placeholder="الموقرين"></div>
+            <div class="form-field"><label>عنوان القسم الأول</label><input id="rs-section1" placeholder="التقرير عن مراجعة القوائم المالية"></div>
+          </div>
+          <div class="form-field full" style="margin-top:12px;">
+            <label>أسطر المقدمة — كل سطر في صف مستقل</label>
+            <textarea id="rs-opening" style="width:100%; min-height:130px; border:1px solid var(--line); border-radius:8px; padding:12px; font-family:inherit; font-size:12.5px; line-height:2.1; background:var(--card); color:var(--text); resize:vertical;"></textarea>
+          </div>
+          <div style="font-size:11px; color:var(--muted); line-height:1.9; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-top:10px;">
+            المتغيّرات المتاحة: <b>#العميل#</b> · <b>#نوع الشركة#</b> · <b>#تاريخ أول الفترة#</b> · <b>#تاريخ أخرالفترة#</b> · <b>#السنة الحالية#</b> · <b>#المكتب#</b> · <b>#الترخيص#</b>
           </div>
         </div>
 
         <div class="form-section">
           <div class="form-section-title">بيانات الاتصال والعنوان</div>
           <div class="form-grid">
-            <div class="form-field"><label>البريد الإلكتروني الرسمي</label><input value="info@officefirm.com"></div>
-            <div class="form-field"><label>الموقع الإلكتروني</label><input value="www.officefirm.com"></div>
-            <div class="form-field"><label>الهاتف</label><input value="0114567890"></div>
-            <div class="form-field"><label>الفاكس</label><input placeholder="اختياري"></div>
-            <div class="form-field full"><label>الشارع</label><input value="طريق الملك فهد"></div>
-            <div class="form-field"><label>المدينة</label><input value="الرياض"></div>
-            <div class="form-field"><label>الرمز البريدي</label><input placeholder="00000"></div>
+            <div class="form-field"><label>البريد الإلكتروني الرسمي</label><input id="co-email"></div>
+            <div class="form-field"><label>الموقع الإلكتروني</label><input id="co-website"></div>
+            <div class="form-field"><label>الهاتف</label><input id="co-phone"></div>
+            <div class="form-field"><label>الفاكس</label><input id="co-fax" placeholder="اختياري"></div>
+            <div class="form-field full"><label>الشارع</label><input id="co-street"></div>
+            <div class="form-field"><label>الرمز البريدي</label><input id="co-postal" placeholder="00000"></div>
+            <div class="form-field"><label>رابط النظام (يُستخدم في الباركود)</label><input id="co-baseurl" placeholder="https://example.com"></div>
           </div>
         </div>
 
         <div class="form-section">
           <div class="form-section-title">البيانات النظامية والضريبية</div>
           <div class="form-grid">
-            <div class="form-field"><label>رقم السجل التجاري</label><input value="1010223344"></div>
-            <div class="form-field"><label>الرقم الضريبي</label><input value="300112233400003"></div>
+            <div class="form-field"><label>رقم السجل التجاري</label><input id="co-cr"></div>
+            <div class="form-field"><label>الرقم الضريبي</label><input id="co-tax"></div>
           </div>
         </div>
-        <button class="btn dark">حفظ بيانات المكتب</button>
+
+        <button class="btn dark" onclick="saveCompany()">حفظ بيانات المكتب</button>
       </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ===== نافذة إضافة عميل جديد      </div>
 
     </div>
   </div>
@@ -2841,10 +2930,7 @@
 
       <div style="margin-bottom:13px;">
         <div style="font-size:11.5px; color:var(--muted); margin-bottom:6px;">نوع التقرير <span class="req">*</span></div>
-        <div class="seg" id="nr-seg-kind">
-          <button class="on" onclick="nrSet('kind','annual',this)">سنوي</button>
-          <button onclick="nrSet('kind','interim',this)">مرحلي / فحص</button>
-        </div>
+        <div class="seg" id="nr-seg-kind"></div>
       </div>
 
       <div style="margin-bottom:13px;">
@@ -2857,12 +2943,7 @@
 
       <div style="margin-bottom:13px;">
         <div style="font-size:11.5px; color:var(--muted); margin-bottom:6px;">نوع الرأي <span class="req">*</span></div>
-        <div class="seg brass" id="nr-seg-op">
-          <button class="on" onclick="nrSet('op','unmodified',this)">غير معدل</button>
-          <button onclick="nrSet('op','qualified',this)">متحفظ</button>
-          <button onclick="nrSet('op','adverse',this)">معارض</button>
-          <button onclick="nrSet('op','disclaimer',this)">امتناع</button>
-        </div>
+        <div class="seg brass" id="nr-seg-op"></div>
       </div>
 
       <div class="form-grid">
@@ -2912,20 +2993,17 @@
     <div class="modal-body">
       <div class="form-grid" style="margin-bottom:12px;">
         <div class="form-field"><label>نوع التقرير</label>
-          <select id="rce-kind"><option value="annual">سنوي</option><option value="interim">مرحلي / فحص</option></select></div>
+          <select id="rce-kind" onchange="rceKindChanged()"></select></div>
         <div class="form-field"><label>نوع الرأي</label>
-          <select id="rce-opinion"><option value="unmodified">غير معدل</option><option value="qualified">متحفظ</option><option value="adverse">معارض</option><option value="disclaimer">امتناع</option></select></div>
+          <select id="rce-opinion"></select></div>
         <div class="form-field full"><label>المجموعة <span class="req">*</span></label>
-          <input id="rce-group" list="rce-grouplist" placeholder="مثال: أساس الرأي المتحفظ">
-          <datalist id="rce-grouplist"></datalist></div>
+          <select id="rce-group" onchange="rceGroupChanged()"></select>
+          <div style="font-size:10.5px; color:var(--muted); margin-top:4px;">الترتيب ووضع الاختيار وإلزامية المجموعة تُدار من زر «إدارة المجموعات» أعلى الصفحة</div></div>
         <div class="form-field full"><label>البند (اسم مختصر يميّز النص) <span class="req">*</span></label>
           <input id="rce-item" placeholder="مثال: العقارات والآلات والمعدات — عدم الاطلاع على المستندات"></div>
         <div class="form-field"><label>القوائم المالية</label>
           <select id="rce-cons"><option value="both">الاثنتان</option><option value="consolidated">موحّدة</option><option value="standalone">غير موحّدة</option></select></div>
-        <div class="form-field"><label>الكود</label><input id="rce-code" placeholder="اختياري"></div>
-        <div class="form-field"><label>ترتيب الفقرة بالتقرير</label><input id="rce-order" type="number" value="100"></div>
-        <div class="form-field"><label>وضع الاختيار</label>
-          <select id="rce-mode"><option value="single">فقرة واحدة</option><option value="multi">عدة صفوف (قابلة للإضافة)</option></select></div>
+        <div class="form-field"><label>الكود</label><input id="rce-code" disabled placeholder="يُنشأ تلقائيًا عند الحفظ" style="color:var(--muted); background:var(--paper);"></div>
       </div>
       <div class="form-field full" style="margin-bottom:10px;">
         <label>البيان — نص الفقرة <span class="req">*</span></label>
@@ -2935,6 +3013,7 @@
         المتغيّرات المتاحة داخل النص — تُستبدل آليًا عند إنشاء التقرير:
         <b>#العميل#</b> · <b>#نوع الشركة#</b> · <b>#تاريخ أول الفترة#</b> · <b>#تاريخ أخرالفترة#</b> · <b>#السنة الحالية#</b>
       </div>
+
       <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:12px; color:var(--text); cursor:pointer;">
         <input type="checkbox" id="rce-active" checked style="accent-color:#AD8A3F;"> البند مُفعّل ويظهر عند إنشاء التقارير
       </label>
@@ -2988,24 +3067,94 @@
     </div>
     <div class="modal-body">
       <div style="margin-bottom:13px;"><div style="font-size:11.5px; color:var(--muted); margin-bottom:6px;">نوع التقرير</div>
-        <div class="seg" id="rx-seg-kind">
-          <button onclick="rxSet('kind','annual',this)">سنوي</button>
-          <button onclick="rxSet('kind','interim',this)">مرحلي / فحص</button></div></div>
+        <div class="seg" id="rx-seg-kind"></div></div>
       <div style="margin-bottom:13px;"><div style="font-size:11.5px; color:var(--muted); margin-bottom:6px;">القوائم المالية</div>
         <div class="seg" id="rx-seg-cons">
           <button onclick="rxSet('cons','consolidated',this)">موحّدة</button>
           <button onclick="rxSet('cons','standalone',this)">غير موحّدة</button></div></div>
       <div><div style="font-size:11.5px; color:var(--muted); margin-bottom:6px;">نوع الرأي</div>
-        <div class="seg brass" id="rx-seg-op">
-          <button onclick="rxSet('op','unmodified',this)">غير معدل</button>
-          <button onclick="rxSet('op','qualified',this)">متحفظ</button>
-          <button onclick="rxSet('op','adverse',this)">معارض</button>
-          <button onclick="rxSet('op','disclaimer',this)">امتناع</button></div></div>
+        <div class="seg brass" id="rx-seg-op"></div></div>
     </div>
     <div class="modal-foot">
       <button class="btn" onclick="closeModal('modal-recompose')">إلغاء</button>
       <button class="btn dark" onclick="doRecompose()">إعادة التركيب</button>
     </div>
+  </div>
+</div>
+
+<!-- ===== إضافة فقرة أخرى للتقرير من قائمة المجموعات ===== -->
+<div class="modal-overlay" id="modal-addsection">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h3>إضافة فقرة أخرى للتقرير</h3><span>اختر مجموعة من التهيئة — ثم اختر نصّها من المكتبة</span></div>
+      <div class="modal-close" onclick="closeModal('modal-addsection')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="as-list" style="max-height:50vh; overflow:auto;"></div>
+      <div id="as-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal('modal-addsection')">إغلاق</button></div>
+  </div>
+</div>
+
+<!-- ===== إدارة مجموعات التقرير ===== -->
+<div class="modal-overlay" id="modal-groups">
+  <div class="modal-box" style="max-width:760px;">
+    <div class="modal-head">
+      <div><h3>إدارة المجموعات</h3><span>الاسم، ترتيب الظهور، الإلزامية، ووضع الاختيار لكل مجموعة</span></div>
+      <div class="modal-close" onclick="closeModal('modal-groups')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:12px;">
+        <div class="seg" id="grp-seg-kind"></div>
+      </div>
+      <div id="grp-list" style="max-height:50vh; overflow:auto;"></div>
+      <div style="border-top:1px solid var(--line); margin-top:14px; padding-top:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+        <div class="form-field" style="flex:1; min-width:180px; margin:0;"><label>اسم مجموعة جديدة</label><input id="grp-new-name" placeholder="مثال: أمر آخر"></div>
+        <div class="form-field" style="width:110px; margin:0;"><label>الترتيب</label><input id="grp-new-order" type="number" value="100"></div>
+        <div class="form-field" style="width:150px; margin:0;"><label>وضع الاختيار</label>
+          <select id="grp-new-mode"><option value="single">فقرة واحدة</option><option value="multi">عدة صفوف</option></select></div>
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:10px; cursor:pointer;">
+          <input type="checkbox" id="grp-new-required" style="accent-color:#AD8A3F;"> إلزامية</label>
+        <button class="btn dark" onclick="createGroup()">إضافة مجموعة</button>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal('modal-groups')">إغلاق</button></div>
+  </div>
+</div>
+
+<!-- ===== إدارة أنواع التقرير وأنواع الرأي ===== -->
+<div class="modal-overlay" id="modal-types">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="modal-head">
+      <div><h3>أنواع التقرير وأنواع الرأي</h3><span>هذه القوائم تُغذّي كل الأزرار في النظام — أضف نوعًا جديدًا هنا وسيظهر تلقائيًا بكل مكان</span></div>
+      <div class="modal-close" onclick="closeModal('modal-types')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-section-title" style="margin-top:0;">أنواع التقرير</div>
+      <div id="tm-kinds-list" style="margin-bottom:8px;"></div>
+      <div style="display:flex; gap:8px; align-items:flex-end; margin-bottom:20px;">
+        <div class="form-field" style="flex:1; margin:0;"><label>كود (إنجليزي)</label><input id="tm-kind-code" placeholder="e.g. limited_review"></div>
+        <div class="form-field" style="flex:1; margin:0;"><label>الاسم الظاهر</label><input id="tm-kind-label" placeholder="مراجعة محدودة"></div>
+        <button class="btn dark" onclick="createKind()">إضافة</button>
+      </div>
+
+      <div class="form-section-title">أنواع الرأي</div>
+      <div style="margin-bottom:8px;"><div class="seg" id="tm-op-seg-kind"></div></div>
+      <div id="tm-ops-list" style="margin-bottom:8px;"></div>
+      <div style="display:flex; gap:8px; align-items:flex-end;">
+        <div class="form-field" style="flex:1; margin:0;"><label>كود (إنجليزي)</label><input id="tm-op-code" placeholder="e.g. adverse"></div>
+        <div class="form-field" style="flex:1; margin:0;"><label>الاسم الظاهر</label><input id="tm-op-label" placeholder="معارض"></div>
+        <button class="btn dark" onclick="createOpinion()">إضافة</button>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" onclick="closeModal('modal-types')">إغلاق</button></div>
   </div>
 </div>
 
@@ -6424,18 +6573,168 @@ const AR_MONTHS=['يناير','فبراير','مارس','أبريل','مايو',
 function arDate(d){ if(!d) return ''; const dt=new Date(d); if(isNaN(dt)) return String(d);
   return dt.getDate()+' '+AR_MONTHS[dt.getMonth()]+' '+dt.getFullYear(); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-const KIND_LABEL={annual:'سنوي', interim:'مرحلي'};
-const OP_LABEL={unmodified:'غير معدل', qualified:'متحفظ', adverse:'معارض', disclaimer:'امتناع عن إبداء الرأي'};
-const OP_LABEL_I={unmodified:'استنتاج غير معدّل', qualified:'استنتاج متحفظ', adverse:'استنتاج معارض', disclaimer:'امتناع عن إبداء استنتاج'};
-function opLabel(kind,op){ return kind==='interim' ? (OP_LABEL_I[op]||op) : (OP_LABEL[op]||op); }
+
+/* ==========================================================================
+   مرجعية ديناميكية: أنواع التقرير وأنواع الرأي (من قاعدة البيانات وليست ثابتة)
+   ========================================================================== */
+let REF = { kinds: [], opinionsByKind: {} };
+
+async function loadRefKinds(){
+  REF.kinds = await apiFetch('/api/report-kinds');
+  if(!REF.kinds.length) REF.kinds=[{code:'annual',label_ar:'سنوي',sort_order:10}];
+  return REF.kinds;
+}
+async function loadRefOpinions(kind){
+  if(REF.opinionsByKind[kind]) return REF.opinionsByKind[kind];
+  const list = await apiFetch('/api/report-opinions?kind='+encodeURIComponent(kind));
+  REF.opinionsByKind[kind] = list;
+  return list;
+}
+function kindLabel(code){ const k=(REF.kinds||[]).find(x=>x.code===code); return k?k.label_ar:code; }
+function opLabel(kind,op){ const list=(REF.opinionsByKind||{})[kind]||[]; const o=list.find(x=>x.code===op); return o?o.label_ar:op; }
+
+// يبني أزرار seg من قائمة أكواد/أسماء، ويستدعي دالة عامة باسمها (handlerName) عند الاختيار
+function renderSeg(containerId, list, selected, handlerName){
+  const box=document.getElementById(containerId); if(!box) return;
+  box.innerHTML = list.map(item=>
+    `<button class="${item.code===selected?'on':''}" onclick='${handlerName}(${JSON.stringify(item.code)}, this)'>${esc(item.label_ar)}</button>`
+  ).join('') || '<span style="font-size:11px;color:var(--muted);">لا توجد أنواع بعد — أضفها من «أنواع التقرير والرأي»</span>';
+}
+
+/* ==========================================================================
+   إدارة المجموعات وأنواع التقرير/الرأي (نوافذ منبثقة من شاشة التهيئة)
+   ========================================================================== */
+let GRP_STATE = { kind: 'annual', list: [] };
+
+async function openGroupsManager(){
+  if(!REF.kinds.length) await loadRefKinds();
+  GRP_STATE.kind = RC.kind || REF.kinds[0].code;
+  openModal('modal-groups');
+  renderSeg('grp-seg-kind', REF.kinds, GRP_STATE.kind, 'grpPickKind');
+  await loadGroupsList();
+}
+async function grpPickKind(code, btn){ GRP_STATE.kind=code; renderSeg('grp-seg-kind', REF.kinds, code, 'grpPickKind'); await loadGroupsList(); }
+async function loadGroupsList(){
+  const box=document.getElementById('grp-list');
+  box.innerHTML='<div class="empty-hint" style="padding:20px;">جارٍ التحميل...</div>';
+  try{
+    GRP_STATE.list = await apiFetch('/api/report-groups?kind='+encodeURIComponent(GRP_STATE.kind));
+    box.innerHTML = GRP_STATE.list.length ? GRP_STATE.list.map(g=>`
+      <div class="rc-item" style="padding:10px 13px;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <input value="${esc(g.group_name)}" style="flex:1; min-width:160px;" onchange="updateGroup('${g.id}',{group_name:this.value})">
+          <input type="number" value="${g.section_order}" style="width:70px;" title="الترتيب" onchange="updateGroup('${g.id}',{section_order:Number(this.value)||100})">
+          <select style="width:130px;" onchange="updateGroup('${g.id}',{selection_mode:this.value})">
+            <option value="single" ${g.selection_mode==='single'?'selected':''}>فقرة واحدة</option>
+            <option value="multi" ${g.selection_mode==='multi'?'selected':''}>عدة صفوف</option>
+          </select>
+          <label style="display:flex; align-items:center; gap:5px; font-size:11.5px; cursor:pointer;">
+            <input type="checkbox" ${g.is_required?'checked':''} style="accent-color:#AD8A3F;" onchange="updateGroup('${g.id}',{is_required:this.checked})"> إلزامية</label>
+          <span class="${g.company_id?'tag-own':'tag-lib'}">${g.company_id?'مكتبك':'عامة'}</span>
+          <button class="mini-btn danger" onclick="deleteGroup('${g.id}')">حذف</button>
+        </div>
+      </div>`).join('') : '<div class="empty-hint" style="padding:20px;">لا توجد مجموعات لهذا النوع بعد</div>';
+  }catch(e){ box.innerHTML='<div class="empty-hint">'+esc(e.message)+'</div>'; }
+}
+async function updateGroup(id, patch){
+  try{ await apiFetch('/api/report-groups/'+id,{method:'PUT',body:JSON.stringify(patch)}); showToast('تم الحفظ'); await loadGroupsList();
+    if(typeof RC!=='undefined'){ RC.summary=[]; loadRcSummary(); } }
+  catch(e){ showToast(e.message); }
+}
+async function deleteGroup(id){
+  if(!confirm('حذف هذه المجموعة؟ لن يحذف نصوصها الموجودة لكنها لن تظهر في القوائم بعد الآن.')) return;
+  try{ await apiFetch('/api/report-groups/'+id,{method:'DELETE'}); showToast('تم الحذف'); await loadGroupsList(); loadRcSummary(); }
+  catch(e){ showToast(e.message); }
+}
+async function createGroup(){
+  const name=document.getElementById('grp-new-name').value.trim();
+  if(!name){ showToast('اكتب اسم المجموعة'); return; }
+  try{
+    await apiFetch('/api/report-groups',{method:'POST',body:JSON.stringify({
+      report_kind:GRP_STATE.kind, group_name:name,
+      section_order:Number(document.getElementById('grp-new-order').value)||100,
+      selection_mode:document.getElementById('grp-new-mode').value,
+      is_required:document.getElementById('grp-new-required').checked })});
+    document.getElementById('grp-new-name').value='';
+    showToast('أُضيفت المجموعة'); await loadGroupsList(); loadRcSummary();
+  }catch(e){ showToast(e.message); }
+}
+
+let TM_STATE = { opKind: 'annual' };
+async function openTypesManager(){
+  if(!REF.kinds.length) await loadRefKinds();
+  TM_STATE.opKind = RC.kind || REF.kinds[0].code;
+  openModal('modal-types');
+  renderTmKinds();
+  renderSeg('tm-op-seg-kind', REF.kinds, TM_STATE.opKind, 'tmPickOpKind');
+  await renderTmOps();
+}
+function renderTmKinds(){
+  document.getElementById('tm-kinds-list').innerHTML = REF.kinds.map(k=>`
+    <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--line);">
+      <span style="flex:1; font-size:12.5px;">${esc(k.label_ar)} <span class="tag-lib">${esc(k.code)}</span></span>
+      <button class="mini-btn danger" onclick="deleteKind('${k.id}')">حذف</button>
+    </div>`).join('') || '<div class="empty-hint" style="padding:10px;">لا توجد أنواع</div>';
+}
+async function tmPickOpKind(code){ TM_STATE.opKind=code; renderSeg('tm-op-seg-kind', REF.kinds, code, 'tmPickOpKind'); await renderTmOps(); }
+async function renderTmOps(){
+  const box=document.getElementById('tm-ops-list');
+  box.innerHTML='<div class="empty-hint" style="padding:10px;">جارٍ التحميل...</div>';
+  const list = await apiFetch('/api/report-opinions?kind='+encodeURIComponent(TM_STATE.opKind));
+  REF.opinionsByKind[TM_STATE.opKind]=list;
+  box.innerHTML = list.map(o=>`
+    <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--line);">
+      <span style="flex:1; font-size:12.5px;">${esc(o.label_ar)} <span class="tag-lib">${esc(o.code)}</span></span>
+      <button class="mini-btn danger" onclick="deleteOpinion('${o.id}')">حذف</button>
+    </div>`).join('') || '<div class="empty-hint" style="padding:10px;">لا توجد أنواع رأي لهذا النوع</div>';
+}
+async function createKind(){
+  const code=document.getElementById('tm-kind-code').value.trim();
+  const label=document.getElementById('tm-kind-label').value.trim();
+  if(!code||!label){ showToast('عبّئ الكود والاسم'); return; }
+  try{
+    await apiFetch('/api/report-kinds',{method:'POST',body:JSON.stringify({code,label_ar:label,sort_order:(REF.kinds.length+1)*10})});
+    document.getElementById('tm-kind-code').value=''; document.getElementById('tm-kind-label').value='';
+    await loadRefKinds(); renderTmKinds(); showToast('أُضيف النوع'); syncRcSegs();
+  }catch(e){ showToast(e.message); }
+}
+async function deleteKind(id){
+  if(!confirm('حذف نوع التقرير هذا؟')) return;
+  try{ await apiFetch('/api/report-kinds/'+id,{method:'DELETE'}); await loadRefKinds(); renderTmKinds(); showToast('تم الحذف'); syncRcSegs(); }
+  catch(e){ showToast(e.message); }
+}
+async function createOpinion(){
+  const code=document.getElementById('tm-op-code').value.trim();
+  const label=document.getElementById('tm-op-label').value.trim();
+  if(!code||!label){ showToast('عبّئ الكود والاسم'); return; }
+  try{
+    await apiFetch('/api/report-opinions',{method:'POST',body:JSON.stringify({report_kind:TM_STATE.opKind,code,label_ar:label,sort_order:100})});
+    document.getElementById('tm-op-code').value=''; document.getElementById('tm-op-label').value='';
+    delete REF.opinionsByKind[TM_STATE.opKind];
+    await renderTmOps(); showToast('أُضيف نوع الرأي'); syncRcSegs();
+  }catch(e){ showToast(e.message); }
+}
+async function deleteOpinion(id){
+  if(!confirm('حذف نوع الرأي هذا؟')) return;
+  try{ await apiFetch('/api/report-opinions/'+id,{method:'DELETE'}); delete REF.opinionsByKind[TM_STATE.opKind]; await renderTmOps(); showToast('تم الحذف'); syncRcSegs(); }
+  catch(e){ showToast(e.message); }
+}
 
 /* ==========================================================================
    2) شاشة تهيئة تقارير المراجعة
    ========================================================================== */
 let RC={ kind:'annual', opinion:'unmodified', group:null, summary:[], items:[], editingId:null, editingIsGlobal:false };
 
-function rcSetKind(k,btn){ RC.kind=k; segOn(btn); RC.group=null; loadRcSummary(); }
-function rcSetOpinion(o,btn){ RC.opinion=o; segOn(btn); RC.group=null; loadRcSummary(); }
+async function syncRcSegs(){
+  if(!REF.kinds.length) await loadRefKinds();
+  if(!REF.kinds.find(k=>k.code===RC.kind)) RC.kind = REF.kinds[0] ? REF.kinds[0].code : RC.kind;
+  renderSeg('rc-seg-kind', REF.kinds, RC.kind, 'rcSetKind');
+  const ops = await loadRefOpinions(RC.kind);
+  if(!ops.find(o=>o.code===RC.opinion)) RC.opinion = ops[0] ? ops[0].code : RC.opinion;
+  renderSeg('rc-seg-opinion', ops, RC.opinion, 'rcSetOpinion');
+}
+async function rcSetKind(k){ RC.kind=k; RC.group=null; await syncRcSegs(); loadRcSummary(); }
+async function rcSetOpinion(o){ RC.opinion=o; RC.group=null; renderSeg('rc-seg-opinion', REF.opinionsByKind[RC.kind]||[], o, 'rcSetOpinion'); loadRcSummary(); }
 function segOn(btn){ btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
 
 async function loadRcSummary(){
@@ -6443,18 +6742,28 @@ async function loadRcSummary(){
   if(!box) return;
   box.innerHTML='<div class="empty-hint" style="padding:26px 10px;">جارٍ التحميل...</div>';
   try{
-    const all=await apiFetch('/api/report-config/summary');
-    RC.summary=all.filter(r=>r.report_kind===RC.kind && r.opinion_type===RC.opinion);
+    const [all, groups] = await Promise.all([
+      apiFetch('/api/report-config/summary'),
+      apiFetch('/api/report-groups?kind='+encodeURIComponent(RC.kind)),
+    ]);
+    const counts = {};
+    all.filter(r=>r.report_kind===RC.kind && r.opinion_type===RC.opinion).forEach(r=>{ counts[r.group_name]=r; });
+    RC.summary = groups.map(g=>({
+      report_kind: RC.kind, opinion_type: RC.opinion, group_name: g.group_name,
+      section_order: g.section_order, selection_mode: g.selection_mode, is_required: g.is_required,
+      total: counts[g.group_name]?counts[g.group_name].total:0, active: counts[g.group_name]?counts[g.group_name].active:0,
+      own: counts[g.group_name]?counts[g.group_name].own:0,
+    }));
     if(!RC.summary.length){
-      box.innerHTML='<div class="empty-hint" style="padding:26px 10px;">لا توجد بنود لهذا النوع بعد — أضف بندًا جديدًا</div>';
+      box.innerHTML='<div class="empty-hint" style="padding:26px 10px;">لا توجد مجموعات لهذا النوع بعد — أضِفها من «إدارة المجموعات»</div>';
       document.getElementById('rc-items').innerHTML='<div class="panel"><div class="empty-hint" style="padding:60px 20px;">لا توجد بنود</div></div>';
       return;
     }
-    if(!RC.group) RC.group=RC.summary[0].group_name;
+    if(!RC.group || !RC.summary.find(g=>g.group_name===RC.group)) RC.group=RC.summary[0].group_name;
     box.innerHTML=RC.summary.map(g=>`
       <div class="rc-grp ${g.group_name===RC.group?'active':''}" onclick="rcPickGroup('${esc(g.group_name).replace(/'/g,"\\'")}')">
         <span class="rc-order">${g.section_order}</span>
-        <span class="t">${esc(g.group_name)}</span>
+        <span class="t">${esc(g.group_name)}${g.is_required?' *':''}</span>
         <span class="rc-count">${g.active}/${g.total}</span>
       </div>`).join('');
     loadRcItems();
@@ -6504,25 +6813,38 @@ function renderRcItems(){
     </div>`).join('');
 }
 
-function openRcEditor(id){
+async function openRcEditor(id){
   RC.editingId=id;
   const r=id?RC.items.find(x=>x.id===id):null;
   RC.editingIsGlobal=!!(r&&!r.company_id);
   document.getElementById('rce-title').textContent=id?'تعديل بند':'إضافة بند لقاعدة التهيئة';
-  document.getElementById('rce-kind').value=r?r.report_kind:RC.kind;
-  document.getElementById('rce-opinion').value=r?r.opinion_type:RC.opinion;
-  document.getElementById('rce-group').value=r?r.group_name:(RC.group||'');
+  if(!REF.kinds.length) await loadRefKinds();
+  const kindSel=document.getElementById('rce-kind');
+  kindSel.innerHTML=REF.kinds.map(k=>`<option value="${esc(k.code)}">${esc(k.label_ar)}</option>`).join('');
+  const targetKind=r?r.report_kind:RC.kind;
+  kindSel.value=targetKind;
+  await rceKindChanged(r?r.opinion_type:RC.opinion, r?r.group_name:RC.group);
   document.getElementById('rce-item').value=r?(r.item_name||''):'';
   document.getElementById('rce-cons').value=r?r.consolidation:'both';
   document.getElementById('rce-code').value=r?(r.code||''):'';
-  document.getElementById('rce-order').value=r?r.section_order:( (RC.summary.find(g=>g.group_name===RC.group)||{}).section_order || 100);
-  document.getElementById('rce-mode').value=r?r.selection_mode:((RC.summary.find(g=>g.group_name===RC.group)||{}).selection_mode||'single');
   document.getElementById('rce-body').value=r?(r.body||''):'';
   document.getElementById('rce-active').checked=r?!!r.is_active:true;
   document.getElementById('rce-error').style.display='none';
-  document.getElementById('rce-grouplist').innerHTML=RC.summary.map(g=>`<option value="${esc(g.group_name)}">`).join('');
   openModal('modal-rcedit');
 }
+
+async function rceKindChanged(presetOpinion, presetGroup){
+  const kind=document.getElementById('rce-kind').value;
+  const [ops, groups] = await Promise.all([loadRefOpinions(kind), apiFetch('/api/report-groups?kind='+encodeURIComponent(kind))]);
+  const opSel=document.getElementById('rce-opinion');
+  opSel.innerHTML=ops.map(o=>`<option value="${esc(o.code)}">${esc(o.label_ar)}</option>`).join('');
+  if(presetOpinion && ops.find(o=>o.code===presetOpinion)) opSel.value=presetOpinion;
+  const grpSel=document.getElementById('rce-group');
+  grpSel.innerHTML=groups.map(g=>`<option value="${esc(g.group_name)}">${esc(g.group_name)}</option>`).join('')
+    || '<option value="">— أضف مجموعة أولًا من «إدارة المجموعات» —</option>';
+  if(presetGroup && groups.find(g=>g.group_name===presetGroup)) grpSel.value=presetGroup;
+}
+function rceGroupChanged(){ /* لا حاجة لإجراء إضافي — الترتيب ووضع الاختيار يُداران من المجموعة */ }
 
 async function saveRcItem(){
   const err=document.getElementById('rce-error');
@@ -6532,9 +6854,6 @@ async function saveRcItem(){
     group_name:document.getElementById('rce-group').value.trim(),
     item_name:document.getElementById('rce-item').value.trim(),
     consolidation:document.getElementById('rce-cons').value,
-    code:document.getElementById('rce-code').value.trim(),
-    section_order:Number(document.getElementById('rce-order').value)||100,
-    selection_mode:document.getElementById('rce-mode').value,
     body:document.getElementById('rce-body').value,
     is_active:document.getElementById('rce-active').checked,
   };
@@ -6546,15 +6865,8 @@ async function saveRcItem(){
     closeModal('modal-rcedit');
     showToast(RC.editingIsGlobal?'حُفظت نسخة خاصة بمكتبك':'تم الحفظ');
     RC.group=payload.group_name; RC.kind=payload.report_kind; RC.opinion=payload.opinion_type;
-    syncRcSegs(); loadRcSummary();
+    await syncRcSegs(); loadRcSummary();
   }catch(e){ err.textContent=e.message; err.style.display='block'; }
-}
-
-function syncRcSegs(){
-  const kb=document.querySelectorAll('#rc-seg-kind button');
-  kb.forEach((b,i)=>b.classList.toggle('on', (i===0)===(RC.kind==='annual')));
-  const order=['unmodified','qualified','adverse','disclaimer'];
-  document.querySelectorAll('#rc-seg-opinion button').forEach((b,i)=>b.classList.toggle('on', order[i]===RC.opinion));
 }
 
 async function rcToggleActive(id){
@@ -6631,7 +6943,7 @@ function renderReportsList(){
     <tr style="cursor:pointer;" onclick="openReport('${r.id}')">
       <td style="font-variant-numeric:tabular-nums;">${esc(r.report_no||'—')}</td>
       <td><b>${esc(r.clients&&r.clients.name||'—')}</b></td>
-      <td>${KIND_LABEL[r.report_kind]||''} · ${r.consolidation==='consolidated'?'موحّدة':'غير موحّدة'}</td>
+      <td>${kindLabel(r.report_kind)} · ${r.consolidation==='consolidated'?'موحّدة':'غير موحّدة'}</td>
       <td>${esc(r.period_end?arDate(r.period_end):(r.client_files&&r.client_files.name)||'—')}</td>
       <td>${esc(opLabel(r.report_kind,r.opinion_type))}</td>
       <td>${esc(r.report_date?arDate(r.report_date):'—')}</td>
@@ -6642,12 +6954,23 @@ function renderReportsList(){
 
 /* ---- نافذة إنشاء تقرير ---- */
 let NR={kind:'annual', cons:'consolidated', op:'unmodified'};
-function nrSet(f,v,btn){ NR[f]=v; segOn(btn); }
+function nrSet(f,v,btn){ NR[f]=v; if(btn) segOn(btn); if(f==='kind') nrKindChanged(); }
+async function nrKindChanged(){
+  const ops = await loadRefOpinions(NR.kind);
+  if(!ops.find(o=>o.code===NR.op)) NR.op = ops[0] ? ops[0].code : NR.op;
+  renderSeg('nr-seg-op', ops, NR.op, 'nrSetOp');
+}
+function nrSetKind(code){ nrSet('kind', code); renderSeg('nr-seg-kind', REF.kinds, code, 'nrSetKind'); }
+function nrSetOp(code){ nrSet('op', code); renderSeg('nr-seg-op', REF.opinionsByKind[NR.kind]||[], code, 'nrSetOp'); }
 
 async function openNewReportModal(){
-  NR={kind:'annual', cons:'consolidated', op:'unmodified'};
-  ['nr-seg-kind','nr-seg-cons','nr-seg-op'].forEach(id=>{
-    const bs=document.querySelectorAll('#'+id+' button'); bs.forEach((b,i)=>b.classList.toggle('on',i===0)); });
+  if(!REF.kinds.length) await loadRefKinds();
+  NR={kind:REF.kinds[0]?REF.kinds[0].code:'annual', cons:'consolidated', op:'unmodified'};
+  renderSeg('nr-seg-kind', REF.kinds, NR.kind, 'nrSetKind');
+  document.querySelectorAll('#nr-seg-cons button').forEach((b,i)=>b.classList.toggle('on',i===0));
+  const ops = await loadRefOpinions(NR.kind);
+  NR.op = ops[0] ? ops[0].code : 'unmodified';
+  renderSeg('nr-seg-op', ops, NR.op, 'nrSetOp');
   document.getElementById('nr-error').style.display='none';
   document.getElementById('nr-date').value=new Date().toISOString().slice(0,10);
   document.getElementById('nr-file').innerHTML='<option value="">— اختر الملف —</option>';
@@ -6727,7 +7050,7 @@ function renderReportEditor(){
   const locked=REP.status==='approved';
   document.getElementById('repe-title').textContent='تقرير المراجعة — '+(REP_CLIENT.name||'');
   document.getElementById('repe-sub').textContent=
-    (KIND_LABEL[REP.report_kind]||'')+' · '+(REP.consolidation==='consolidated'?'قوائم موحّدة':'قوائم غير موحّدة')+
+    kindLabel(REP.report_kind)+' · '+(REP.consolidation==='consolidated'?'قوائم موحّدة':'قوائم غير موحّدة')+
     ' · '+opLabel(REP.report_kind,REP.opinion_type)+(REP.report_no?(' · '+REP.report_no):'');
   document.getElementById('repe-badge').innerHTML=
     `<span class="badge ${locked?'ok':'neutral'}">${locked?'معتمد من الشريك':'مسودة — قابلة للتعديل'}</span>`;
@@ -6853,13 +7176,34 @@ function addBlankRow(){
   if(s.selection_mode==='multi') s.rows.push(row); else s.rows=[row];
   closeModal('modal-libpick'); renderReportEditor();
 }
-function openAddSection(){
-  const name=prompt('اسم الفقرة الجديدة (مثال: أمر آخر):');
-  if(!name||!name.trim()) return;
-  REP.sections.push({key:name.trim(), group_name:name.trim(), title:name.trim(),
-    order:(REP.sections.length?Math.max.apply(null,REP.sections.map(s=>s.order||0)):0)+5,
-    selection_mode:'multi', is_required:false, rows:[{config_id:null,item_name:'فقرة مكتوبة يدويًا',code:null,body:''}]});
+async function openAddSection(){
+  const box=document.getElementById('as-list');
+  document.getElementById('as-error').style.display='none';
+  box.innerHTML='<div class="empty-hint" style="padding:30px;">جارٍ التحميل...</div>';
+  openModal('modal-addsection');
+  try{
+    const groups = await apiFetch('/api/report-groups?kind='+encodeURIComponent(REP.report_kind));
+    const already = new Set((REP.sections||[]).map(s=>s.group_name));
+    const available = groups.filter(g=>!already.has(g.group_name));
+    if(!available.length){ box.innerHTML='<div class="empty-hint" style="padding:30px;">كل مجموعات هذا النوع مُضافة بالفعل — يمكنك إضافة مجموعة جديدة من «إدارة المجموعات» في شاشة التهيئة</div>'; return; }
+    box.innerHTML = available.map(g=>`
+      <div class="rc-item" style="padding:10px 13px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <b style="flex:1; font-size:12.5px;">${esc(g.group_name)}</b>
+          <span class="tag-lib">${g.selection_mode==='multi'?'عدة صفوف':'فقرة واحدة'}</span>
+          <button class="mini-btn on" onclick="pickAddSection('${g.id}','${esc(g.group_name).replace(/'/g,"\\'")}','${g.selection_mode}',${g.section_order})">إضافة</button>
+        </div>
+      </div>`).join('');
+  }catch(e){ document.getElementById('as-error').textContent=e.message; document.getElementById('as-error').style.display='block'; }
+}
+function pickAddSection(groupId, groupName, mode, order){
+  REP.sections.push({key:groupName, group_name:groupName, title:groupName,
+    order: order || ((REP.sections.length?Math.max.apply(null,REP.sections.map(s=>s.order||0)):0)+5),
+    selection_mode: mode, is_required:false, rows:[]});
+  closeModal('modal-addsection');
   renderReportEditor();
+  const idx = REP.sections.length-1;
+  openLibPick(idx);
 }
 
 /* ---- استبدال المتغيّرات ---- */
@@ -6879,14 +7223,22 @@ function refillPlaceholders(){
 
 /* ---- إعادة التركيب ---- */
 let RX={kind:'annual',cons:'consolidated',op:'unmodified'};
-function rxSet(f,v,btn){ RX[f]=v; segOn(btn); }
-function openRecompose(){
+function rxSet(f,v,btn){ RX[f]=v; if(btn) segOn(btn); }
+function rxSetKind(code){ RX.kind=code; renderSeg('rx-seg-kind', REF.kinds, code, 'rxSetKind'); rxKindChanged(); }
+async function rxKindChanged(){
+  const ops = await loadRefOpinions(RX.kind);
+  if(!ops.find(o=>o.code===RX.op)) RX.op = ops[0] ? ops[0].code : RX.op;
+  renderSeg('rx-seg-op', ops, RX.op, 'rxSetOp');
+}
+function rxSetOp(code){ RX.op=code; renderSeg('rx-seg-op', REF.opinionsByKind[RX.kind]||[], code, 'rxSetOp'); }
+async function openRecompose(){
   if(REP.status==='approved'){ showToast('التقرير معتمد — ألغِ الاعتماد أولًا'); return; }
+  if(!REF.kinds.length) await loadRefKinds();
   RX={kind:REP.report_kind, cons:REP.consolidation, op:REP.opinion_type};
-  const setSeg=(id,vals,cur)=>document.querySelectorAll('#'+id+' button').forEach((b,i)=>b.classList.toggle('on',vals[i]===cur));
-  setSeg('rx-seg-kind',['annual','interim'],RX.kind);
-  setSeg('rx-seg-cons',['consolidated','standalone'],RX.cons);
-  setSeg('rx-seg-op',['unmodified','qualified','adverse','disclaimer'],RX.op);
+  renderSeg('rx-seg-kind', REF.kinds, RX.kind, 'rxSetKind');
+  document.querySelectorAll('#rx-seg-cons button').forEach((b,i)=>b.classList.toggle('on', ['consolidated','standalone'][i]===RX.cons));
+  const ops = await loadRefOpinions(RX.kind);
+  renderSeg('rx-seg-op', ops, RX.op, 'rxSetOp');
   openModal('modal-recompose');
 }
 async function doRecompose(){
@@ -6936,129 +7288,350 @@ async function toggleApprove(){
 }
 
 /* ==========================================================================
-   5) المعاينة والطباعة — أوراق A4 حقيقية بترويسة وباركود بكل ورقة
+   5) بيانات المكتب + تنسيقات الطباعة
    ========================================================================== */
-const MM=96/25.4;
-function reportPublicUrl(){
-  const base=(REP_COMPANY.public_base_url||location.origin).replace(/\/+$/,'');
-  return base+'/r/'+(REP.public_token||'');
+let COMPANY = {};
+
+const RS_DEFAULT = {
+  font: 'Dubai', size: 13, line_height: 1.9, title_size: 15,
+  mt: 45, mb: 35, mr: 22, ml: 22,
+  logo_h: 18, stamp_h: 32, sign_h: 24, qr: 15, qr_pos: 'bottom-center',
+  letterhead: true, hijri: true, arabic_digits: true, justify: true,
+  title_annual: 'تقرير مراجع الحسابات',
+  title_interim: 'تقرير فحص المعلومات المالية الأولية المستقل',
+  respect: 'الموقرين',
+  section1: 'التقرير عن مراجعة القوائم المالية',
+  opening: 'إلى الشركاء / #العميل#\n(#نوع الشركة#)\nالسلام عليكم ورحمة الله وبركاته',
+};
+
+// حدود المقاسات المسموح بها (تمنع تشويه الطباعة)
+const RS_LIMITS = {
+  size: [8, 20], line_height: [1, 3], title_size: [10, 26],
+  mt: [5, 90], mb: [5, 90], mr: [5, 60], ml: [5, 60],
+  logo_h: [5, 60], stamp_h: [10, 70], sign_h: [8, 60], qr: [8, 30],
+};
+function clampRS(k, v) {
+  const lim = RS_LIMITS[k]; const n = Number(v);
+  if (!lim) return v;
+  if (isNaN(n)) return RS_DEFAULT[k];
+  return Math.min(lim[1], Math.max(lim[0], n));
+}
+function rs() {
+  const base = Object.assign({}, RS_DEFAULT, (REP_COMPANY && REP_COMPANY.report_settings) || {});
+  Object.keys(RS_LIMITS).forEach(k => { base[k] = clampRS(k, base[k]); });
+  return base;
 }
 
-function makeSheet(){
-  const sh=document.createElement('div'); sh.className='sheet';
-  const logo=REP_COMPANY.letterhead_url||REP_COMPANY.logo_url;
-  sh.innerHTML=`
-    <div class="sh-head">
-      ${logo?`<img src="${logo}">`:''}
-      <div class="txt"><b>${esc(REP_COMPANY.name_ar||'مكتب المراجعة')}</b>
-        <span>${esc(REP_COMPANY.name_en||'')}${REP_COMPANY.license_no?' · ترخيص رقم '+esc(REP_COMPANY.license_no):''}</span></div>
-    </div>
-    <div class="sh-rule"></div>
-    ${REP.status!=='approved'?'<div class="draft-wm"><span>مسودة</span></div>':''}
-    <div class="sh-body"></div>
-    <div class="sh-foot">
-      <div class="qr">${TQR.svg(reportPublicUrl(),120)}</div>
-      <div class="meta">
-        <div>رقم التقرير: ${esc(REP.report_no||'—')} · ${REP.status==='approved'?'معتمد':'مسودة'}</div>
-        <div>${esc(REP_CLIENT.name||'')} · تاريخ الطباعة: ${arDate(new Date())}</div>
-      </div>
-      <div class="pg">صفحة <span class="pn"></span> من <span class="pt"></span></div>
+/* --- أدوات التاريخ والأرقام --- */
+const AR_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+function toArDigits(s, on) { return on ? String(s).replace(/[0-9]/g, d => AR_DIGITS[+d]) : String(s); }
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+function hijriDate(d) {
+  if (!d) return '';
+  try {
+    const dt = new Date(d);
+    const parts = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn',
+      { day: '2-digit', month: 'long', year: 'numeric' }).formatToParts(dt);
+    const get = t => (parts.find(p => p.type === t) || {}).value || '';
+    return pad2(parseInt(get('day'), 10)) + ' ' + get('month') + ' ' + get('year') + 'هـ';
+  } catch (e) { return ''; }
+}
+function gregDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return String(d);
+  return pad2(dt.getDate()) + ' ' + AR_MONTHS[dt.getMonth()] + ' ' + dt.getFullYear() + 'م';
+}
+
+/* --- شاشة بيانات المكتب --- */
+async function loadCompany() {
+  try { COMPANY = await apiFetch('/api/company') || {}; } catch (e) { showToast(e.message); return; }
+  const s = Object.assign({}, RS_DEFAULT, COMPANY.report_settings || {});
+  const v = (id, val) => { const el = document.getElementById(id); if (el) el.value = (val === null || val === undefined) ? '' : val; };
+  const c = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+
+  v('co-name-ar', COMPANY.name_ar); v('co-name-en', COMPANY.name_en);
+  v('co-license', COMPANY.license_no); v('co-city', COMPANY.city);
+  v('co-signer', COMPANY.signer_name); v('co-signer-title', COMPANY.signer_title);
+  v('co-email', COMPANY.email); v('co-website', COMPANY.website);
+  v('co-phone', COMPANY.phone); v('co-fax', COMPANY.fax);
+  v('co-street', COMPANY.street); v('co-postal', COMPANY.postal_code);
+  v('co-baseurl', COMPANY.public_base_url); v('co-cr', COMPANY.cr_number); v('co-tax', COMPANY.tax_number);
+
+  v('rs-font', s.font); v('rs-size', s.size); v('rs-lh', s.line_height); v('rs-title-size', s.title_size);
+  v('rs-mt', s.mt); v('rs-mb', s.mb); v('rs-mr', s.mr); v('rs-ml', s.ml);
+  v('rs-logo-h', s.logo_h); v('rs-stamp-h', s.stamp_h); v('rs-sign-h', s.sign_h); v('rs-qr', s.qr);
+  v('rs-qr-pos', s.qr_pos);
+  c('rs-letterhead', s.letterhead); c('rs-hijri', s.hijri);
+  c('rs-arabic-digits', s.arabic_digits); c('rs-justify', s.justify);
+  v('rs-title-annual', s.title_annual); v('rs-title-interim', s.title_interim);
+  v('rs-respect', s.respect); v('rs-section1', s.section1); v('rs-opening', s.opening);
+
+  renderCompanyDrops();
+}
+
+function renderCompanyDrops() {
+  const set = (id, url, icon, title, hint) => {
+    const el = document.getElementById(id); if (!el) return;
+    el.innerHTML = url
+      ? `<img src="${url}" style="max-height:92px;max-width:100%;object-fit:contain;"><span>اضغط للاستبدال</span>`
+      : icon + '<b>' + title + '</b><span>' + hint + '</span>';
+  };
+  const i1 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M8 7h8M8 17h8"/></svg>';
+  const i2 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>';
+  const i3 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><circle cx="12" cy="9" r="5"/><path d="M4 20h16M6 20l1-4h10l1 4"/></svg>';
+  const i4 = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><path d="M3 17c3 0 3-10 6-10s3 10 6 10 3-4 6-4"/></svg>';
+  set('co-drop-letterhead', COMPANY.letterhead_url, i1, 'اكليشة A4 (خلفية التقرير)', '210×297مم — بحد أقصى 4 ميجابايت');
+  set('co-drop-logo', COMPANY.logo_url, i2, 'شعار المكتب', 'PNG شفاف — يُستخدم إن لم تُرفع اكليشة');
+  set('co-drop-stamp', COMPANY.stamp_url, i3, 'ختم المكتب', 'PNG بخلفية شفافة');
+  set('co-drop-signature', COMPANY.signature_url, i4, 'توقيع الشريك', 'PNG بخلفية شفافة');
+}
+
+function pickCompanyImage(field) {
+  const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+  const maxMB = field === 'letterhead_url' ? 4 : 1.5;
+  input.onchange = () => {
+    const file = input.files[0]; if (!file) return;
+    if (file.size > maxMB * 1024 * 1024) { showToast('حجم الصورة كبير — الحد الأقصى ' + maxMB + ' ميجابايت'); return; }
+    const rd = new FileReader();
+    rd.onload = () => { COMPANY[field] = rd.result; renderCompanyDrops(); saveCompany(true); };
+    rd.readAsDataURL(file);
+  };
+  input.click();
+}
+function clearCompanyImage(field) {
+  COMPANY[field] = null; renderCompanyDrops(); saveCompany(true);
+}
+
+function collectReportSettings() {
+  const g = id => (document.getElementById(id) || {}).value;
+  const ck = id => !!(document.getElementById(id) || {}).checked;
+  const s = {
+    font: g('rs-font') || 'Dubai',
+    size: clampRS('size', g('rs-size')),
+    line_height: clampRS('line_height', g('rs-lh')),
+    title_size: clampRS('title_size', g('rs-title-size')),
+    mt: clampRS('mt', g('rs-mt')), mb: clampRS('mb', g('rs-mb')),
+    mr: clampRS('mr', g('rs-mr')), ml: clampRS('ml', g('rs-ml')),
+    logo_h: clampRS('logo_h', g('rs-logo-h')), stamp_h: clampRS('stamp_h', g('rs-stamp-h')),
+    sign_h: clampRS('sign_h', g('rs-sign-h')), qr: clampRS('qr', g('rs-qr')),
+    qr_pos: ['top-center', 'top-left', 'top-right', 'bottom-center', 'bottom-left', 'bottom-right'].includes(g('rs-qr-pos')) ? g('rs-qr-pos') : 'bottom-center',
+    letterhead: ck('rs-letterhead'), hijri: ck('rs-hijri'),
+    arabic_digits: ck('rs-arabic-digits'), justify: ck('rs-justify'),
+    title_annual: g('rs-title-annual') || RS_DEFAULT.title_annual,
+    title_interim: g('rs-title-interim') || RS_DEFAULT.title_interim,
+    respect: g('rs-respect') || '',
+    section1: g('rs-section1') || '',
+    opening: g('rs-opening') || RS_DEFAULT.opening,
+  };
+  return s;
+}
+
+async function saveCompany(silent) {
+  const g = id => { const el = document.getElementById(id); return el ? el.value.trim() : undefined; };
+  const payload = {
+    name_ar: g('co-name-ar'), name_en: g('co-name-en'), license_no: g('co-license'),
+    city: g('co-city'), signer_name: g('co-signer'), signer_title: g('co-signer-title'),
+    email: g('co-email'), website: g('co-website'), phone: g('co-phone'), fax: g('co-fax'),
+    street: g('co-street'), postal_code: g('co-postal'), public_base_url: g('co-baseurl'),
+    cr_number: g('co-cr'), tax_number: g('co-tax'),
+    logo_url: COMPANY.logo_url || null, letterhead_url: COMPANY.letterhead_url || null,
+    stamp_url: COMPANY.stamp_url || null, signature_url: COMPANY.signature_url || null,
+    report_settings: collectReportSettings(),
+  };
+  Object.keys(payload).forEach(k => { if (payload[k] === undefined) delete payload[k]; });
+  try {
+    COMPANY = await apiFetch('/api/company', { method: 'PUT', body: JSON.stringify(payload) });
+    if (!silent) showToast('حُفظت بيانات المكتب');
+  } catch (e) { showToast(e.message); }
+}
+
+/* ==========================================================================
+   6) الطباعة — أوراق A4 رسمية بالاكليشة كخلفية وباركود برقم التقرير
+   ========================================================================== */
+const MM = 96 / 25.4;
+
+function reportPublicUrl() {
+  const base = (REP_COMPANY.public_base_url || location.origin).replace(/\/+$/, '');
+  return base + '/r/' + (REP.public_token || '');
+}
+
+function makeSheet() {
+  const s = rs();
+  const ar = s.arabic_digits;
+  const sh = document.createElement('div');
+  sh.className = 'sheet';
+  sh.style.paddingTop = s.mt + 'mm';
+  sh.style.paddingBottom = s.mb + 'mm';
+  sh.style.paddingRight = s.mr + 'mm';
+  sh.style.paddingLeft = s.ml + 'mm';
+
+  const bg = (s.letterhead && REP_COMPANY.letterhead_url)
+    ? `<div class="sh-bg"><img src="${REP_COMPANY.letterhead_url}" alt=""></div>` : '';
+
+  // ترويسة نصّية بديلة تظهر فقط عند عدم وجود اكليشة
+  const plainHead = (!s.letterhead || !REP_COMPANY.letterhead_url) ? `
+    <div class="sh-plainhead" style="top:${Math.max(6, s.mt - 20)}mm; inset-inline:${s.mr}mm ${s.ml}mm;">
+      ${REP_COMPANY.logo_url ? `<img src="${REP_COMPANY.logo_url}" style="max-height:${s.logo_h}mm;">` : ''}
+      <div class="txt"><b>${esc(REP_COMPANY.name_ar || '')}</b>
+        <span>${esc(REP_COMPANY.name_en || '')}${REP_COMPANY.license_no ? ' · ترخيص رقم (' + toArDigits(REP_COMPANY.license_no, ar) + ')' : ''}</span></div>
+    </div><div class="sh-rule" style="top:${Math.max(6, s.mt - 6)}mm; inset-inline:${s.mr}mm ${s.ml}mm;"></div>` : '';
+
+  const qrPos = s.qr_pos || 'bottom-center';
+  const isTop = qrPos.indexOf('top') === 0;
+  const slot = qrPos.indexOf('center') > -1 ? 'center' : (qrPos.indexOf('left') > -1 ? 'start' : 'end');
+  const pgSlot = slot === 'end' ? 'start' : 'end'; // رقم الصفحة يأخذ الزاوية المقابلة للباركود لتفادي التداخل
+  const qrBlock = `
+    <div class="qr-block">
+      <div class="qr-img" style="width:${s.qr}mm;height:${s.qr}mm;">${TQR.svg(reportPublicUrl(), 140)}</div>
+      <div class="qr-no">${esc(toArDigits(REP.report_no || '', ar))}</div>
+    </div>`;
+  const qrOverlay = isTop
+    ? `<div class="sh-qr-top slot-${slot}" style="top:${Math.max(4, s.mt - (s.qr + 8))}mm; inset-inline:${s.mr}mm ${s.ml}mm;">${qrBlock}</div>`
+    : '';
+
+  sh.innerHTML = `
+    ${bg}
+    ${REP.status !== 'approved' ? '<div class="draft-wm"><span>مسودة</span></div>' : ''}
+    ${plainHead}
+    ${qrOverlay}
+    <div class="sh-body" style="font-family:'${s.font}','Dubai',system-ui,sans-serif; font-size:${s.size}pt;
+         line-height:${s.line_height}; text-align:${s.justify ? 'justify' : 'start'};"></div>
+    <div class="sh-foot3" style="height:${Math.max(14, s.mb - 6)}mm; inset-inline:${s.mr}mm ${s.ml}mm;">
+      <div class="slot start">${!isTop && slot === 'start' ? qrBlock : (pgSlot === 'start' ? '<div class="pg">صفحة <span class="pn"></span> من <span class="pt"></span></div>' : '')}</div>
+      <div class="slot center">${!isTop && slot === 'center' ? qrBlock : ''}</div>
+      <div class="slot end">${!isTop && slot === 'end' ? qrBlock : (pgSlot === 'end' ? '<div class="pg">صفحة <span class="pn"></span> من <span class="pt"></span></div>' : '')}</div>
     </div>`;
   return sh;
 }
 
-function buildBlocks(){
-  const v=repVars();
-  const blocks=[];
-  const title=REP.report_kind==='interim'
-    ? 'تقرير فحص المعلومات المالية الأولية المستقل'
-    : 'تقرير المراجع المستقل';
-  blocks.push({tag:'h1', html:esc(title)});
-  const addr=REP.addressee||('السادة/ الشركاء في '+(REP_CLIENT.name||'')+'  المحترمون');
-  blocks.push({tag:'p', cls:'addr', html:esc(addr)});
-  if(REP.report_kind!=='interim') blocks.push({tag:'h2', html:'تقرير عن مراجعة القوائم المالية'});
+function repVarsFull() {
+  const v = repVars();
+  v['المكتب'] = REP_COMPANY.name_ar || '';
+  v['الترخيص'] = REP_COMPANY.license_no || '';
+  return v;
+}
 
-  (REP.sections||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).forEach(s=>{
-    const rows=(s.rows||[]).filter(r=>(r.body||'').trim());
-    if(!rows.length) return;
-    blocks.push({tag:'h2', html:esc(s.title||s.group_name)});
-    rows.forEach(r=>{
-      applyVars(r.body,v).split(/\n{1,}/).forEach(par=>{
-        if(par.trim()) blocks.push({tag:'p', html:esc(par.trim())});
+function buildBlocks() {
+  const s = rs(), v = repVarsFull(), ar = s.arabic_digits;
+  const blocks = [];
+  const title = REP.report_kind === 'interim' ? s.title_interim : s.title_annual;
+
+  blocks.push({ tag: 'h1', html: esc(applyVars(title, v)), style: `font-size:${s.title_size}pt;` });
+
+  // أسطر المقدمة — أول سطر يحمل كلمة «الموقرين» في الجهة المقابلة
+  const lines = String(s.opening || '').split(/\n/).map(l => l.trim()).filter(Boolean);
+  lines.forEach((ln, i) => {
+    const txt = esc(applyVars(ln, v));
+    if (i === 0 && s.respect) {
+      blocks.push({ tag: 'div', cls: 'addr-row', html: `<span>${txt}</span><span class="resp">${esc(s.respect)}</span>` });
+    } else {
+      blocks.push({ tag: 'p', cls: 'addr', html: txt });
+    }
+  });
+
+  if (REP.report_kind !== 'interim' && s.section1) blocks.push({ tag: 'h2', html: esc(s.section1) });
+
+  (REP.sections || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(sec => {
+    const rows = (sec.rows || []).filter(r => (r.body || '').trim());
+    if (!rows.length) return;
+    blocks.push({ tag: 'h2', html: esc(sec.title || sec.group_name) });
+    rows.forEach(r => {
+      applyVars(r.body, v).split(/\n+/).forEach(par => {
+        if (par.trim()) blocks.push({ tag: 'p', html: esc(toArDigits(par.trim(), ar)) });
       });
     });
   });
   return blocks;
 }
 
-function signatureHtml(){
+function signatureHtml() {
+  const s = rs(), ar = s.arabic_digits;
+  const name = REP_COMPANY.name_ar || '';
+  const lic = REP_COMPANY.license_no ? 'ترخيص رقم (' + toArDigits(REP_COMPANY.license_no, ar) + ')' : '';
+  const city = REP.place || REP_COMPANY.city || '';
+  const dateSrc = REP.approved_at || REP.report_date;
+  const hij = s.hijri ? hijriDate(dateSrc) : '';
+  const greg = gregDate(dateSrc);
+  const signer = REP.partner_name || REP_COMPANY.signer_name || '';
+  const sigImg = REP.signature_url || REP_COMPANY.signature_url;
+  const stampImg = REP.stamp_url || REP_COMPANY.stamp_url;
+
   return `<div class="sig">
-      <div class="who">
-        <div><b>${esc(REP.partner_name||REP_COMPANY.name_ar||'')}</b></div>
-        ${REP.partner_license?`<div>ترخيص مزاولة المهنة رقم ${esc(REP.partner_license)}</div>`:''}
-        <div>${esc(REP.place||REP_COMPANY.city||'')}${REP.report_date?' — في '+arDate(REP.report_date):''}</div>
+      <div class="sig-r">
+        <div class="nm">${esc(name)}</div>
+        ${lic ? `<div>${esc(toArDigits(lic, ar))}</div>` : ''}
+        ${hij ? `<div>${esc(city)} في: ${esc(toArDigits(hij, ar))}</div>`
+              : (city ? `<div>${esc(city)}</div>` : '')}
+        ${greg ? `<div>${hij ? 'الموافق: ' : (esc(city) + ' في: ')}${esc(toArDigits(greg, ar))}</div>` : ''}
       </div>
-      <div class="marks">
-        ${REP.signature_url?`<img src="${REP.signature_url}" alt="التوقيع">`:''}
-        ${REP.stamp_url?`<img src="${REP.stamp_url}" alt="الختم">`:''}
+      <div class="sig-l">
+        ${sigImg ? `<img class="mk" src="${sigImg}" style="max-height:${s.sign_h}mm;" alt="">` : ''}
+        <div class="nm">${esc(signer)}</div>
+        ${REP_COMPANY.signer_title ? `<div class="ttl">${esc(REP_COMPANY.signer_title)}</div>` : ''}
+        ${stampImg ? `<img class="mk stamp" src="${stampImg}" style="max-height:${s.stamp_h}mm;" alt="">` : ''}
       </div>
     </div>`;
 }
 
-function renderSheets(){
-  const root=document.getElementById('print-sheets');
-  root.innerHTML='';
+function renderSheets() {
+  const s = rs();
+  const root = document.getElementById('print-sheets');
+  root.innerHTML = '';
   document.getElementById('print-root').classList.add('show');
 
-  const blocks=buildBlocks();
-  let sheet=makeSheet(); root.appendChild(sheet);
-  let body=sheet.querySelector('.sh-body');
-  const maxH=()=> (297-26-24)*MM;
+  const blocks = buildBlocks();
+  let sheet = makeSheet(); root.appendChild(sheet);
+  let body = sheet.querySelector('.sh-body');
+  const maxH = () => (297 - s.mt - s.mb) * MM;
+  const fits = () => body.scrollHeight <= maxH();
+  const newSheet = () => { sheet = makeSheet(); root.appendChild(sheet); body = sheet.querySelector('.sh-body'); };
 
-  function fits(){ return body.scrollHeight<=maxH(); }
-  function newSheet(){ sheet=makeSheet(); root.appendChild(sheet); body=sheet.querySelector('.sh-body'); }
-
-  blocks.forEach(b=>{
-    const el=document.createElement(b.tag);
-    if(b.cls) el.className=b.cls;
-    el.innerHTML=b.html;
+  blocks.forEach(b => {
+    const el = document.createElement(b.tag);
+    if (b.cls) el.className = b.cls;
+    if (b.style) el.setAttribute('style', b.style);
+    el.innerHTML = b.html;
     body.appendChild(el);
-    if(fits()) return;
-    // لا تتسع: إن كانت فقرة نصية طويلة نقسمها بين ورقتين، وإلا ننقلها كاملة
-    if(b.tag==='p'){
-      const words=b.html.split(' ');
+    if (fits()) return;
+    if (b.tag === 'p') {
+      const words = b.html.split(' ');
       body.removeChild(el);
-      let lo=0, hi=words.length, best=0;
-      while(lo<=hi){ const mid=(lo+hi)>>1;
-        el.innerHTML=words.slice(0,mid).join(' '); body.appendChild(el);
-        const ok=fits(); body.removeChild(el);
-        if(ok){ best=mid; lo=mid+1; } else hi=mid-1; }
-      if(best>12){
-        el.innerHTML=words.slice(0,best).join(' '); body.appendChild(el);
-        newSheet();
-        const rest=document.createElement('p'); rest.innerHTML=words.slice(best).join(' ');
-        body.appendChild(rest);
-      } else {
-        newSheet(); el.innerHTML=b.html; body.appendChild(el);
+      let lo = 0, hi = words.length, best = 0;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        el.innerHTML = words.slice(0, mid).join(' '); body.appendChild(el);
+        const ok = fits(); body.removeChild(el);
+        if (ok) { best = mid; lo = mid + 1; } else hi = mid - 1;
       }
+      if (best > 12) {
+        el.innerHTML = words.slice(0, best).join(' '); body.appendChild(el);
+        newSheet();
+        const rest = document.createElement('p'); rest.innerHTML = words.slice(best).join(' ');
+        body.appendChild(rest);
+      } else { newSheet(); el.innerHTML = b.html; body.appendChild(el); }
     } else {
-      body.removeChild(el);
-      newSheet(); body.appendChild(el);
+      body.removeChild(el); newSheet(); body.appendChild(el);
     }
   });
 
-  // كتلة التوقيع — تبقى متماسكة، وتنتقل لورقة جديدة إن لم تتسع
-  const sig=document.createElement('div'); sig.innerHTML=signatureHtml();
+  const sig = document.createElement('div'); sig.innerHTML = signatureHtml();
   body.appendChild(sig);
-  if(!fits()){ body.removeChild(sig); newSheet(); body.appendChild(sig); }
+  if (!fits()) { body.removeChild(sig); newSheet(); body.appendChild(sig); }
 
-  const sheets=root.querySelectorAll('.sheet');
-  sheets.forEach((s,i)=>{ s.querySelector('.pn').textContent=i+1; s.querySelector('.pt').textContent=sheets.length; });
+  const sheets = root.querySelectorAll('.sheet');
+  const ar = s.arabic_digits;
+  sheets.forEach((sh, i) => {
+    sh.querySelector('.pn').textContent = toArDigits(i + 1, ar);
+    sh.querySelector('.pt').textContent = toArDigits(sheets.length, ar);
+  });
 }
 
-function previewReport(){ collectReport(); renderSheets(); window.scrollTo(0,0); }
-function closePreview(){ document.getElementById('print-root').classList.remove('show'); }
-function printReport(){ collectReport(); renderSheets(); setTimeout(()=>window.print(), 350); }
+function previewReport() { collectReport(); renderSheets(); window.scrollTo(0, 0); }
+function closePreview() { document.getElementById('print-root').classList.remove('show'); }
+function printReport() { collectReport(); renderSheets(); setTimeout(() => window.print(), 400); }
+
 
 /* ==========================================================================
    6) ربط الشاشات بالتنقّل
@@ -7069,6 +7642,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const t=item.getAttribute('data-page');
       if(t==='reports') loadReportsList();
       if(t==='auditorreport'){ syncRcSegs(); loadRcSummary(); }
+      if(t==='company') loadCompany();
     });
   });
 });

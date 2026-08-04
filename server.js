@@ -257,6 +257,64 @@ app.post('/api/portal/chat', requirePortalAuth, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// بوابة العميل: تقارير المراجعة المعتمدة (للقراءة فقط)
+// ---------------------------------------------------------------------------
+app.get('/api/portal/reports', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('audit_reports')
+    .select('id,report_no,report_kind,opinion_type,consolidation,period_start,period_end,report_date,status,approved_at,public_token')
+    .eq('client_id', req.portal.clientId).eq('status', 'approved').order('report_date', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.get('/api/portal/reports/:id', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('audit_reports').select('*')
+    .eq('id', req.params.id).eq('client_id', req.portal.clientId).eq('status', 'approved').maybeSingle();
+  if (error) return res.status(500).json({ message: error.message });
+  if (!data) return res.status(404).json({ message: 'التقرير غير موجود' });
+  const { data: company } = await sb.from('companies').select('name_ar,name_en,license_no,logo_url,letterhead_url,stamp_url,signature_url,city,report_settings,signer_name,signer_title,public_base_url')
+    .eq('id', req.portal.companyId).maybeSingle();
+  res.json({ report: data, company: company || {} });
+});
+
+// ---------------------------------------------------------------------------
+// بوابة العميل: تفاصيل ملف التدقيق (بدون أوراق العمل) + المرفقات
+// العميل يستطيع الإضافة فقط — لا تعديل ولا حذف
+// ---------------------------------------------------------------------------
+app.get('/api/portal/files/:id', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: file, error } = await sb.from('client_files')
+    .select('id, name, period_end, engagement_type, status, created_at, client_id')
+    .eq('id', req.params.id).eq('client_id', req.portal.clientId).maybeSingle();
+  if (error) return res.status(500).json({ message: error.message });
+  if (!file) return res.status(404).json({ message: 'الملف غير موجود' });
+  const { data: tb } = await sb.from('trial_balances')
+    .select('id, version, status, uploaded_at').eq('client_file_id', file.id).order('version', { ascending: false });
+  const { data: docs } = await sb.from('documents')
+    .select('id, category, name, file_url, file_type, file_size_kb, uploaded_at, uploaded_by, uploaded_by_client_employee_id')
+    .eq('client_file_id', file.id).order('uploaded_at', { ascending: false });
+  res.json({ file, trialBalances: tb || [], documents: docs || [] });
+});
+
+app.post('/api/portal/files/:id/attachments', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.file_data || !b.name) return res.status(400).json({ message: 'اختر الملف أولًا' });
+  const { data: file } = await sb.from('client_files').select('id, client_id').eq('id', req.params.id).maybeSingle();
+  if (!file || file.client_id !== req.portal.clientId) return res.status(403).json({ message: 'لا تملك صلاحية الوصول لهذا الملف' });
+  const { data, error } = await sb.from('documents').insert({
+    company_id: req.portal.companyId, client_id: req.portal.clientId, client_file_id: file.id,
+    category: b.category || 'مرفق من العميل', name: String(b.name).slice(0, 200),
+    file_url: b.file_data, file_type: b.file_type || null, file_size_kb: b.file_size_kb || null,
+    uploaded_by_client_employee_id: req.portal.employeeId,
+  }).select('id, category, name, file_url, file_type, file_size_kb, uploaded_at').single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// ---------------------------------------------------------------------------
 // إنشاء مكتب جديد (حساب شركة جديدة) + أول مستخدم فيه (الشريك المسؤول)
 // ---------------------------------------------------------------------------
 app.post('/api/signup', async (req, res) => {
@@ -1940,17 +1998,204 @@ app.get('/api/client-files/:id/trial-balance/export', requireAuth, async (req, r
 //   3) صفحة تحقّق عامة للباركود                 — /r/:token
 // ============================================================================
 
-const REPORT_KINDS = { annual: 'سنوي', interim: 'مرحلي' };
-const OPINION_TYPES = {
-  unmodified: { annual: 'غير معدل', interim: 'استنتاج غير معدّل' },
-  qualified:  { annual: 'متحفظ',    interim: 'استنتاج متحفظ' },
-  adverse:    { annual: 'معارض',    interim: 'استنتاج معارض' },
-  disclaimer: { annual: 'امتناع عن إبداء الرأي', interim: 'امتناع عن إبداء الاستنتاج' },
-};
-
-function normKind(v) { return v === 'interim' ? 'interim' : 'annual'; }
-function normOpinion(v) { return ['unmodified', 'qualified', 'adverse', 'disclaimer'].includes(v) ? v : 'unmodified'; }
+// أنواع التقرير وأنواع الرأي لم تعد ثابتة بالكود — تُقرأ من الجداول
+// audit_report_kinds و audit_report_opinions (انظر /api/report-kinds و /api/report-opinions)
+function normKind(v) { return (v && String(v).trim()) ? String(v).trim() : 'annual'; }
+function normOpinion(v) { return (v && String(v).trim()) ? String(v).trim() : 'unmodified'; }
 function normCons(v) { return v === 'standalone' ? 'standalone' : 'consolidated'; }
+
+// دمج صفوف عامة (company_id=null) مع صفوف خاصة بالمكتب، مع إخفاء العام الذي تم تبنّيه/إخفاؤه
+function mergeOverrides(rows) {
+  const overridden = new Set(rows.filter(r => r.company_id && r.source_id).map(r => r.source_id));
+  return rows.filter(r => !(r.company_id === null && overridden.has(r.id)));
+}
+
+// ---------------------------------------------------------------------------
+// 0) أنواع التقرير / أنواع الرأي / مجموعات التقرير — مرجعية قابلة للتخصيص
+// ---------------------------------------------------------------------------
+app.get('/api/report-kinds', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('audit_report_kinds').select('*')
+    .or(`company_id.eq.${req.session.companyId},company_id.is.null`).eq('is_active', true);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(mergeOverrides(data || []).sort((a, b) => a.sort_order - b.sort_order));
+});
+app.post('/api/report-kinds', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.code || !b.label_ar) return res.status(400).json({ message: 'الكود والاسم إلزاميان' });
+  const { data, error } = await sb.from('audit_report_kinds').insert({
+    company_id: req.session.companyId, code: String(b.code).trim(), label_ar: String(b.label_ar).trim(),
+    sort_order: Number(b.sort_order) || 100, is_active: true,
+  }).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+app.put('/api/report-kinds/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const { data: row } = await sb.from('audit_report_kinds').select('*').eq('id', req.params.id).maybeSingle();
+  if (!row) return res.status(404).json({ message: 'غير موجود' });
+  const fields = {
+    label_ar: b.label_ar !== undefined ? b.label_ar : row.label_ar,
+    sort_order: b.sort_order !== undefined ? Number(b.sort_order) || 100 : row.sort_order,
+    is_active: b.is_active !== undefined ? !!b.is_active : row.is_active,
+  };
+  if (row.company_id === null) {
+    const { data, error } = await sb.from('audit_report_kinds').insert(Object.assign({}, fields, {
+      company_id: req.session.companyId, code: row.code, source_id: row.id,
+    })).select().single();
+    if (error) return res.status(500).json({ message: error.message });
+    return res.json(data);
+  }
+  const { data, error } = await sb.from('audit_report_kinds').update(fields)
+    .eq('id', row.id).eq('company_id', req.session.companyId).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+app.delete('/api/report-kinds/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: row } = await sb.from('audit_report_kinds').select('*').eq('id', req.params.id).maybeSingle();
+  if (!row) return res.status(404).json({ message: 'غير موجود' });
+  if (row.company_id === null) {
+    await sb.from('audit_report_kinds').insert({
+      company_id: req.session.companyId, code: row.code, label_ar: row.label_ar,
+      sort_order: row.sort_order, is_active: false, source_id: row.id,
+    });
+    return res.json({ ok: true, hidden: true });
+  }
+  await sb.from('audit_report_kinds').delete().eq('id', row.id).eq('company_id', req.session.companyId);
+  res.json({ ok: true });
+});
+
+app.get('/api/report-opinions', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  let q = sb.from('audit_report_opinions').select('*')
+    .or(`company_id.eq.${req.session.companyId},company_id.is.null`).eq('is_active', true);
+  if (req.query.kind) q = q.eq('report_kind', normKind(req.query.kind));
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(mergeOverrides(data || []).sort((a, b) => a.sort_order - b.sort_order));
+});
+app.post('/api/report-opinions', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.report_kind || !b.code || !b.label_ar) return res.status(400).json({ message: 'نوع التقرير والكود والاسم إلزامية' });
+  const { data, error } = await sb.from('audit_report_opinions').insert({
+    company_id: req.session.companyId, report_kind: normKind(b.report_kind),
+    code: String(b.code).trim(), label_ar: String(b.label_ar).trim(),
+    sort_order: Number(b.sort_order) || 100, is_active: true,
+  }).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+app.put('/api/report-opinions/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const { data: row } = await sb.from('audit_report_opinions').select('*').eq('id', req.params.id).maybeSingle();
+  if (!row) return res.status(404).json({ message: 'غير موجود' });
+  const fields = {
+    label_ar: b.label_ar !== undefined ? b.label_ar : row.label_ar,
+    sort_order: b.sort_order !== undefined ? Number(b.sort_order) || 100 : row.sort_order,
+    is_active: b.is_active !== undefined ? !!b.is_active : row.is_active,
+  };
+  if (row.company_id === null) {
+    const { data, error } = await sb.from('audit_report_opinions').insert(Object.assign({}, fields, {
+      company_id: req.session.companyId, report_kind: row.report_kind, code: row.code, source_id: row.id,
+    })).select().single();
+    if (error) return res.status(500).json({ message: error.message });
+    return res.json(data);
+  }
+  const { data, error } = await sb.from('audit_report_opinions').update(fields)
+    .eq('id', row.id).eq('company_id', req.session.companyId).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+app.delete('/api/report-opinions/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: row } = await sb.from('audit_report_opinions').select('*').eq('id', req.params.id).maybeSingle();
+  if (!row) return res.status(404).json({ message: 'غير موجود' });
+  if (row.company_id === null) {
+    await sb.from('audit_report_opinions').insert({
+      company_id: req.session.companyId, report_kind: row.report_kind, code: row.code,
+      label_ar: row.label_ar, sort_order: row.sort_order, is_active: false, source_id: row.id,
+    });
+    return res.json({ ok: true, hidden: true });
+  }
+  await sb.from('audit_report_opinions').delete().eq('id', row.id).eq('company_id', req.session.companyId);
+  res.json({ ok: true });
+});
+
+// مجموعات التقرير (البيانات الوصفية: الاسم/الترتيب/إلزامية/وضع الاختيار)
+app.get('/api/report-groups', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  let q = sb.from('audit_report_groups').select('*')
+    .or(`company_id.eq.${req.session.companyId},company_id.is.null`).eq('is_active', true);
+  if (req.query.kind) q = q.eq('report_kind', normKind(req.query.kind));
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(mergeOverrides(data || []).sort((a, b) => a.section_order - b.section_order || a.group_name.localeCompare(b.group_name, 'ar')));
+});
+app.post('/api/report-groups', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.report_kind || !b.group_name) return res.status(400).json({ message: 'نوع التقرير واسم المجموعة إلزاميان' });
+  const { data, error } = await sb.from('audit_report_groups').insert({
+    company_id: req.session.companyId, report_kind: normKind(b.report_kind),
+    group_name: String(b.group_name).trim(), section_order: Number(b.section_order) || 100,
+    selection_mode: b.selection_mode === 'multi' ? 'multi' : 'single',
+    is_required: !!b.is_required, is_active: true, created_by: req.session.userId,
+  }).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+app.put('/api/report-groups/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const { data: row } = await sb.from('audit_report_groups').select('*').eq('id', req.params.id).maybeSingle();
+  if (!row) return res.status(404).json({ message: 'غير موجود' });
+  const fields = {
+    group_name: b.group_name !== undefined ? String(b.group_name).trim() : row.group_name,
+    section_order: b.section_order !== undefined ? (Number(b.section_order) || 100) : row.section_order,
+    selection_mode: b.selection_mode !== undefined ? (b.selection_mode === 'multi' ? 'multi' : 'single') : row.selection_mode,
+    is_required: b.is_required !== undefined ? !!b.is_required : row.is_required,
+    is_active: b.is_active !== undefined ? !!b.is_active : row.is_active,
+  };
+  let result;
+  if (row.company_id === null) {
+    const { data, error } = await sb.from('audit_report_groups').insert(Object.assign({}, fields, {
+      company_id: req.session.companyId, report_kind: row.report_kind, source_id: row.id, created_by: req.session.userId,
+    })).select().single();
+    if (error) return res.status(500).json({ message: error.message });
+    result = data;
+  } else {
+    const { data, error } = await sb.from('audit_report_groups').update(fields)
+      .eq('id', row.id).eq('company_id', req.session.companyId).select().single();
+    if (error) return res.status(500).json({ message: error.message });
+    result = data;
+  }
+  // إعادة تسمية المجموعة: نحدّث اسمها في بنود المكتبة الخاصة بهذا المكتب أيضًا حتى تبقى مرتبطة
+  if (b.group_name !== undefined && b.group_name !== row.group_name) {
+    await sb.from('audit_report_config').update({ group_name: fields.group_name })
+      .eq('company_id', req.session.companyId).eq('report_kind', row.report_kind).eq('group_name', row.group_name);
+  }
+  res.json(result);
+});
+app.delete('/api/report-groups/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: row } = await sb.from('audit_report_groups').select('*').eq('id', req.params.id).maybeSingle();
+  if (!row) return res.status(404).json({ message: 'غير موجود' });
+  if (row.company_id === null) {
+    await sb.from('audit_report_groups').insert({
+      company_id: req.session.companyId, report_kind: row.report_kind, group_name: row.group_name,
+      section_order: row.section_order, selection_mode: row.selection_mode,
+      is_required: row.is_required, is_active: false, source_id: row.id, created_by: req.session.userId,
+    });
+    return res.json({ ok: true, hidden: true });
+  }
+  await sb.from('audit_report_groups').delete().eq('id', row.id).eq('company_id', req.session.companyId);
+  res.json({ ok: true });
+});
 
 function randToken(n = 22) {
   const abc = 'abcdefghijkmnpqrstuvwxyz23456789';
@@ -1991,25 +2236,40 @@ app.get('/api/report-config', requireAuth, async (req, res) => {
 });
 
 // ملخّص المكتبة: عدد البنود لكل (نوع تقرير / نوع رأي / مجموعة) — لشاشة التهيئة
+// البيانات الوصفية (الترتيب/الإلزامية/وضع الاختيار) تأتي من audit_report_groups (على مستوى نوع التقرير فقط)
 app.get('/api/report-config/summary', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
-  const { data, error } = await sb.from('audit_report_config')
-    .select('report_kind,opinion_type,group_name,section_order,selection_mode,is_required,is_active,company_id')
-    .or(`company_id.eq.${req.session.companyId},company_id.is.null`);
-  if (error) return res.status(500).json({ message: error.message });
-  const map = {};
-  (data || []).forEach(r => {
+  const [{ data: cfgRows, error: e1 }, { data: grpRowsRaw, error: e2 }] = await Promise.all([
+    sb.from('audit_report_config').select('report_kind,opinion_type,group_name,is_active,company_id')
+      .or(`company_id.eq.${req.session.companyId},company_id.is.null`),
+    sb.from('audit_report_groups').select('*')
+      .or(`company_id.eq.${req.session.companyId},company_id.is.null`).eq('is_active', true),
+  ]);
+  if (e1) return res.status(500).json({ message: e1.message });
+  if (e2) return res.status(500).json({ message: e2.message });
+  const groups = mergeOverrides(grpRowsRaw || []);
+  const groupMeta = {};
+  groups.forEach(g => { groupMeta[g.report_kind + '|' + g.group_name] = g; });
+
+  const counts = {};
+  (cfgRows || []).forEach(r => {
     const k = [r.report_kind, r.opinion_type, r.group_name].join('|');
-    if (!map[k]) map[k] = {
-      report_kind: r.report_kind, opinion_type: r.opinion_type, group_name: r.group_name,
-      section_order: r.section_order, selection_mode: r.selection_mode,
-      is_required: r.is_required, total: 0, active: 0, own: 0,
-    };
-    map[k].total++;
-    if (r.is_active) map[k].active++;
-    if (r.company_id) map[k].own++;
+    if (!counts[k]) counts[k] = { total: 0, active: 0, own: 0, report_kind: r.report_kind, opinion_type: r.opinion_type, group_name: r.group_name };
+    counts[k].total++;
+    if (r.is_active) counts[k].active++;
+    if (r.company_id) counts[k].own++;
   });
-  res.json(Object.values(map).sort((a, b) => a.section_order - b.section_order || a.group_name.localeCompare(b.group_name, 'ar')));
+
+  const out = Object.values(counts).map(c => {
+    const meta = groupMeta[c.report_kind + '|' + c.group_name];
+    return {
+      report_kind: c.report_kind, opinion_type: c.opinion_type, group_name: c.group_name,
+      section_order: meta ? meta.section_order : 100, selection_mode: meta ? meta.selection_mode : 'single',
+      is_required: meta ? meta.is_required : false, group_id: meta ? meta.id : null,
+      total: c.total, active: c.active, own: c.own,
+    };
+  });
+  res.json(out.sort((a, b) => a.section_order - b.section_order || a.group_name.localeCompare(b.group_name, 'ar')));
 });
 
 app.post('/api/report-config', requireAuth, async (req, res) => {
@@ -2025,7 +2285,7 @@ app.post('/api/report-config', requireAuth, async (req, res) => {
     group_name: String(b.group_name).trim(),
     item_name: (b.item_name || b.group_name).toString().trim(),
     body: String(b.body),
-    code: b.code ? String(b.code).trim() : null,
+    // الكود يُولَّد تلقائيًا بواسطة trigger في القاعدة (audit_report_config_code_seq) — غير قابل للتعديل من الواجهة
     lang: b.lang || 'ar',
     section_order: Number(b.section_order) || 100,
     selection_mode: b.selection_mode === 'multi' ? 'multi' : 'single',
@@ -2055,7 +2315,7 @@ app.put('/api/report-config/:id', requireAuth, async (req, res) => {
     group_name: b.group_name !== undefined ? String(b.group_name).trim() : row.group_name,
     item_name: b.item_name !== undefined ? String(b.item_name).trim() : row.item_name,
     body: b.body !== undefined ? String(b.body) : row.body,
-    code: b.code !== undefined ? (b.code || null) : row.code,
+    code: row.code, // الكود غير قابل للتعديل من الواجهة أبدًا
     section_order: b.section_order !== undefined ? (Number(b.section_order) || 100) : row.section_order,
     selection_mode: b.selection_mode !== undefined ? (b.selection_mode === 'multi' ? 'multi' : 'single') : row.selection_mode,
     is_required: b.is_required !== undefined ? !!b.is_required : row.is_required,
@@ -2113,7 +2373,7 @@ app.post('/api/report-config/import', requireAuth, async (req, res) => {
     group_name: String(it.group_name).trim(),
     item_name: String(it.item_name || it.group_name).trim(),
     body: String(it.body),
-    code: it.code ? String(it.code).trim() : null,
+    // الكود يُولَّد تلقائيًا
     lang: 'ar',
     section_order: Number(it.section_order) || Number(b.section_order) || 100,
     selection_mode: it.selection_mode === 'multi' ? 'multi' : (b.selection_mode === 'multi' ? 'multi' : 'single'),
@@ -2142,7 +2402,8 @@ app.put('/api/company', requireAuth, async (req, res) => {
   const b = req.body || {};
   const allowed = ['name_ar', 'name_en', 'logo_url', 'letterhead_url', 'stamp_url', 'signature_url',
     'license_no', 'cr_number', 'tax_number', 'email', 'website', 'phone', 'fax',
-    'street', 'city', 'postal_code', 'report_footer_ar', 'public_base_url'];
+    'street', 'city', 'postal_code', 'report_footer_ar', 'public_base_url',
+    'report_settings', 'signer_name', 'signer_title'];
   const payload = {};
   allowed.forEach(k => { if (b[k] !== undefined) payload[k] = b[k]; });
   if (!Object.keys(payload).length) return res.json({ ok: true });
@@ -2167,39 +2428,45 @@ app.get('/api/audit-reports', requireAuth, async (req, res) => {
 });
 
 // تركيب فقرات التقرير آليًا من قاعدة التهيئة حسب (نوع التقرير / التوحيد / نوع الرأي)
+// تركيب فقرات التقرير آليًا: يُضاف تلقائيًا فقط المجموعات "الإلزامية" حسب تهيئة
+// audit_report_groups. المجموعات الاختيارية (أمر آخر، لفت انتباه، ...) لا تُدرَج
+// تلقائيًا — يضيفها المستخدم يدويًا من زر "إضافة فقرة أخرى للتقرير" داخل المحرّر.
 async function composeSections(sb, companyId, kind, opinion, consolidation, vars) {
-  const { data, error } = await sb.from('audit_report_config').select('*')
-    .or(`company_id.eq.${companyId},company_id.is.null`)
-    .eq('report_kind', kind).eq('opinion_type', opinion).eq('is_active', true);
-  if (error) throw new Error(error.message);
-  const rows = data || [];
+  const [{ data: cfgRows, error: e1 }, { data: grpRowsRaw, error: e2 }] = await Promise.all([
+    sb.from('audit_report_config').select('*')
+      .or(`company_id.eq.${companyId},company_id.is.null`)
+      .eq('report_kind', kind).eq('opinion_type', opinion).eq('is_active', true),
+    sb.from('audit_report_groups').select('*')
+      .or(`company_id.eq.${companyId},company_id.is.null`).eq('report_kind', kind).eq('is_active', true),
+  ]);
+  if (e1) throw new Error(e1.message);
+  if (e2) throw new Error(e2.message);
+
+  const rows = cfgRows || [];
   const overridden = new Set(rows.filter(r => r.company_id && r.source_id).map(r => r.source_id));
   const usable = rows.filter(r => !(r.company_id === null && overridden.has(r.id)))
     .filter(r => r.consolidation === 'both' || r.consolidation === consolidation
       || (consolidation === 'standalone' && r.consolidation === 'consolidated')); // احتياط: لا تُترك الفقرة فارغة
 
+  const groupsAll = grpRowsRaw || [];
+  const grpOverridden = new Set(groupsAll.filter(g => g.company_id && g.source_id).map(g => g.source_id));
+  const groups = groupsAll.filter(g => !(g.company_id === null && grpOverridden.has(g.id)));
+  const requiredGroups = groups.filter(g => g.is_required);
+
   const byGroup = {};
   usable.forEach(r => { (byGroup[r.group_name] = byGroup[r.group_name] || []).push(r); });
 
   const sections = [];
-  Object.keys(byGroup).forEach(g => {
-    const list = byGroup[g].sort((a, b) => (a.code || '').localeCompare(b.code || ''));
-    const first = list[0];
-    const multi = first.selection_mode === 'multi';
-    // في المجموعات متعددة الصفوف نضع صفًا واحدًا مبدئيًا فقط، والمستخدم يضيف من المكتبة
+  requiredGroups.forEach(g => {
+    const list = (byGroup[g.group_name] || []).sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+    if (!list.length) return; // لا توجد نصوص لهذه المجموعة بعد — لا نضيف فقرة فارغة
+    const multi = g.selection_mode === 'multi';
     const chosen = multi ? [] : [list[0]];
     sections.push({
-      key: g,
-      group_name: g,
-      title: g,
-      order: first.section_order,
-      selection_mode: first.selection_mode,
-      is_required: first.is_required,
+      key: g.group_name, group_name: g.group_name, title: g.group_name,
+      order: g.section_order, selection_mode: g.selection_mode, is_required: true,
       library_count: list.length,
-      rows: chosen.map(r => ({
-        config_id: r.id, item_name: r.item_name, code: r.code,
-        body: fillPlaceholders(r.body, vars),
-      })),
+      rows: chosen.map(r => ({ config_id: r.id, item_name: r.item_name, code: r.code, body: fillPlaceholders(r.body, vars) })),
     });
   });
   sections.sort((a, b) => a.order - b.order || a.group_name.localeCompare(b.group_name, 'ar'));
@@ -2383,34 +2650,72 @@ app.delete('/api/audit-reports/:id', requireAuth, async (req, res) => {
 });
 
 // صفحة تحقّق عامة يفتحها الباركود الموجود في كل ورقة من التقرير
+// صفحة التحقّق العامة يفتحها الباركود — تعرض التقرير كاملًا للقراءة فقط، بدون أي إمكانية تعديل
 app.get('/r/:token', async (req, res) => {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   if (!supabaseAdmin) return res.status(503).send('الخدمة غير متاحة حاليًا');
   const { data } = await supabaseAdmin.from('audit_reports')
-    .select('report_no,report_kind,opinion_type,status,report_date,period_end,approved_at,clients(name),companies(name_ar,license_no)')
+    .select('*, clients(name), companies(name_ar,name_en,license_no)')
     .eq('public_token', req.params.token).maybeSingle();
-  const body = !data
-    ? '<h1>تقرير غير معروف</h1><p>لم يُعثر على تقرير مطابق لهذا الرمز.</p>'
-    : `<h1>${data.status === 'approved' ? 'تقرير معتمد ✅' : 'مسودة تقرير ⚠️'}</h1>
-       <table>
-         <tr><th>رقم التقرير</th><td>${esc(data.report_no)}</td></tr>
-         <tr><th>العميل</th><td>${esc(data.clients && data.clients.name)}</td></tr>
-         <tr><th>مكتب المراجعة</th><td>${esc(data.companies && data.companies.name_ar)}</td></tr>
-         <tr><th>رخصة المزاولة</th><td>${esc(data.companies && data.companies.license_no)}</td></tr>
-         <tr><th>نوع التقرير</th><td>${data.report_kind === 'interim' ? 'مرحلي' : 'سنوي'}</td></tr>
-         <tr><th>نوع الرأي</th><td>${esc((OPINION_TYPES[data.opinion_type] || {})[data.report_kind] || data.opinion_type)}</td></tr>
-         <tr><th>تاريخ التقرير</th><td>${esc(data.report_date)}</td></tr>
-         <tr><th>تاريخ الاعتماد</th><td>${esc(data.approved_at ? String(data.approved_at).slice(0, 10) : '—')}</td></tr>
-       </table>
-       ${data.status === 'approved' ? '' : '<p class="warn">هذه النسخة لم تُعتمد من الشريك بعد ولا يُعتد بها.</p>'}`;
+
+  if (!data) {
+    return res.set('Content-Type', 'text/html; charset=utf-8').send(
+      `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تحقّق</title></head>
+       <body style="font-family:system-ui;padding:40px;text-align:center;color:#666;">
+       <h2>تقرير غير معروف</h2><p>لم يُعثر على تقرير مطابق لهذا الرمز.</p></body></html>`);
+  }
+
+  let opinionLabel = data.opinion_type, kindLabel = data.report_kind === 'interim' ? 'مرحلي' : 'سنوي';
+  try {
+    const { data: opRow } = await supabaseAdmin.from('audit_report_opinions').select('label_ar')
+      .or(`company_id.eq.${data.company_id},company_id.is.null`)
+      .eq('report_kind', data.report_kind).eq('code', data.opinion_type).order('company_id', { ascending: false }).limit(1).maybeSingle();
+    if (opRow) opinionLabel = opRow.label_ar;
+    const { data: kRow } = await supabaseAdmin.from('audit_report_kinds').select('label_ar')
+      .or(`company_id.eq.${data.company_id},company_id.is.null`).eq('code', data.report_kind)
+      .order('company_id', { ascending: false }).limit(1).maybeSingle();
+    if (kRow) kindLabel = kRow.label_ar;
+  } catch (e) { /* تجاهل — الملصقات الافتراضية كافية */ }
+
+  const sections = (data.sections || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+  const sectionsHtml = sections.map(s => {
+    const rows = (s.rows || []).filter(r => (r.body || '').trim());
+    if (!rows.length) return '';
+    return `<h3>${esc(s.title || s.group_name)}</h3>` +
+      rows.map(r => esc(r.body).split(/\n+/).filter(Boolean).map(p => `<p>${p}</p>`).join('')).join('');
+  }).join('');
+
   res.set('Content-Type', 'text/html; charset=utf-8').send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>التحقق من تقرير المراجعة</title>
-<style>body{font-family:system-ui,'Segoe UI',Tahoma;background:#F6F2E8;color:#1E2A2F;margin:0;padding:32px;}
-.card{max-width:560px;margin:auto;background:#FFFDF8;border:1px solid #E4DDC9;border-radius:12px;padding:26px;}
-h1{font-size:19px;margin:0 0 18px;color:#12232E;} table{width:100%;border-collapse:collapse;font-size:14px;}
-th{text-align:right;color:#6C7A78;font-weight:600;padding:9px 0;width:38%;} td{padding:9px 0;border-bottom:1px solid #EFE9DA;}
-.warn{margin-top:16px;background:#F6EDDC;border:1px solid #E4C77F;color:#8A6520;padding:10px 13px;border-radius:8px;font-size:13px;}
-</style></head><body><div class="card">${body}</div></body></html>`);
+<style>
+body{font-family:'Dubai',system-ui,'Segoe UI',Tahoma;background:#F6F2E8;color:#1E2A2F;margin:0;padding:24px;}
+.card{max-width:720px;margin:auto;background:#FFFDF8;border:1px solid #E4DDC9;border-radius:12px;padding:26px 28px;
+  user-select:none; -webkit-user-select:none;}
+.badge{display:inline-block;padding:5px 14px;border-radius:20px;font-size:12.5px;font-weight:700;margin-bottom:14px;}
+.badge.ok{background:#E4F0EA;color:#2F6F4E;} .badge.draft{background:#F6EDDC;color:#8A6520;}
+h1{font-size:16px;margin:0 0 4px;color:#12232E;} .sub{font-size:12px;color:#6C7A78;margin-bottom:18px;}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;}
+th{text-align:right;color:#6C7A78;font-weight:600;padding:8px 0;width:38%;} td{padding:8px 0;border-bottom:1px solid #EFE9DA;}
+.warn{background:#F6EDDC;border:1px solid #E4C77F;color:#8A6520;padding:10px 13px;border-radius:8px;font-size:12.5px;margin-bottom:18px;}
+.divider{height:1px;background:#E4DDC9;margin:18px 0;}
+.sections h3{font-size:13.5px;color:#12232E;margin:16px 0 6px;}
+.sections p{font-size:12.5px;line-height:1.95;text-align:justify;color:#2A261E;margin:0 0 8px;}
+.foot{margin-top:20px;font-size:10.5px;color:#9A927C;text-align:center;}
+</style></head><body><div class="card">
+<span class="badge ${data.status === 'approved' ? 'ok' : 'draft'}">${data.status === 'approved' ? 'تقرير معتمد ✅' : 'مسودة — لم تُعتمد بعد ⚠️'}</span>
+<h1>${esc(kindLabel)} — ${esc(opinionLabel)}</h1>
+<div class="sub">${esc(data.companies && data.companies.name_ar)}${data.companies && data.companies.license_no ? ' · ترخيص رقم (' + esc(data.companies.license_no) + ')' : ''}</div>
+<table>
+  <tr><th>رقم التقرير</th><td>${esc(data.report_no)}</td></tr>
+  <tr><th>العميل</th><td>${esc(data.clients && data.clients.name)}</td></tr>
+  <tr><th>تاريخ التقرير</th><td>${esc(data.report_date)}</td></tr>
+  <tr><th>تاريخ الاعتماد</th><td>${esc(data.approved_at ? String(data.approved_at).slice(0, 10) : '—')}</td></tr>
+</table>
+${data.status === 'approved' ? '' : '<div class="warn">هذه النسخة لم تُعتمد من الشريك بعد ولا يُعتد بمحتواها.</div>'}
+<div class="divider"></div>
+<div class="sections">${sectionsHtml || '<p style="color:#9A927C;">لا توجد فقرات مضافة بعد.</p>'}</div>
+<div class="foot">هذه الصفحة للتحقق من صحة التقرير فقط — محتواها للقراءة ولا يمكن تعديله.</div>
+</div></body></html>`);
 });
 
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
