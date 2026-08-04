@@ -148,3 +148,33 @@ create trigger trg_arc_auto_code
 -- 10) مرفقات العميل من البوابة (لا حذف ولا تعديل، إضافة فقط)
 -- ----------------------------------------------------------------------------
 alter table documents add column if not exists uploaded_by_client_employee_id uuid references client_employees(id);
+
+
+-- ============================================================================
+-- تحديث 2026-08-04 (مساءً): مشاركة النماذج مع العملاء + ملاحظات بوابة العميل
+-- ============================================================================
+
+-- 11) هل يظهر النموذج الجاهز في بوابة العميل؟
+alter table templates add column if not exists is_client_visible boolean not null default false;
+alter table templates add column if not exists description text;
+alter table templates add column if not exists sort_order int not null default 100;
+
+-- 12) ملاحظات يراها العميل في بوابته (يكتبها المكتب)
+create table if not exists client_notes (
+    id             uuid primary key default gen_random_uuid(),
+    company_id     uuid not null references companies(id) on delete cascade,
+    client_id      uuid not null references clients(id) on delete cascade,
+    client_file_id uuid references client_files(id) on delete set null,
+    title          varchar(200),
+    body           text not null,
+    is_pinned      boolean not null default false,
+    created_by     uuid references users(id),
+    created_at     timestamptz not null default now(),
+    updated_at     timestamptz not null default now()
+);
+create index if not exists idx_client_notes_client on client_notes(client_id);
+
+drop trigger if exists trg_client_notes_updated_at on client_notes;
+create trigger trg_client_notes_updated_at
+    before update on client_notes
+    for each row execute function fn_set_updated_at();

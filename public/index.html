@@ -728,7 +728,7 @@
   #print-root.show{display:block;}
   .sheet{width:210mm; height:297mm; overflow:hidden; background:#fff; margin:0 auto 18px; position:relative;
          padding:26mm 20mm 24mm 20mm; box-sizing:border-box; box-shadow:0 6px 26px rgba(0,0,0,.28);
-         font-family:'Dubai','IBM Plex Sans Arabic',system-ui,sans-serif; color:#14202a;
+         font-family:'Dubai','Sakkal Majalla','IBM Plex Sans Arabic',system-ui,sans-serif; color:#14202a;
          -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;}
   .sheet .sh-bg{position:absolute; inset:0; z-index:0; overflow:hidden;
          -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;}
@@ -790,6 +790,22 @@
     .sheet .sh-bg img{width:100% !important; height:100% !important; object-fit:fill !important;}
     #print-bar{display:none !important;}
   }
+  /* --- النماذج الجاهزة: مجموعات قابلة للطي + بطاقات --- */
+  .tpl-group summary::-webkit-details-marker{display:none;}
+  .tpl-group .tpl-chev{color:var(--muted); transition:transform .2s; font-size:14px;}
+  .tpl-group[open] .tpl-chev{transform:rotate(180deg);}
+  .tpl-group summary:hover{background:var(--paper);}
+  .tpl-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; padding:4px 16px 18px;}
+  .tpl-card{border:1px solid var(--line); border-radius:10px; background:var(--card); padding:14px; display:flex; flex-direction:column; gap:7px;
+            transition:border-color .15s, box-shadow .15s;}
+  .tpl-card:hover{border-color:var(--brass); box-shadow:0 3px 12px rgba(0,0,0,.07);}
+  .tpl-card .tpl-ico{font-size:26px; line-height:1;}
+  .tpl-card .tpl-name{font-size:12.8px; font-weight:700; color:var(--ink); line-height:1.5;}
+  .tpl-card .tpl-desc{font-size:11px; color:var(--muted); line-height:1.7;}
+  .tpl-card .tpl-badges{display:flex; gap:5px; flex-wrap:wrap;}
+  .tpl-card .tpl-acts{display:flex; gap:5px; flex-wrap:wrap; margin-top:auto; padding-top:6px;}
+  .tpl-card .tpl-acts a.mini-btn{text-decoration:none; display:inline-block;}
+
   @media (max-width:900px){
     .rc-layout{grid-template-columns:1fr;}
     .rc-side{position:static;}
@@ -2226,6 +2242,7 @@
             <div class="form-field"><label>نوع الخط</label>
               <select id="rs-font">
                 <option value="Dubai">Dubai (دبي)</option>
+                <option value="Sakkal Majalla">Sakkal Majalla (مجلة)</option>
                 <option value="IBM Plex Sans Arabic">IBM Plex Sans Arabic</option>
                 <option value="Tajawal">Tajawal</option>
                 <option value="Almarai">Almarai</option>
@@ -2661,6 +2678,17 @@
           </div>
         </div>
       </div>
+      <div class="form-field full" style="margin-top:12px;">
+        <label>وصف مختصر (اختياري)</label>
+        <input id="tpl-desc" placeholder="يظهر تحت اسم النموذج للعميل">
+      </div>
+      <label style="display:flex; align-items:center; gap:9px; margin-top:14px; font-size:12.5px; cursor:pointer;
+                    background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:11px 13px;">
+        <input type="checkbox" id="tpl-client-visible" style="accent-color:#AD8A3F;">
+        <span><b>إظهار هذا النموذج للعملاء في بوابتهم</b>
+          <span style="display:block; font-size:11px; color:var(--muted); margin-top:2px;">
+            العميل يقدر ينزّله بنفسه بدل ما ترسله له يدويًا</span></span>
+      </label>
       <div id="tpl-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
     </div>
     <div class="modal-foot">
@@ -5664,36 +5692,78 @@ async function loadTemplatesLive(){
   container.innerHTML = '<div class="panel"><div class="empty-hint" style="padding:60px 20px;">جارٍ التحميل...</div></div>';
   try{
     TEMPLATES_CACHE = await apiFetch('/api/templates');
-    if(!TEMPLATES_CACHE.length){
-      container.innerHTML = '<div class="panel"><div class="empty-hint" style="padding:60px 20px;">لا توجد نماذج بعد — اضغط "+ إضافة نموذج"</div></div>';
-      return;
-    }
-    const byCat = {};
-    TEMPLATES_CACHE.forEach(t=>{
-      const cat = t.category || 'بدون مجموعة';
-      (byCat[cat] = byCat[cat] || []).push(t);
-    });
-    container.innerHTML = Object.keys(byCat).map(cat=>`
-      <div class="panel">
-        <div class="panel-head"><h3>${escapeHtml(cat)}</h3></div>
-        <table>
-          <thead><tr><th>اسم النموذج</th><th>نوع الملف</th><th></th></tr></thead>
-          <tbody>${byCat[cat].map(t=>`
-            <tr><td><b>${escapeHtml(t.name)}</b></td><td><span class="badge neutral">${(t.file_type||'ملف').toUpperCase()}</span></td>
-            <td style="white-space:nowrap;">
-              <div class="row-actions">
-                <a class="row-icon-btn edit" title="تنزيل" href="${t.file_url}" download="${escapeHtml(t.name)}">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                </a>
-                ${btnDelete(`deleteTemplateLive('${t.id}')`)}
-              </div>
-            </td></tr>`).join('')}</tbody>
-        </table>
-      </div>`).join('');
+    renderTemplatesLive();
   }catch(e){ container.innerHTML = `<div class="panel"><div class="empty-hint" style="padding:60px 20px;">تعذّر التحميل: ${e.message}</div></div>`; }
 }
+
+const TPL_ICONS = {pdf:'📕', doc:'📘', docx:'📘', xls:'📗', xlsx:'📗', ppt:'📙', pptx:'📙', zip:'🗜️', png:'🖼️', jpg:'🖼️', jpeg:'🖼️'};
+function tplIcon(ext){ return TPL_ICONS[(ext||'').toLowerCase()] || '📄'; }
+
+function renderTemplatesLive(){
+  const container = document.getElementById('templates-groups-container');
+  if(!TEMPLATES_CACHE.length){
+    container.innerHTML = '<div class="panel"><div class="empty-hint" style="padding:60px 20px;">لا توجد نماذج بعد — اضغط "+ إضافة نموذج"</div></div>';
+    return;
+  }
+  const byCat = {};
+  TEMPLATES_CACHE.forEach(t=>{ const cat = t.category || 'بدون مجموعة'; (byCat[cat] = byCat[cat] || []).push(t); });
+  const cats = Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'ar'));
+  const shownCount = TEMPLATES_CACHE.filter(t=>t.is_client_visible).length;
+
+  container.innerHTML = `
+    <div class="panel" style="padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span style="font-size:12.5px; color:var(--muted);">${TEMPLATES_CACHE.length} نموذج في ${cats.length} مجموعة</span>
+      <span class="tag-own">${shownCount} ظاهر للعملاء</span>
+      <span style="flex:1;"></span>
+      <input id="tpl-search" placeholder="بحث في النماذج..." oninput="renderTemplatesLive()" style="min-width:200px;"
+             value="${escapeHtml((document.getElementById('tpl-search')||{}).value||'')}">
+    </div>` +
+    cats.map(cat=>{
+      const q = ((document.getElementById('tpl-search')||{}).value||'').trim();
+      const items = byCat[cat].filter(t=>!q || (t.name+' '+(t.description||'')).indexOf(q)>=0);
+      if(!items.length) return '';
+      return `
+      <details class="panel tpl-group" style="padding:0; margin-bottom:12px;" ${q?'open':''}>
+        <summary style="cursor:pointer; padding:14px 18px; list-style:none; display:flex; align-items:center; gap:10px;">
+          <span style="font-size:13.5px; font-weight:700; color:var(--ink); flex:1;">${escapeHtml(cat)}</span>
+          <span class="tag-lib">${items.length} نموذج</span>
+          <span class="tpl-chev">▾</span>
+        </summary>
+        <div class="tpl-grid">
+          ${items.map(t=>`
+            <div class="tpl-card">
+              <div class="tpl-ico">${tplIcon(t.file_type)}</div>
+              <div class="tpl-name">${escapeHtml(t.name)}</div>
+              ${t.description?`<div class="tpl-desc">${escapeHtml(t.description)}</div>`:''}
+              <div class="tpl-badges">
+                <span class="badge neutral">${(t.file_type||'ملف').toUpperCase()}</span>
+                ${t.is_client_visible?'<span class="tag-own">ظاهر للعميل</span>':'<span class="tag-lib">داخلي</span>'}
+              </div>
+              <div class="tpl-acts">
+                <a class="mini-btn" href="${t.file_url}" download="${escapeHtml(t.name)}">تنزيل</a>
+                <button class="mini-btn ${t.is_client_visible?'on':''}" onclick="toggleTemplateVisible('${t.id}', ${!t.is_client_visible})">
+                  ${t.is_client_visible?'إخفاء عن العميل':'إظهار للعميل'}</button>
+                <button class="mini-btn danger" onclick="deleteTemplateLive('${t.id}')">حذف</button>
+              </div>
+            </div>`).join('')}
+        </div>
+      </details>`;
+    }).join('');
+}
+
+async function toggleTemplateVisible(id, visible){
+  try{
+    await apiFetch('/api/templates/'+id, {method:'PUT', body: JSON.stringify({is_client_visible: visible})});
+    const t = TEMPLATES_CACHE.find(x=>x.id===id); if(t) t.is_client_visible = visible;
+    showToast(visible?'أصبح النموذج ظاهرًا للعملاء':'أُخفي النموذج عن العملاء');
+    renderTemplatesLive();
+  }catch(e){ showToast(e.message); }
+}
+
 function openAddTemplateModal(){
   document.getElementById('tpl-name').value = '';
+  document.getElementById('tpl-desc').value = '';
+  document.getElementById('tpl-client-visible').checked = false;
   TEMPLATE_PENDING_FILE = null;
   document.getElementById('tpl-file-label').textContent = 'إرفاق الملف';
   document.getElementById('tpl-file-input').value = '';
@@ -5735,6 +5805,8 @@ async function saveNewTemplate(){
   try{
     await apiFetch('/api/templates', {method:'POST', body: JSON.stringify({
       name, category: category || null,
+      description: document.getElementById('tpl-desc').value.trim() || null,
+      is_client_visible: document.getElementById('tpl-client-visible').checked,
       file_url: TEMPLATE_PENDING_FILE.data, file_type: (TEMPLATE_PENDING_FILE.name.split('.').pop()||'').toLowerCase(),
     })});
     closeModal('modal-addtemplate');
@@ -7664,7 +7736,7 @@ function makeSheet() {
     ${REP.status !== 'approved' ? '<div class="draft-wm"><span>مسودة</span></div>' : ''}
     ${plainHead}
     ${qrOverlay}
-    <div class="sh-body" style="font-family:'${s.font}','Dubai',system-ui,sans-serif; font-size:${s.size}pt;
+    <div class="sh-body" style="font-family:'${s.font}','Sakkal Majalla','Dubai',system-ui,sans-serif; font-size:${s.size}pt;
          line-height:${s.line_height}; text-align:${s.justify ? 'justify' : 'start'};"></div>
     <div class="sh-foot3" style="height:${Math.max(14, s.mb - 6)}mm; inset-inline:${s.mr}mm ${s.ml}mm;">
       <div class="slot start">${!isTop && slot === 'start' ? qrBlock : (pgSlot === 'start' ? '<div class="pg">صفحة <span class="pn"></span> من <span class="pt"></span></div>' : '')}</div>

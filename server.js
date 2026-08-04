@@ -315,6 +315,73 @@ app.post('/api/portal/files/:id/attachments', requirePortalAuth, async (req, res
 });
 
 // ---------------------------------------------------------------------------
+// بوابة العميل: النماذج الجاهزة المسموح بعرضها للعملاء
+// ---------------------------------------------------------------------------
+app.get('/api/portal/templates', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('templates')
+    .select('id,name,category,description,file_url,file_type,sort_order')
+    .eq('company_id', req.portal.companyId).eq('is_client_visible', true)
+    .order('category').order('sort_order').order('name');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+// ---------------------------------------------------------------------------
+// بوابة العميل: الملاحظات الموجّهة للعميل
+// ---------------------------------------------------------------------------
+app.get('/api/portal/notes', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('client_notes')
+    .select('id,title,body,is_pinned,created_at,client_file_id,client_files(name)')
+    .eq('client_id', req.portal.clientId)
+    .order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+// ---------------------------------------------------------------------------
+// بوابة العميل: بيانات المنشأة (قراءة فقط)
+// ---------------------------------------------------------------------------
+app.get('/api/portal/profile', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: client, error } = await sb.from('clients')
+    .select('*').eq('id', req.portal.clientId).maybeSingle();
+  if (error) return res.status(500).json({ message: error.message });
+  const { data: employees } = await sb.from('client_employees')
+    .select('id,full_name,job_title,email,phone,username,is_portal_enabled,is_primary_contact,created_at')
+    .eq('client_id', req.portal.clientId).order('created_at');
+  res.json({ client: client || {}, employees: employees || [] });
+});
+
+// بوابة العميل: إضافة موظف تابع للعميل (إضافة فقط — لا تعديل ولا حذف)
+app.post('/api/portal/employees', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.full_name || !String(b.full_name).trim()) return res.status(400).json({ message: 'اسم الموظف إلزامي' });
+  const wantsPortal = !!b.is_portal_enabled;
+  let username = b.username ? String(b.username).trim() : null;
+  let password_hash = null;
+  if (wantsPortal) {
+    if (!username) return res.status(400).json({ message: 'اسم المستخدم إلزامي لتفعيل الدخول للبوابة' });
+    if (!b.password || String(b.password).length < 6) return res.status(400).json({ message: 'كلمة المرور يجب أن تكون 6 أحرف فأكثر' });
+    const { data: dup } = await sb.from('client_employees').select('id').eq('username', username).maybeSingle();
+    if (dup) return res.status(409).json({ message: 'اسم المستخدم مسجّل مسبقًا' });
+    password_hash = await bcrypt.hash(String(b.password), 10);
+  }
+  const { data, error } = await sb.from('client_employees').insert({
+    client_id: req.portal.clientId,
+    full_name: String(b.full_name).trim(),
+    job_title: b.job_title ? String(b.job_title).trim() : null,
+    email: b.email ? String(b.email).trim().toLowerCase() : null,
+    phone: b.phone ? String(b.phone).trim() : null,
+    username, password_hash, is_portal_enabled: wantsPortal,
+  }).select('id,full_name,job_title,email,phone,username,is_portal_enabled,created_at').single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// ---------------------------------------------------------------------------
 // إنشاء مكتب جديد (حساب شركة جديدة) + أول مستخدم فيه (الشريك المسؤول)
 // ---------------------------------------------------------------------------
 app.post('/api/signup', async (req, res) => {
@@ -1620,9 +1687,29 @@ app.post('/api/templates', requireAuth, async (req, res) => {
   const payload = {
     company_id: req.session.companyId, name: b.name.trim(),
     category: b.category ? b.category.trim() : null,
+    description: b.description ? String(b.description).trim() : null,
+    is_client_visible: !!b.is_client_visible,
+    sort_order: Number(b.sort_order) || 100,
     file_url: b.file_url, file_type: b.file_type || null,
   };
   const { data, error } = await sb.from('templates').insert(payload).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// تعديل نموذج (خصوصًا تبديل ظهوره للعملاء)
+app.put('/api/templates/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const patch = {};
+  if (b.name !== undefined) patch.name = String(b.name).trim();
+  if (b.category !== undefined) patch.category = b.category ? String(b.category).trim() : null;
+  if (b.description !== undefined) patch.description = b.description ? String(b.description).trim() : null;
+  if (b.is_client_visible !== undefined) patch.is_client_visible = !!b.is_client_visible;
+  if (b.sort_order !== undefined) patch.sort_order = Number(b.sort_order) || 100;
+  if (!Object.keys(patch).length) return res.json({ ok: true });
+  const { data, error } = await sb.from('templates').update(patch)
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).select().single();
   if (error) return res.status(500).json({ message: error.message });
   res.json(data);
 });
@@ -2745,7 +2832,7 @@ app.get('/r/:token', async (req, res) => {
 <link href="https://fonts.cdnfonts.com/css/dubai" rel="stylesheet">
 <style>
 *{box-sizing:border-box;}
-body{margin:0; padding:0; background:#8A9298; font-family:'${esc(cfg.font)}','Dubai',system-ui,'Segoe UI',Tahoma;
+body{margin:0; padding:0; background:#8A9298; font-family:'${esc(cfg.font)}','Sakkal Majalla','Dubai',system-ui,'Segoe UI',Tahoma;
      -webkit-print-color-adjust:exact; print-color-adjust:exact;}
 .bar{position:sticky; top:0; z-index:9; background:rgba(18,35,46,.94); padding:11px 16px;
      display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap;}
@@ -2753,19 +2840,22 @@ body{margin:0; padding:0; background:#8A9298; font-family:'${esc(cfg.font)}','Du
 .bar .st.ok{background:#E4F0EA; color:#2F6F4E;} .bar .st.draft{background:#F6EDDC; color:#8A6520;}
 .bar button{font-family:inherit; font-size:12.5px; padding:8px 18px; border-radius:8px; border:0; cursor:pointer;
             background:#C9A968; color:#12232E; font-weight:700;}
-.wrap{padding:20px 0;}
-.sheet{width:210mm; height:297mm; overflow:hidden; background:#fff; margin:0 auto 18px; position:relative;
-       padding:${effMt}mm ${cfg.ml}mm ${cfg.mb}mm ${cfg.mr}mm; box-shadow:0 6px 26px rgba(0,0,0,.28); color:#14202a;
+.wrap{padding:24px 16px; max-width:1000px; margin:0 auto;}
+.sheet{width:100%; background:#FFFDF8; margin:0 auto; position:relative; border:1px solid #E4DDC9; border-radius:14px;
+       padding:38px 46px; box-shadow:0 4px 22px rgba(0,0,0,.14); color:#14202a;
        -webkit-print-color-adjust:exact; print-color-adjust:exact;}
-.sh-bg{position:absolute; inset:0; z-index:0;}
+.sh-bg{position:absolute; inset:0; z-index:0; display:none;}
 .sh-bg img{width:100%; height:100%; object-fit:fill; display:block;}
-.sh-plainhead{position:absolute; z-index:1; top:${headerTop}mm; height:${headerH}mm; inset-inline:${cfg.mr}mm ${cfg.ml}mm;
-              display:flex; align-items:center; justify-content:center; gap:10px; text-align:center;}
+.sh-plainhead{display:none; z-index:1; top:${headerTop}mm; height:${headerH}mm; inset-inline:${cfg.mr}mm ${cfg.ml}mm;
+              align-items:center; justify-content:center; gap:10px; text-align:center;}
 .sh-plainhead img{max-height:100%; max-width:70mm; object-fit:contain;}
 .sh-plainhead b{display:block; font-size:14pt; color:#12232E;}
 .sh-plainhead span{display:block; font-size:8.5pt; color:#6C7A78; margin-top:2px;}
-.sh-rule{position:absolute; z-index:1; top:${ruleTop}mm; inset-inline:${cfg.mr}mm ${cfg.ml}mm; height:1.4px;
+.sh-rule{display:none; z-index:1; top:${ruleTop}mm; inset-inline:${cfg.mr}mm ${cfg.ml}mm; height:1.4px;
          background:linear-gradient(90deg,transparent,#C9A968 15%,#C9A968 85%,transparent);}
+.screen-meta{display:flex; gap:20px; flex-wrap:wrap; font-size:12px; color:#6C7A78;
+             padding-bottom:16px; margin-bottom:20px; border-bottom:1px solid #E4DDC9;}
+.screen-meta b{color:#12232E;}
 .body{position:relative; z-index:1; font-size:${cfg.size}pt; line-height:${cfg.line_height};
       text-align:${cfg.justify ? 'justify' : 'start'};}
 .body h1{font-size:1.3em; text-align:center; margin:0 0 5mm; color:#12232E;}
@@ -2788,8 +2878,14 @@ body{margin:0; padding:0; background:#8A9298; font-family:'${esc(cfg.font)}','Du
   @page{size:A4 portrait; margin:0;}
   html,body{margin:0!important; padding:0!important; width:210mm!important; background:#fff!important;}
   .bar{display:none!important;}
-  .wrap{padding:0!important;}
-  .sheet{box-shadow:none!important; margin:0!important; width:210mm!important; height:297mm!important;}
+  .wrap{padding:0!important; max-width:none!important;}
+  .sheet{box-shadow:none!important; border:0!important; border-radius:0!important; background:#fff!important;
+         margin:0!important; width:210mm!important; min-height:297mm!important;
+         padding:${effMt}mm ${cfg.ml}mm ${cfg.mb}mm ${cfg.mr}mm !important;}
+  .sh-bg{display:block!important;}
+  .sh-plainhead{display:flex!important; position:absolute!important;}
+  .sh-rule{display:block!important; position:absolute!important;}
+  .screen-meta{display:none!important;}
 }
 @media (max-width:820px){ .wrap{overflow-x:auto;} }
 </style></head><body>
@@ -2807,6 +2903,12 @@ body{margin:0; padding:0; background:#8A9298; font-family:'${esc(cfg.font)}','Du
     </div><div class="sh-rule"></div>`}
   ${data.status !== 'approved' ? '<div class="wm"><span>مسودة</span></div>' : ''}
   <div class="body">
+    <div class="screen-meta">
+      <div>رقم التقرير <b>${esc(arNum(data.report_no || '—'))}</b></div>
+      <div>العميل <b>${esc((data.clients && data.clients.name) || '')}</b></div>
+      <div>مكتب المراجعة <b>${esc(co.name_ar || '')}</b></div>
+      <div>الحالة <b style="color:${data.status === 'approved' ? '#2F6F4E' : '#8A6520'};">${data.status === 'approved' ? 'معتمد من الشريك' : 'مسودة'}</b></div>
+    </div>
     <h1>${esc(title)}</h1>
     ${openingHtml}
     ${data.report_kind !== 'interim' && cfg.section1 ? `<h2>${esc(cfg.section1)}</h2>` : ''}
