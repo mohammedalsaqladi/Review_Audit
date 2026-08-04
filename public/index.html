@@ -759,13 +759,14 @@
   .sheet .sh-body h1{font-size:1.3em; text-align:center; margin:0 0 5mm; color:#12232E; letter-spacing:.3px;}
   .sheet .sh-body p{margin:0 0 3mm; text-align:justify;}
   .sheet .sh-body .addr{margin-bottom:5mm; font-weight:600;}
-  .sheet .sh-body .addr-row{display:flex; align-items:baseline; justify-content:space-between; gap:10mm; margin-bottom:5mm; font-weight:600;}
-  .sheet .sh-body .addr-row .resp{white-space:nowrap;}
+  .sheet .sh-body .addr-row{display:table; width:100%; margin-bottom:5mm; font-weight:600; table-layout:fixed;}
+  .sheet .sh-body .addr-row span{display:table-cell; vertical-align:baseline;}
+  .sheet .sh-body .addr-row .resp{white-space:nowrap; width:1%; padding-inline-start:10mm;}
   .sheet .sh-body p.num-row{margin-inline-start:2mm;}
-  .sheet .sh-body .sig{position:relative; z-index:1; margin-top:10mm; display:flex; align-items:flex-start; justify-content:space-between; gap:12mm;}
-  .sheet .sh-body .sig .sig-r{font-size:0.85em; line-height:1.9;}
-  .sheet .sh-body .sig .sig-l{display:flex; flex-direction:column; align-items:center; gap:1mm; text-align:center; min-width:38mm;}
-  .sheet .sh-body .sig .sig-l .mk{object-fit:contain; display:block;}
+  .sheet .sh-body .sig{position:relative; z-index:1; margin-top:10mm; display:table; width:100%; table-layout:fixed;}
+  .sheet .sh-body .sig .sig-r{display:table-cell; vertical-align:top; font-size:0.85em; line-height:1.9;}
+  .sheet .sh-body .sig .sig-l{display:table-cell; vertical-align:top; width:40mm; text-align:center;}
+  .sheet .sh-body .sig .sig-l .mk{object-fit:contain; display:block; margin:0 auto 1mm;}
   .sheet .sh-body .sig .sig-l .mk.stamp{opacity:.92;}
   .sheet .sh-body .sig .sig-l .nm{font-weight:700; font-size:0.9em;}
   .sheet .sh-body .sig .sig-l .ttl{font-size:0.75em; color:#6C7A78;}
@@ -7608,26 +7609,41 @@ function reportPublicUrl() {
   return base + '/r/' + (REP.public_token || '');
 }
 
+// يحسب الهامش العلوي الفعلي للورقة: يحترم اختيار المستخدم، لكن يرفعه تلقائيًا
+// إن كان أضيق مما تحتاجه ترويسة الشعار النصية (فقط حين لا توجد اكليشة كخلفية)
+function effectiveTopMargin(s){
+  const hasLetterhead = s.letterhead && REP_COMPANY.letterhead_url;
+  if (hasLetterhead) return s.mt;
+  const headerH = 16, headerTop = 6, gapHeaderToRule = 3, gapRuleToBody = 4;
+  const ruleTop = headerTop + headerH + gapHeaderToRule;
+  return Math.max(s.mt, ruleTop + gapRuleToBody);
+}
+
 function makeSheet() {
   const s = rs();
   const ar = s.arabic_digits;
   const sh = document.createElement('div');
   sh.className = 'sheet';
-  sh.style.paddingTop = s.mt + 'mm';
+
+  const hasLetterhead = s.letterhead && REP_COMPANY.letterhead_url;
+  const bg = hasLetterhead ? `<div class="sh-bg"><img src="${REP_COMPANY.letterhead_url}" alt=""></div>` : '';
+  const effectiveMt = effectiveTopMargin(s);
+
+  let plainHead = '';
+  if (!hasLetterhead) {
+    const headerH = 16, headerTop = 6, gapHeaderToRule = 3;
+    const ruleTop = headerTop + headerH + gapHeaderToRule;
+    plainHead = `
+    <div class="sh-plainhead" style="top:${headerTop}mm; height:${headerH}mm; inset-inline:${s.mr}mm ${s.ml}mm;">
+      ${REP_COMPANY.logo_url ? `<img src="${REP_COMPANY.logo_url}" style="max-height:${Math.min(s.logo_h, headerH)}mm;">` : ''}
+      <div class="txt"><b>${esc(REP_COMPANY.name_ar || '')}</b>
+        <span>${esc(REP_COMPANY.name_en || '')}${REP_COMPANY.license_no ? ' · ترخيص رقم (' + toArDigits(REP_COMPANY.license_no, ar) + ')' : ''}</span></div>
+    </div><div class="sh-rule" style="top:${ruleTop}mm; inset-inline:${s.mr}mm ${s.ml}mm;"></div>`;
+  }
+  sh.style.paddingTop = effectiveMt + 'mm';
   sh.style.paddingBottom = s.mb + 'mm';
   sh.style.paddingRight = s.mr + 'mm';
   sh.style.paddingLeft = s.ml + 'mm';
-
-  const bg = (s.letterhead && REP_COMPANY.letterhead_url)
-    ? `<div class="sh-bg"><img src="${REP_COMPANY.letterhead_url}" alt=""></div>` : '';
-
-  // ترويسة نصّية بديلة تظهر فقط عند عدم وجود اكليشة
-  const plainHead = (!s.letterhead || !REP_COMPANY.letterhead_url) ? `
-    <div class="sh-plainhead" style="top:${Math.max(6, s.mt - 20)}mm; inset-inline:${s.mr}mm ${s.ml}mm;">
-      ${REP_COMPANY.logo_url ? `<img src="${REP_COMPANY.logo_url}" style="max-height:${s.logo_h}mm;">` : ''}
-      <div class="txt"><b>${esc(REP_COMPANY.name_ar || '')}</b>
-        <span>${esc(REP_COMPANY.name_en || '')}${REP_COMPANY.license_no ? ' · ترخيص رقم (' + toArDigits(REP_COMPANY.license_no, ar) + ')' : ''}</span></div>
-    </div><div class="sh-rule" style="top:${Math.max(6, s.mt - 6)}mm; inset-inline:${s.mr}mm ${s.ml}mm;"></div>` : '';
 
   const qrPos = s.qr_pos || 'bottom-center';
   const isTop = qrPos.indexOf('top') === 0;
@@ -7785,7 +7801,7 @@ function renderSheets() {
   const blocks = buildBlocks();
   let sheet = makeSheet(); root.appendChild(sheet);
   let body = sheet.querySelector('.sh-body');
-  const maxH = () => (297 - s.mt - s.mb) * MM;
+  const maxH = () => (297 - effectiveTopMargin(s) - s.mb) * MM;
   const fits = () => body.scrollHeight <= maxH();
   const newSheet = () => { sheet = makeSheet(); root.appendChild(sheet); body = sheet.querySelector('.sh-body'); };
 
