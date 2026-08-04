@@ -729,8 +729,8 @@
   .sheet .sh-foot .meta{line-height:1.7; text-align:start;}
   .sheet .sh-foot .pg{font-variant-numeric:tabular-nums; white-space:nowrap;}
   .sheet .sh-body{font-size:11pt; line-height:2.05; text-align:justify;}
-  .sheet .sh-body h2{font-size:12pt; margin:6mm 0 2mm; color:#12232E; font-weight:700;}
-  .sheet .sh-body h1{font-size:14pt; text-align:center; margin:0 0 5mm; color:#12232E; letter-spacing:.3px;}
+  .sheet .sh-body h2{font-size:1.12em; margin:6mm 0 2mm; color:#12232E; font-weight:700;}
+  .sheet .sh-body h1{font-size:1.3em; text-align:center; margin:0 0 5mm; color:#12232E; letter-spacing:.3px;}
   .sheet .sh-body p{margin:0 0 3mm; text-align:justify;}
   .sheet .sh-body .addr{margin-bottom:5mm; font-weight:600;}
   .sheet .sh-body .sig{margin-top:8mm; display:flex; align-items:flex-end; justify-content:space-between; gap:12mm;}
@@ -754,6 +754,19 @@
     .rc-side{position:static;}
     #print-root{overflow-x:auto;}
   }
+
+  /* --- عرض التقرير المعتمد كمستند نظيف (بدون صناديق أو أزرار) --- */
+  .doc-view{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:34px 40px;}
+  .doc-view h1{font-size:16px; text-align:center; margin:0 0 16px; color:var(--ink);}
+  .doc-view h2{font-size:13.5px; margin:18px 0 6px; color:var(--ink); font-weight:700;}
+  .doc-view p{font-size:13px; line-height:2; text-align:justify; color:var(--text); margin:0 0 8px;}
+  .doc-view .doc-addr{font-weight:600; margin-bottom:14px;}
+  .doc-view .doc-meta{display:flex; gap:22px; flex-wrap:wrap; font-size:11.5px; color:var(--muted); margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--line);}
+  .doc-view .doc-meta b{color:var(--ink);}
+  .doc-view .doc-sig{margin-top:26px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
+  .doc-view .doc-sig .who{font-size:12.5px; line-height:2;}
+  .doc-view .doc-sig .marks{display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center;}
+  .doc-view .doc-sig .marks img{max-height:70px; max-width:150px; object-fit:contain;}
 
 </style>
 </head>
@@ -1980,7 +1993,7 @@
           هذا التقرير <b>معتمد من الشريك</b> ولا يقبل التعديل. لإجراء أي تغيير، ألغِ الاعتماد أولًا من زر «إلغاء الاعتماد».
         </div>
 
-        <div class="form-section">
+        <div class="form-section repe-editonly">
           <div class="form-section-title">بيانات التقرير</div>
           <div class="rep-meta">
             <div class="form-field"><label>رقم التقرير</label><input id="repe-no"></div>
@@ -2004,7 +2017,7 @@
           <div id="repe-sections"></div>
         </div>
 
-        <div class="form-section">
+        <div class="form-section repe-editonly">
           <div class="form-section-title">التوقيع والختم</div>
           <div class="sig-box">
             <div class="sig-drop" id="sig-drop-sign" onclick="pickReportImage('signature')">
@@ -2117,9 +2130,14 @@
         <div class="page-head">
           <div><div class="crumb">تهيئة النظام</div><h1>بيانات المكتب</h1>
             <p class="desc">هذه البيانات تُدرَج آليًا في كل تقرير مراجعة: الاكليشة، الشعار، الترخيص، الختم، التوقيع، وتنسيقات الطباعة</p></div>
-          <button class="btn dark" onclick="saveCompany()">حفظ بيانات المكتب</button>
+          <div id="co-view-actions"><button class="btn dark" onclick="enterCompanyEdit()">تعديل</button></div>
+          <div id="co-edit-actions" style="display:none; gap:8px;">
+            <button class="btn" onclick="cancelCompanyEdit()">إلغاء</button>
+            <button class="btn dark" onclick="saveCompany()">حفظ بيانات المكتب</button>
+          </div>
         </div>
 
+        <div id="co-edit-mode">
         <div class="form-section">
           <div class="form-section-title">هوية المكتب</div>
           <div class="form-grid">
@@ -2251,7 +2269,8 @@
           </div>
         </div>
 
-        <button class="btn dark" onclick="saveCompany()">حفظ بيانات المكتب</button>
+        </div>
+
       </div>
 
     </div>
@@ -6781,21 +6800,51 @@ async function loadRcItems(){
   }catch(e){ box.innerHTML='<div class="panel"><div class="empty-hint" style="padding:60px 20px;">'+esc(e.message)+'</div></div>'; }
 }
 
+// فئات معروفة لتجميع بنود المكتبة الطويلة (مثل "أساس الرأي المتحفظ") تحت عناوين فرعية قابلة للطي
+const RC_CATEGORIES=['العقارات والآلات والمعدات','العقارات الاستثمارية','موجودات غير ملموسة','شهرة',
+  'استثمارات في مشاريع مشتركة','أدوات / موجودات مالية مشتقة','استثمارات محتفظ بها بغرض الاستحقاق','موجودات مالية متاحة للبيع',
+  'موجودات غير متداولة أخرى','موجودات حيوية','موجودات ضريبية مؤجلة','أرصدة مستحقة من جهات ذات علاقة','موجودات بموجب عقود إيجار تمويلية',
+  'المخزون','ذمم مدينة تجارية','موجودات متداولة أخرى','الأصول المحتفظ بها لغرض البيع','مدينون عقود إيجار تمويلي',
+  'النقد وما في حكمه','رأس المال','أرباح مبقاة','الاحتياطيات الأخرى','احتياطي نظامي','احتياطي عام',
+  'قروض طويلة الأجل','مطلوبات غير متداولة أخرى','مخصص منافع الموظفين','عقود إيجار','أرصدة مستحقة إلى جهات ذات علاقة',
+  'قروض قصيرة الأجل','مخصص الزكاة وضريبة الدخل','مطلوبات متداولة أخرى','التزامات ضريبة القيمة المضافة','التزامات ضريبة الاستقطاع',
+  'إيرادات أخرى','إيرادات','تكلفة مبيعات','مصاريف بيع وتوزيع','مصاريف عمومية وإدارية','تكلفة تمويل','مصروف الزكاة','مصاريف أخرى'];
+function rcCategoryOf(itemName){
+  const n=itemName||''; let best=null;
+  RC_CATEGORIES.forEach(c=>{ if(n.indexOf(c)===0 && (!best||c.length>best.length)) best=c; });
+  return best;
+}
+
+let RC_SHOW_ALL=false;
 function renderRcItems(){
   const box=document.getElementById('rc-items');
   const q=(document.getElementById('rc-search').value||'').trim();
   let list=RC.items;
+  const ownCount=list.filter(r=>r.company_id).length;
+  if(!RC_SHOW_ALL) list=list.filter(r=>r.company_id);
   if(q) list=list.filter(r=>((r.item_name||'')+' '+(r.body||'')).indexOf(q)>=0);
   const meta=RC.summary.find(g=>g.group_name===RC.group);
   const head=`<div class="panel" style="padding:12px 15px; margin-bottom:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
       <b style="font-size:13px; color:var(--ink); flex:1;">${esc(RC.group||'')}</b>
       ${meta?`<span class="tag-lib">${meta.selection_mode==='multi'?'عدة صفوف':'فقرة واحدة'}</span>`:''}
       ${meta&&meta.is_required?'<span class="tag-own">إلزامية</span>':''}
-      <span class="tag-lib">${list.length} بند</span>
+      <span class="tag-lib">${list.length} بند${RC_SHOW_ALL?'':' (مكتبك)'}</span>
+      <button class="mini-btn ${RC_SHOW_ALL?'on':''}" onclick="RC_SHOW_ALL=!RC_SHOW_ALL; renderRcItems();">${RC_SHOW_ALL?'إخفاء المكتبة العامة':'عرض المكتبة العامة كاملة ('+RC.items.length+')'}</button>
       <button class="mini-btn" onclick="openRcEditor(null)">+ بند في هذه المجموعة</button>
     </div>`;
-  if(!list.length){ box.innerHTML=head+'<div class="panel"><div class="empty-hint" style="padding:60px 20px;">لا توجد بنود مطابقة</div></div>'; return; }
-  box.innerHTML=head+list.map(r=>`
+  if(!list.length){
+    const hint = (!RC_SHOW_ALL && ownCount===0)
+      ? 'لا توجد بنود خاصة بمكتبك بعد لهذه المجموعة — اضغط «عرض المكتبة العامة» لتصفّح النصوص المعتمدة أو أضف بندًا جديدًا'
+      : 'لا توجد بنود مطابقة';
+    box.innerHTML=head+'<div class="panel"><div class="empty-hint" style="padding:60px 20px;">'+hint+'</div></div>'; return;
+  }
+
+  // تجميع حسب الفئة (للمجموعات الكبيرة مثل أساس الرأي المتحفظ) — يبقى بدون تجميع إن لم تُطابق فئات
+  const groups={}, ungrouped=[];
+  list.forEach(r=>{ const c=rcCategoryOf(r.item_name); if(c){ (groups[c]=groups[c]||[]).push(r); } else ungrouped.push(r); });
+  const catNames=Object.keys(groups);
+
+  const itemHtml=r=>`
     <div class="rc-item ${r.is_active?'':'off'}">
       <div class="rc-item-top">
         <b>${esc(r.item_name||r.group_name)}</b>
@@ -6810,7 +6859,23 @@ function renderRcItems(){
         <button class="mini-btn" onclick="rcToggleActive('${r.id}')">${r.is_active?'تعطيل':'تفعيل'}</button>
         <button class="mini-btn danger" onclick="rcDelete('${r.id}')">حذف</button>
       </div>
-    </div>`).join('');
+    </div>`;
+
+  let html='';
+  if(catNames.length){
+    catNames.sort((a,b)=>a.localeCompare(b,'ar')).forEach(cat=>{
+      html+=`<details class="panel" style="padding:0; margin-bottom:10px;" open>
+        <summary style="cursor:pointer; padding:12px 15px; font-size:12.5px; font-weight:700; color:var(--ink); list-style:none; display:flex; align-items:center; gap:8px;">
+          <span style="flex:1;">${esc(cat)}</span><span class="tag-lib">${groups[cat].length}</span>
+        </summary>
+        <div style="padding:0 12px 12px;">${groups[cat].map(itemHtml).join('')}</div>
+      </details>`;
+    });
+    if(ungrouped.length) html+=ungrouped.map(itemHtml).join('');
+  } else {
+    html=list.map(itemHtml).join('');
+  }
+  box.innerHTML=head+html;
 }
 
 async function openRcEditor(id){
@@ -7067,30 +7132,36 @@ function renderReportEditor(){
   document.getElementById('repe-client').value=REP_CLIENT.name||'';
 
   const sec=REP.sections||[];
-  document.getElementById('repe-sections').innerHTML=sec.map((s,si)=>`
+  if(locked){
+    document.getElementById('repe-sections').innerHTML = buildApprovedDocHtml();
+  } else {
+    document.getElementById('repe-sections').innerHTML=sec.map((s,si)=>`
     <div class="rep-sec">
       <div class="rep-sec-head">
         <b>${esc(s.title||s.group_name)}</b>
         ${s.is_required?'<span class="tag-own">إلزامية</span>':'<span class="tag-lib">اختيارية</span>'}
-        ${s.selection_mode==='multi'?`<button class="mini-btn" ${locked?'disabled':''} onclick="openLibPick(${si})">+ إضافة صف</button>`:''}
-        ${s.selection_mode!=='multi'?`<button class="mini-btn" ${locked?'disabled':''} onclick="openLibPick(${si})">استبدال من المكتبة</button>`:''}
-        ${!s.is_required?`<button class="mini-btn danger" ${locked?'disabled':''} onclick="removeSection(${si})">إزالة الفقرة</button>`:''}
+        ${s.selection_mode==='multi'?`<button class="mini-btn" onclick="openLibPick(${si})">+ إضافة صف</button>`:''}
+        ${s.selection_mode!=='multi'?`<button class="mini-btn" onclick="openLibPick(${si})">استبدال من المكتبة</button>`:''}
+        ${!s.is_required?`<button class="mini-btn danger" onclick="removeSection(${si})">إزالة الفقرة</button>`:''}
       </div>
       <div class="rep-sec-body">
         ${(s.rows||[]).length? s.rows.map((r,ri)=>`
           <div class="rep-row">
             <div class="rep-row-top">
               <span class="nm">${esc(r.item_name||'')}${r.code?' · '+esc(r.code):''}</span>
-              ${!locked?`<button class="mini-btn" onclick="moveRow(${si},${ri},-1)">▲</button>
-                         <button class="mini-btn" onclick="moveRow(${si},${ri},1)">▼</button>
-                         <button class="mini-btn danger" onclick="removeRow(${si},${ri})">حذف</button>`:''}
+              <button class="mini-btn" onclick="moveRow(${si},${ri},-1)">▲</button>
+              <button class="mini-btn" onclick="moveRow(${si},${ri},1)">▼</button>
+              <button class="mini-btn danger" onclick="removeRow(${si},${ri})">حذف</button>
             </div>
-            <textarea ${locked?'disabled':''} oninput="REP.sections[${si}].rows[${ri}].body=this.value">${esc(r.body||'')}</textarea>
+            <textarea oninput="REP.sections[${si}].rows[${ri}].body=this.value">${esc(r.body||'')}</textarea>
           </div>`).join('')
           : `<div class="empty-hint" style="padding:22px;">لا توجد فقرات — ${s.selection_mode==='multi'?'أضف صفًا من المكتبة':'اختر نصًا من المكتبة'}</div>`}
       </div>
     </div>`).join('') + `
-    <button class="mini-btn" ${locked?'disabled':''} onclick="openAddSection()" style="margin-top:6px;">+ إضافة فقرة أخرى للتقرير</button>`;
+    <button class="mini-btn" onclick="openAddSection()" style="margin-top:6px;">+ إضافة فقرة أخرى للتقرير</button>`;
+  }
+
+  document.querySelectorAll('.repe-editonly').forEach(el=>el.style.display = locked?'none':'');
 
   const svgSign='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><path d="M3 17c3 0 3-10 6-10s3 10 6 10 3-4 6-4"/></svg>';
   const svgStamp='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="width:22px;height:22px;color:var(--brass);"><circle cx="12" cy="9" r="5"/><path d="M4 20h16M6 20l1-4h10l1 4"/></svg>';
@@ -7345,6 +7416,8 @@ function gregDate(d) {
 }
 
 /* --- شاشة بيانات المكتب --- */
+let COMPANY_LOCKED = true;
+
 async function loadCompany() {
   try { COMPANY = await apiFetch('/api/company') || {}; } catch (e) { showToast(e.message); return; }
   const s = Object.assign({}, RS_DEFAULT, COMPANY.report_settings || {});
@@ -7369,7 +7442,28 @@ async function loadCompany() {
   v('rs-respect', s.respect); v('rs-section1', s.section1); v('rs-opening', s.opening);
 
   renderCompanyDrops();
+  lockCompanyFields();
 }
+
+// قفل/فتح كل الحقول داخل بيانات المكتب — لا يُسمح بالتعديل إلا بعد الضغط على «تعديل»
+function lockCompanyFields(){
+  COMPANY_LOCKED = true;
+  const box = document.getElementById('co-edit-mode');
+  if (box) box.querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
+  document.querySelectorAll('.sig-drop').forEach(el => el.style.opacity = '.6');
+  const va = document.getElementById('co-view-actions'), ea = document.getElementById('co-edit-actions');
+  if (va) va.style.display = ''; if (ea) ea.style.display = 'none';
+}
+function unlockCompanyFields(){
+  COMPANY_LOCKED = false;
+  const box = document.getElementById('co-edit-mode');
+  if (box) box.querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
+  document.querySelectorAll('.sig-drop').forEach(el => el.style.opacity = '');
+  const va = document.getElementById('co-view-actions'), ea = document.getElementById('co-edit-actions');
+  if (va) va.style.display = 'none'; if (ea) ea.style.display = 'flex';
+}
+function enterCompanyEdit(){ unlockCompanyFields(); }
+function cancelCompanyEdit(){ loadCompany(); }
 
 function renderCompanyDrops() {
   const set = (id, url, icon, title, hint) => {
@@ -7389,19 +7483,21 @@ function renderCompanyDrops() {
 }
 
 function pickCompanyImage(field) {
+  if (COMPANY_LOCKED) { showToast('اضغط «تعديل» أولًا'); return; }
   const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
   const maxMB = field === 'letterhead_url' ? 4 : 1.5;
   input.onchange = () => {
     const file = input.files[0]; if (!file) return;
     if (file.size > maxMB * 1024 * 1024) { showToast('حجم الصورة كبير — الحد الأقصى ' + maxMB + ' ميجابايت'); return; }
     const rd = new FileReader();
-    rd.onload = () => { COMPANY[field] = rd.result; renderCompanyDrops(); saveCompany(true); };
+    rd.onload = () => { COMPANY[field] = rd.result; renderCompanyDrops(); };
     rd.readAsDataURL(file);
   };
   input.click();
 }
 function clearCompanyImage(field) {
-  COMPANY[field] = null; renderCompanyDrops(); saveCompany(true);
+  if (COMPANY_LOCKED) { showToast('اضغط «تعديل» أولًا'); return; }
+  COMPANY[field] = null; renderCompanyDrops();
 }
 
 function collectReportSettings() {
@@ -7444,6 +7540,8 @@ async function saveCompany(silent) {
   try {
     COMPANY = await apiFetch('/api/company', { method: 'PUT', body: JSON.stringify(payload) });
     if (!silent) showToast('حُفظت بيانات المكتب');
+    renderCompanyDrops();
+    lockCompanyFields();
   } catch (e) { showToast(e.message); }
 }
 
@@ -7573,6 +7671,49 @@ function signatureHtml() {
         ${stampImg ? `<img class="mk stamp" src="${stampImg}" style="max-height:${s.stamp_h}mm;" alt="">` : ''}
       </div>
     </div>`;
+}
+
+// عرض التقرير المعتمد على الشاشة كمستند نظيف للقراءة (بدون صناديق تحرير أو أزرار)
+function buildApprovedDocHtml(){
+  const blocks = buildBlocks();
+  const body = blocks.map(b=>{
+    if(b.tag==='h1') return `<h1>${b.html}</h1>`;
+    if(b.tag==='h2') return `<h2>${b.html}</h2>`;
+    if(b.cls==='addr') return `<p class="doc-addr">${b.html}</p>`;
+    return `<p>${b.html}</p>`;
+  }).join('');
+  const s=rs(), ar=s.arabic_digits;
+  const name = REP_COMPANY.name_ar || '';
+  const lic = REP_COMPANY.license_no ? 'ترخيص رقم (' + toArDigits(REP_COMPANY.license_no, ar) + ')' : '';
+  const city = REP.place || REP_COMPANY.city || '';
+  const dateSrc = REP.approved_at || REP.report_date;
+  const hij = s.hijri ? hijriDate(dateSrc) : '';
+  const greg = gregDate(dateSrc);
+  const signer = REP.partner_name || REP_COMPANY.signer_name || '';
+  const sigImg = REP.signature_url || REP_COMPANY.signature_url;
+  const stampImg = REP.stamp_url || REP_COMPANY.stamp_url;
+  return `<div class="doc-view">
+    <div class="doc-meta">
+      <div>رقم التقرير <b>${esc(REP.report_no||'—')}</b></div>
+      <div>العميل <b>${esc(REP_CLIENT.name||'')}</b></div>
+      <div>الحالة <b style="color:var(--green);">معتمد من الشريك</b></div>
+    </div>
+    ${body}
+    <div class="doc-sig">
+      <div class="who">
+        <div><b>${esc(name)}</b></div>
+        ${lic?`<div>${esc(toArDigits(lic,ar))}</div>`:''}
+        ${hij ? `<div>${esc(city)} في: ${esc(toArDigits(hij, ar))}</div>` : (city?`<div>${esc(city)}</div>`:'')}
+        ${greg ? `<div>${hij?'الموافق: ':(esc(city)+' في: ')}${esc(toArDigits(greg, ar))}</div>` : ''}
+      </div>
+      <div class="marks">
+        ${sigImg?`<img src="${sigImg}" alt="التوقيع">`:''}
+        <div><b>${esc(signer)}</b></div>
+        ${REP_COMPANY.signer_title?`<div style="font-size:11px;color:var(--muted);">${esc(REP_COMPANY.signer_title)}</div>`:''}
+        ${stampImg?`<img src="${stampImg}" alt="الختم">`:''}
+      </div>
+    </div>
+  </div>`;
 }
 
 function renderSheets() {
