@@ -2651,11 +2651,13 @@ app.delete('/api/audit-reports/:id', requireAuth, async (req, res) => {
 
 // صفحة تحقّق عامة يفتحها الباركود الموجود في كل ورقة من التقرير
 // صفحة التحقّق العامة يفتحها الباركود — تعرض التقرير كاملًا للقراءة فقط، بدون أي إمكانية تعديل
+// صفحة التحقّق العامة يفتحها الباركود — تعرض التقرير بشكله النهائي (ورقة A4 بالاكليشة
+// والتوقيع والختم) للقراءة فقط، مع زر طباعة يُخرج نفس المستند تمامًا.
 app.get('/r/:token', async (req, res) => {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   if (!supabaseAdmin) return res.status(503).send('الخدمة غير متاحة حاليًا');
   const { data } = await supabaseAdmin.from('audit_reports')
-    .select('*, clients(name), companies(name_ar,name_en,license_no)')
+    .select('*, clients(name), companies(name_ar,name_en,license_no,city,logo_url,letterhead_url,stamp_url,signature_url,report_settings,signer_name,signer_title)')
     .eq('public_token', req.params.token).maybeSingle();
 
   if (!data) {
@@ -2665,57 +2667,154 @@ app.get('/r/:token', async (req, res) => {
        <h2>تقرير غير معروف</h2><p>لم يُعثر على تقرير مطابق لهذا الرمز.</p></body></html>`);
   }
 
-  let opinionLabel = data.opinion_type, kindLabel = data.report_kind === 'interim' ? 'مرحلي' : 'سنوي';
-  try {
-    const { data: opRow } = await supabaseAdmin.from('audit_report_opinions').select('label_ar')
-      .or(`company_id.eq.${data.company_id},company_id.is.null`)
-      .eq('report_kind', data.report_kind).eq('code', data.opinion_type).order('company_id', { ascending: false }).limit(1).maybeSingle();
-    if (opRow) opinionLabel = opRow.label_ar;
-    const { data: kRow } = await supabaseAdmin.from('audit_report_kinds').select('label_ar')
-      .or(`company_id.eq.${data.company_id},company_id.is.null`).eq('code', data.report_kind)
-      .order('company_id', { ascending: false }).limit(1).maybeSingle();
-    if (kRow) kindLabel = kRow.label_ar;
-  } catch (e) { /* تجاهل — الملصقات الافتراضية كافية */ }
+  const co = data.companies || {};
+  const cfg = Object.assign({
+    font: 'Dubai', size: 13, line_height: 1.9, title_size: 15,
+    mt: 45, mb: 35, mr: 22, ml: 22, stamp_h: 32, sign_h: 24,
+    letterhead: true, hijri: true, arabic_digits: true, justify: true,
+    title_annual: 'تقرير مراجع الحسابات',
+    title_interim: 'تقرير فحص المعلومات المالية الأولية المستقل',
+    respect: 'الموقرين', section1: 'التقرير عن مراجعة القوائم المالية',
+  }, co.report_settings || {});
+
+  const AR_D = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+  const arNum = v => cfg.arabic_digits ? String(v == null ? '' : v).replace(/[0-9]/g, d => AR_D[+d]) : String(v == null ? '' : v);
+  const AR_M = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const pad2 = n => (n < 10 ? '0' : '') + n;
+  const gregDate = d => { if (!d) return ''; const t = new Date(d); if (isNaN(t)) return String(d);
+    return pad2(t.getDate()) + ' ' + AR_M[t.getMonth()] + ' ' + t.getFullYear() + 'م'; };
+  const hijriDate = d => { if (!d) return ''; try {
+      const parts = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: '2-digit', month: 'long', year: 'numeric' }).formatToParts(new Date(d));
+      const g = t => (parts.find(p => p.type === t) || {}).value || '';
+      return pad2(parseInt(g('day'), 10)) + ' ' + g('month') + ' ' + g('year') + 'هـ';
+    } catch (e) { return ''; } };
+
+  const title = data.report_kind === 'interim' ? cfg.title_interim : cfg.title_annual;
+  const hasLh = cfg.letterhead && co.letterhead_url;
+  const headerH = 16, headerTop = 6, ruleTop = headerTop + headerH + 3;
+  const effMt = hasLh ? cfg.mt : Math.max(cfg.mt, ruleTop + 4);
+
+  const openingLines = String(cfg.opening || ('إلى الشركاء / ' + ((data.clients && data.clients.name) || '')))
+    .split('\n').map(l => l.trim()).filter(Boolean);
+  const openingHtml = openingLines.map((ln, i) => {
+    const t = esc(ln.replace(/#العميل#/g, (data.clients && data.clients.name) || '')
+                    .replace(/#[^#\n]{1,40}#/g, '').replace(/\(\s*\)/g, '').replace(/\)\s*\(/g, ''));
+    return (i === 0 && cfg.respect)
+      ? `<div class="addr-row"><span>${t}</span><span class="resp">${esc(cfg.respect)}</span></div>`
+      : `<p class="addr">${t}</p>`;
+  }).join('');
 
   const sections = (data.sections || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
   const sectionsHtml = sections.map(s => {
     const rows = (s.rows || []).filter(r => (r.body || '').trim());
     if (!rows.length) return '';
-    return `<h3>${esc(s.title || s.group_name)}</h3>` +
-      rows.map(r => esc(r.body).split(/\n+/).filter(Boolean).map(p => `<p>${p}</p>`).join('')).join('');
+    const multi = rows.length > 1;
+    const body = rows.map((r, i) => {
+      const paras = esc(arNum(r.body)).split(/\n+/).filter(Boolean);
+      return paras.map((p, pi) => `<p${multi && pi === 0 ? ' class="num-row"' : ''}>${multi && pi === 0 ? '(' + arNum(i + 1) + ') ' : ''}${p}</p>`).join('');
+    }).join('');
+    return `<h2>${esc(s.title || s.group_name)}</h2>${body}`;
   }).join('');
 
+  const dateSrc = data.approved_at || data.report_date;
+  const hij = cfg.hijri ? hijriDate(dateSrc) : '';
+  const greg = gregDate(dateSrc);
+  const city = data.place || co.city || '';
+  const signer = data.partner_name || co.signer_name || '';
+  const sigImg = data.signature_url || co.signature_url;
+  const stampImg = data.stamp_url || co.stamp_url;
+
+  const sigHtml = `<div class="sig">
+      <div class="sig-r">
+        <div class="nm">${esc(co.name_ar || '')}</div>
+        ${co.license_no ? `<div>ترخيص رقم (${esc(arNum(co.license_no))})</div>` : ''}
+        ${hij ? `<div>${esc(city)} في: ${esc(arNum(hij))}</div>` : (city ? `<div>${esc(city)}</div>` : '')}
+        ${greg ? `<div>${hij ? 'الموافق: ' : (esc(city) + ' في: ')}${esc(arNum(greg))}</div>` : ''}
+      </div>
+      <div class="sig-l">
+        ${sigImg ? `<img class="mk" src="${sigImg}" style="max-height:${cfg.sign_h}mm;" alt="">` : ''}
+        <div class="nm">${esc(signer)}</div>
+        ${co.signer_title ? `<div class="ttl">${esc(co.signer_title)}</div>` : ''}
+        ${stampImg ? `<img class="mk" src="${stampImg}" style="max-height:${cfg.stamp_h}mm;" alt="">` : ''}
+      </div>
+    </div>`;
+
   res.set('Content-Type', 'text/html; charset=utf-8').send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>التحقق من تقرير المراجعة</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)} — ${esc(data.report_no || '')}</title>
+<link href="https://fonts.cdnfonts.com/css/dubai" rel="stylesheet">
 <style>
-body{font-family:'Dubai',system-ui,'Segoe UI',Tahoma;background:#F6F2E8;color:#1E2A2F;margin:0;padding:24px;}
-.card{max-width:720px;margin:auto;background:#FFFDF8;border:1px solid #E4DDC9;border-radius:12px;padding:26px 28px;
-  user-select:none; -webkit-user-select:none;}
-.badge{display:inline-block;padding:5px 14px;border-radius:20px;font-size:12.5px;font-weight:700;margin-bottom:14px;}
-.badge.ok{background:#E4F0EA;color:#2F6F4E;} .badge.draft{background:#F6EDDC;color:#8A6520;}
-h1{font-size:16px;margin:0 0 4px;color:#12232E;} .sub{font-size:12px;color:#6C7A78;margin-bottom:18px;}
-table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;}
-th{text-align:right;color:#6C7A78;font-weight:600;padding:8px 0;width:38%;} td{padding:8px 0;border-bottom:1px solid #EFE9DA;}
-.warn{background:#F6EDDC;border:1px solid #E4C77F;color:#8A6520;padding:10px 13px;border-radius:8px;font-size:12.5px;margin-bottom:18px;}
-.divider{height:1px;background:#E4DDC9;margin:18px 0;}
-.sections h3{font-size:13.5px;color:#12232E;margin:16px 0 6px;}
-.sections p{font-size:12.5px;line-height:1.95;text-align:justify;color:#2A261E;margin:0 0 8px;}
-.foot{margin-top:20px;font-size:10.5px;color:#9A927C;text-align:center;}
-</style></head><body><div class="card">
-<span class="badge ${data.status === 'approved' ? 'ok' : 'draft'}">${data.status === 'approved' ? 'تقرير معتمد ✅' : 'مسودة — لم تُعتمد بعد ⚠️'}</span>
-<h1>${esc(kindLabel)} — ${esc(opinionLabel)}</h1>
-<div class="sub">${esc(data.companies && data.companies.name_ar)}${data.companies && data.companies.license_no ? ' · ترخيص رقم (' + esc(data.companies.license_no) + ')' : ''}</div>
-<table>
-  <tr><th>رقم التقرير</th><td>${esc(data.report_no)}</td></tr>
-  <tr><th>العميل</th><td>${esc(data.clients && data.clients.name)}</td></tr>
-  <tr><th>تاريخ التقرير</th><td>${esc(data.report_date)}</td></tr>
-  <tr><th>تاريخ الاعتماد</th><td>${esc(data.approved_at ? String(data.approved_at).slice(0, 10) : '—')}</td></tr>
-</table>
-${data.status === 'approved' ? '' : '<div class="warn">هذه النسخة لم تُعتمد من الشريك بعد ولا يُعتد بمحتواها.</div>'}
-<div class="divider"></div>
-<div class="sections">${sectionsHtml || '<p style="color:#9A927C;">لا توجد فقرات مضافة بعد.</p>'}</div>
-<div class="foot">هذه الصفحة للتحقق من صحة التقرير فقط — محتواها للقراءة ولا يمكن تعديله.</div>
-</div></body></html>`);
+*{box-sizing:border-box;}
+body{margin:0; padding:0; background:#8A9298; font-family:'${esc(cfg.font)}','Dubai',system-ui,'Segoe UI',Tahoma;
+     -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+.bar{position:sticky; top:0; z-index:9; background:rgba(18,35,46,.94); padding:11px 16px;
+     display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap;}
+.bar .st{font-size:12.5px; font-weight:700; padding:5px 14px; border-radius:20px;}
+.bar .st.ok{background:#E4F0EA; color:#2F6F4E;} .bar .st.draft{background:#F6EDDC; color:#8A6520;}
+.bar button{font-family:inherit; font-size:12.5px; padding:8px 18px; border-radius:8px; border:0; cursor:pointer;
+            background:#C9A968; color:#12232E; font-weight:700;}
+.wrap{padding:20px 0;}
+.sheet{width:210mm; height:297mm; overflow:hidden; background:#fff; margin:0 auto 18px; position:relative;
+       padding:${effMt}mm ${cfg.ml}mm ${cfg.mb}mm ${cfg.mr}mm; box-shadow:0 6px 26px rgba(0,0,0,.28); color:#14202a;
+       -webkit-print-color-adjust:exact; print-color-adjust:exact;}
+.sh-bg{position:absolute; inset:0; z-index:0;}
+.sh-bg img{width:100%; height:100%; object-fit:fill; display:block;}
+.sh-plainhead{position:absolute; z-index:1; top:${headerTop}mm; height:${headerH}mm; inset-inline:${cfg.mr}mm ${cfg.ml}mm;
+              display:flex; align-items:center; justify-content:center; gap:10px; text-align:center;}
+.sh-plainhead img{max-height:100%; max-width:70mm; object-fit:contain;}
+.sh-plainhead b{display:block; font-size:14pt; color:#12232E;}
+.sh-plainhead span{display:block; font-size:8.5pt; color:#6C7A78; margin-top:2px;}
+.sh-rule{position:absolute; z-index:1; top:${ruleTop}mm; inset-inline:${cfg.mr}mm ${cfg.ml}mm; height:1.4px;
+         background:linear-gradient(90deg,transparent,#C9A968 15%,#C9A968 85%,transparent);}
+.body{position:relative; z-index:1; font-size:${cfg.size}pt; line-height:${cfg.line_height};
+      text-align:${cfg.justify ? 'justify' : 'start'};}
+.body h1{font-size:1.3em; text-align:center; margin:0 0 5mm; color:#12232E;}
+.body h2{font-size:1.12em; margin:6mm 0 2mm; color:#12232E; font-weight:700;}
+.body p{margin:0 0 3mm;}
+.body p.num-row{margin-inline-start:2mm;}
+.addr{margin-bottom:5mm; font-weight:600;}
+.addr-row{display:table; width:100%; margin-bottom:5mm; font-weight:600; table-layout:fixed;}
+.addr-row span{display:table-cell; vertical-align:baseline;}
+.addr-row .resp{white-space:nowrap; width:1%; padding-inline-start:10mm;}
+.sig{margin-top:10mm; display:table; width:100%; table-layout:fixed;}
+.sig .sig-r{display:table-cell; vertical-align:top; font-size:.85em; line-height:1.9;}
+.sig .sig-l{display:table-cell; vertical-align:top; width:40mm; text-align:center;}
+.sig .sig-l .mk{object-fit:contain; display:block; margin:0 auto 1mm;}
+.sig .nm{font-weight:700; font-size:.9em;}
+.sig .ttl{font-size:.75em; color:#6C7A78;}
+.wm{position:absolute; z-index:1; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;}
+.wm span{font-size:64pt; color:rgba(166,67,46,.09); font-weight:800; transform:rotate(-32deg); letter-spacing:8px;}
+@media print{
+  @page{size:A4 portrait; margin:0;}
+  html,body{margin:0!important; padding:0!important; width:210mm!important; background:#fff!important;}
+  .bar{display:none!important;}
+  .wrap{padding:0!important;}
+  .sheet{box-shadow:none!important; margin:0!important; width:210mm!important; height:297mm!important;}
+}
+@media (max-width:820px){ .wrap{overflow-x:auto;} }
+</style></head><body>
+<div class="bar">
+  <span class="st ${data.status === 'approved' ? 'ok' : 'draft'}">${data.status === 'approved' ? 'تقرير معتمد ✅' : 'مسودة — لم تُعتمد بعد ⚠️'}</span>
+  <span style="color:#D8D2C4; font-size:12px;">رقم التقرير: ${esc(arNum(data.report_no || '—'))}</span>
+  <button onclick="window.print()">طباعة التقرير</button>
+</div>
+<div class="wrap"><div class="sheet">
+  ${hasLh ? `<div class="sh-bg"><img src="${co.letterhead_url}" alt=""></div>` : `
+    <div class="sh-plainhead">
+      ${co.logo_url ? `<img src="${co.logo_url}">` : ''}
+      <div><b>${esc(co.name_ar || '')}</b>
+      <span>${esc(co.name_en || '')}${co.license_no ? ' · ترخيص رقم (' + esc(arNum(co.license_no)) + ')' : ''}</span></div>
+    </div><div class="sh-rule"></div>`}
+  ${data.status !== 'approved' ? '<div class="wm"><span>مسودة</span></div>' : ''}
+  <div class="body">
+    <h1>${esc(title)}</h1>
+    ${openingHtml}
+    ${data.report_kind !== 'interim' && cfg.section1 ? `<h2>${esc(cfg.section1)}</h2>` : ''}
+    ${sectionsHtml || '<p style="color:#9A927C;">لا توجد فقرات مضافة بعد.</p>'}
+    ${sigHtml}
+  </div>
+</div></div>
+</body></html>`);
 });
 
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
