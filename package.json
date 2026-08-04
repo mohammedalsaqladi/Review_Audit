@@ -1,20 +1,21 @@
-{
-  "name": "tamam-audit-system",
-  "version": "1.0.0",
-  "private": true,
-  "description": "نظام تمام للمراجعة والتدقيق — خادم يخدم الواجهة ويحقن إعدادات Supabase من متغيرات البيئة",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "dependencies": {
-    "express": "^4.19.2",
-    "@supabase/supabase-js": "^2.45.0",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
-    "exceljs": "^4.4.0"
-  }
+// أداة صغيرة لتوليد كلمة مرور مشفّرة (bcrypt) لإدخالها يدويًا في عمود
+// password_hash بجدول users على Supabase، حتى يقدر ذلك المستخدم يسجّل دخول فعليًا.
+//
+// الاستخدام:
+//   node scripts/hash-password.js "كلمة_المرور_الحقيقية"
+//
+// انسخ الناتج والصقه كاملاً في عمود password_hash لصف المستخدم بجدول users.
+
+const bcrypt = require('bcryptjs');
+
+const password = process.argv[2];
+if (!password) {
+  console.log('الاستخدام: node scripts/hash-password.js "كلمة المرور"');
+  process.exit(1);
 }
+
+bcrypt.hash(password, 10).then((hash) => {
+  console.log('\nانسخ القيمة التالية كاملة إلى عمود password_hash:\n');
+  console.log(hash);
+  console.log('');
+});
