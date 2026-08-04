@@ -17,6 +17,9 @@ const app = express();
 app.use(express.json({ limit: '15mb' }));
 
 const PORT = process.env.PORT || 3000;
+
+// معرّف الإصدار — يُستخدم للتأكد من أن النسخة المرفوعة فعلًا هي الأحدث
+const BUILD_ID = 'v8-portal-7tabs-2026-08-04';
 const SESSION_SECRET = process.env.SESSION_SECRET;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -2921,8 +2924,24 @@ body{margin:0; padding:0; background:#8A9298; font-family:'${esc(cfg.font)}','Sa
 
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
 
+// نقطة تشخيص: تُظهر رقم الإصدار المرفوع فعليًا على الخادم وحالة ملف البوابة
+app.get('/api/version', (req, res) => {
+  const fsx = require('fs');
+  const rootPortal = path.join(__dirname, 'portal.html');
+  const publicPortal = path.join(__dirname, 'public', 'portal.html');
+  const info = p => { try { const st = fsx.statSync(p); const txt = fsx.readFileSync(p, 'utf8');
+      return { exists: true, bytes: st.size, modified: st.mtime, tabs: (txt.match(/switchPortalTab\(this,'/g) || []).length };
+    } catch (e) { return { exists: false }; } };
+  res.json({
+    build: BUILD_ID,
+    startedAt: new Date(Date.now() - process.uptime() * 1000).toISOString(),
+    portal_root: info(rootPortal),
+    portal_public_stale_copy: info(publicPortal),
+  });
+});
+
 // بوابة العميل: ملف portal.html في جذر المشروع (خارج مجلد public)، فنقدّمه صراحةً
-// قبل الـ catch-all حتى لا يُرجَع index.html بدلًا منه.
+// قبل الـ catch-all وقبل express.static حتى لا تحجبه نسخة قديمة داخل public/.
 const PORTAL_FILE = path.join(__dirname, 'portal.html');
 app.get(['/portal', '/portal.html', '/client', '/client-portal'], (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
