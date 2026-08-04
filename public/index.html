@@ -981,6 +981,10 @@
 
   <div class="tab-strip" style="padding:10px 22px 0; background:var(--card); border-bottom:1px solid var(--line); margin:0;">
     <div class="tab active" onclick="switchPortalMainTab(this,'home')">الرئيسية</div>
+    <div class="tab" onclick="switchPortalMainTab(this,'reports')">تقارير المراجعة</div>
+    <div class="tab" onclick="switchPortalMainTab(this,'notes')">الملاحظات</div>
+    <div class="tab" onclick="switchPortalMainTab(this,'templates')">النماذج</div>
+    <div class="tab" onclick="switchPortalMainTab(this,'profile')">بيانات المنشأة</div>
     <div class="tab" onclick="switchPortalMainTab(this,'chat')">الدردشة</div>
     <div class="tab" onclick="switchPortalMainTab(this,'requirements')">المتطلبات</div>
   </div>
@@ -995,9 +999,67 @@
       <div class="panel">
         <div class="panel-head"><h3>ملفات التدقيق الخاصة بكم</h3></div>
         <table>
-          <thead><tr><th>اسم الملف</th><th>نهاية الفترة</th><th>الحالة</th></tr></thead>
-          <tbody id="portal-home-files-tbody"><tr><td colspan="3" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
+          <thead><tr><th>اسم الملف</th><th>نهاية الفترة</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="portal-home-files-tbody"><tr><td colspan="4" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
         </table>
+      </div>
+    </div>
+
+    <div class="ptab" id="portal-tab-filedetail">
+      <span class="link" style="cursor:pointer; display:inline-block; margin-bottom:12px;" onclick="portalCloseFileDetail()">← رجوع إلى ملفات التدقيق</span>
+      <div class="panel">
+        <div class="panel-head"><h3 id="pfd-title">تفاصيل الملف</h3></div>
+        <div id="pfd-meta" style="display:flex; gap:22px; flex-wrap:wrap; font-size:12px; color:var(--muted); padding:14px 16px;"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head" style="display:flex; align-items:center; justify-content:space-between;">
+          <h3>المرفقات والمستندات</h3>
+          <button class="btn dark" onclick="portalAddAttachment()">+ إضافة مرفق</button>
+        </div>
+        <div id="pfd-docs" style="padding:14px 16px;"><div class="empty-hint">جارٍ التحميل...</div></div>
+      </div>
+    </div>
+
+    <div class="ptab" id="portal-tab-reports">
+      <div class="panel">
+        <div class="panel-head"><h3>تقارير المراجعة المعتمدة</h3></div>
+        <table>
+          <thead><tr><th>رقم التقرير</th><th>النوع</th><th>تاريخ التقرير</th><th></th></tr></thead>
+          <tbody id="portal-reports-tbody"><tr><td colspan="4" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="ptab" id="portal-tab-reportview">
+      <span class="link" style="cursor:pointer; display:inline-block; margin-bottom:12px;" onclick="portalCloseReportView()">← رجوع إلى التقارير</span>
+      <div id="prv-body" class="doc-view"></div>
+    </div>
+
+    <div class="ptab" id="portal-tab-notes">
+      <div class="panel">
+        <div class="panel-head"><h3>ملاحظات فريق المراجعة</h3></div>
+        <div id="portal-notes-list" style="padding:14px 16px;"><div class="empty-hint">جارٍ التحميل...</div></div>
+      </div>
+    </div>
+
+    <div class="ptab" id="portal-tab-templates">
+      <div class="panel">
+        <div class="panel-head"><h3>النماذج الجاهزة</h3></div>
+        <div id="portal-tpl-list" style="padding:14px 16px;"><div class="empty-hint">جارٍ التحميل...</div></div>
+      </div>
+    </div>
+
+    <div class="ptab" id="portal-tab-profile">
+      <div class="panel">
+        <div class="panel-head"><h3>بيانات المنشأة</h3></div>
+        <div id="portal-profile-info" style="display:flex; gap:22px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); padding:16px;"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head" style="display:flex; align-items:center; justify-content:space-between;">
+          <h3>الموظفون</h3>
+          <button class="btn dark" onclick="portalOpenAddEmp()">+ إضافة موظف</button>
+        </div>
+        <div id="portal-emps-list" style="padding:14px 16px;"><div class="empty-hint">جارٍ التحميل...</div></div>
       </div>
     </div>
 
@@ -3163,6 +3225,43 @@
     <div class="modal-foot">
       <button class="btn" onclick="closeModal('modal-recompose')">إلغاء</button>
       <button class="btn dark" onclick="doRecompose()">إعادة التركيب</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== بوابة العميل: إضافة موظف ===== -->
+<div class="modal-overlay" id="modal-portal-addemp">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div><h3>إضافة موظف</h3><span>موظف تابع لمنشأتكم</span></div>
+      <div class="modal-close" onclick="closeModal('modal-portal-addemp')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field full"><label>الاسم الكامل <span class="req">*</span></label><input id="pemp-name" placeholder="محمد عبدالله"></div>
+        <div class="form-field"><label>المسمى الوظيفي</label><input id="pemp-title" placeholder="محاسب"></div>
+        <div class="form-field"><label>الجوال</label><input id="pemp-phone"></div>
+        <div class="form-field full"><label>البريد الإلكتروني</label><input id="pemp-email" type="email"></div>
+      </div>
+      <label style="display:flex; align-items:center; gap:9px; margin-top:14px; font-size:12.5px; cursor:pointer;
+                    background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:11px 13px;">
+        <input type="checkbox" id="pemp-portal" style="accent-color:#AD8A3F;"
+               onchange="document.getElementById('pemp-creds').style.display=this.checked?'block':'none'">
+        تفعيل دخوله لبوابة العميل
+      </label>
+      <div id="pemp-creds" style="display:none; margin-top:12px;">
+        <div class="form-grid">
+          <div class="form-field"><label>اسم المستخدم <span class="req">*</span></label><input id="pemp-username"></div>
+          <div class="form-field"><label>كلمة المرور <span class="req">*</span></label><input id="pemp-password" type="password" placeholder="6 أحرف فأكثر"></div>
+        </div>
+      </div>
+      <div id="pemp-error" style="display:none; background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC; padding:9px 13px; border-radius:8px; font-size:12px; margin-top:12px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-portal-addemp')">إلغاء</button>
+      <button class="btn dark" onclick="portalSaveEmp()">حفظ</button>
     </div>
   </div>
 </div>
@@ -6438,6 +6537,14 @@ function switchPortalMainTab(el, key){
   document.getElementById('portal-tab-'+key).classList.add('active');
   if(key==='chat') loadPortalChatMsgs();
   if(key==='requirements') loadPortalRequirementsList();
+  if(key==='reports') loadPortalReportsList();
+  if(key==='notes') loadPortalNotesList();
+  if(key==='templates') loadPortalTemplatesList();
+  if(key==='profile') loadPortalProfileInfo();
+}
+function portalShowTab(key){
+  document.querySelectorAll('#portal-app .ptab').forEach(p=>p.classList.remove('active'));
+  document.getElementById('portal-tab-'+key).classList.add('active');
 }
 
 function portalLogout(){
@@ -6455,12 +6562,201 @@ async function loadPortalHome(){
     document.getElementById('portal-stat-req-total').textContent = data.requirementStats.total;
     const tbody = document.getElementById('portal-home-files-tbody');
     tbody.innerHTML = data.files.length ? data.files.map(f=>`
-      <tr><td><b>${escapeHtml(f.name)}</b></td><td>${f.period_end||'—'}</td>
-      <td><span class="badge ok">${f.status||'—'}</span></td></tr>`).join('')
-      : '<tr><td colspan="3" class="empty-hint">لا توجد ملفات تدقيق بعد</td></tr>';
+      <tr style="cursor:pointer;" onclick="portalOpenFileDetail('${f.id}')">
+      <td><b>${escapeHtml(f.name)}</b></td><td>${f.period_end||'—'}</td>
+      <td><span class="badge ok">${escapeHtml(portalFileStatus(f.status))}</span></td>
+      <td style="text-align:end;"><span class="link">التفاصيل ←</span></td></tr>`).join('')
+      : '<tr><td colspan="4" class="empty-hint">لا توجد ملفات تدقيق بعد</td></tr>';
     const sel = document.getElementById('portal-chat-file');
     sel.innerHTML = data.files.map(f=>`<option value="${f.id}">📁 ${escapeHtml(f.name)}</option>`).join('') || '<option value="">لا توجد ملفات</option>';
   }catch(e){ showToast('تعذّر التحميل: '+e.message); }
+}
+
+/* ================= بوابة العميل: التبويبات الجديدة ================= */
+const PORTAL_FILE_STATUS = {in_progress:'قيد التنفيذ', planning:'التخطيط', review:'قيد المراجعة',
+  completed:'مكتمل', archived:'مؤرشف', draft:'مسودة', on_hold:'متوقف مؤقتًا'};
+function portalFileStatus(s){ return PORTAL_FILE_STATUS[s] || s || '—'; }
+
+const PORTAL_AR_MONTHS=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+function portalDate(d){ if(!d) return '—'; const t=new Date(d); if(isNaN(t)) return String(d);
+  return t.getDate()+' '+PORTAL_AR_MONTHS[t.getMonth()]+' '+t.getFullYear(); }
+
+/* ---- تفاصيل ملف التدقيق (قراءة فقط + إضافة مرفقات) ---- */
+let PORTAL_FILE_CUR = null;
+async function portalOpenFileDetail(fileId){
+  portalShowTab('filedetail');
+  document.getElementById('pfd-docs').innerHTML='<div class="empty-hint">جارٍ التحميل...</div>';
+  try{
+    const d = await apiFetch('/api/portal/files/'+fileId);
+    PORTAL_FILE_CUR = d.file;
+    document.getElementById('pfd-title').textContent = d.file.name;
+    document.getElementById('pfd-meta').innerHTML = `
+      <div>نهاية الفترة <b style="color:var(--ink);">${d.file.period_end||'—'}</b></div>
+      <div>نوع الارتباط <b style="color:var(--ink);">${escapeHtml(d.file.engagement_type||'—')}</b></div>
+      <div>الحالة <b style="color:var(--ink);">${escapeHtml(portalFileStatus(d.file.status))}</b></div>
+      <div>نسخ ميزان المراجعة <b style="color:var(--ink);">${(d.trialBalances||[]).length}</b></div>`;
+    portalRenderDocs(d.documents||[]);
+  }catch(e){ document.getElementById('pfd-docs').innerHTML='<div class="empty-hint">'+escapeHtml(e.message)+'</div>'; }
+}
+function portalCloseFileDetail(){ portalShowTab('home'); loadPortalHome(); }
+function portalRenderDocs(docs){
+  document.getElementById('pfd-docs').innerHTML = docs.length ? docs.map(d=>`
+    <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px;">
+      <div style="flex:1;"><b style="font-size:12.5px;">📎 ${escapeHtml(d.name)}</b>
+        <div style="font-size:10.5px; color:var(--muted); margin-top:3px;">${escapeHtml(d.category||'')}${d.uploaded_at?' · '+portalDate(d.uploaded_at):''}${d.uploaded_by_client_employee_id?' · أضفتموه':''}</div></div>
+      <a class="btn" style="text-decoration:none;" href="${d.file_url}" download="${escapeHtml(d.name)}">تنزيل</a>
+    </div>`).join('') : '<div class="empty-hint">لا توجد مرفقات بعد</div>';
+}
+function portalAddAttachment(){
+  if(!PORTAL_FILE_CUR) return;
+  const input=document.createElement('input'); input.type='file';
+  input.onchange=()=>{ const f=input.files[0]; if(!f) return;
+    if(f.size>8*1024*1024){ showToast('الملف كبير جدًا (الحد 8 ميجا)'); return; }
+    const rd=new FileReader();
+    rd.onload=async()=>{ try{
+        await apiFetch('/api/portal/files/'+PORTAL_FILE_CUR.id+'/attachments',{method:'POST',body:JSON.stringify({
+          name:f.name, file_type:f.type, file_size_kb:Math.round(f.size/1024), file_data:rd.result })});
+        showToast('تمت إضافة المرفق'); portalOpenFileDetail(PORTAL_FILE_CUR.id);
+      }catch(e){ showToast(e.message); } };
+    rd.readAsDataURL(f); };
+  input.click();
+}
+
+/* ---- تقارير المراجعة ---- */
+async function loadPortalReportsList(){
+  const tb=document.getElementById('portal-reports-tbody');
+  tb.innerHTML='<tr><td colspan="4" class="empty-hint">جارٍ التحميل...</td></tr>';
+  try{
+    const rows=await apiFetch('/api/portal/reports');
+    tb.innerHTML = rows.length ? rows.map(r=>`
+      <tr><td style="font-variant-numeric:tabular-nums;">${escapeHtml(r.report_no||'—')}</td>
+      <td>${r.report_kind==='interim'?'مرحلي':'سنوي'} · ${r.consolidation==='consolidated'?'موحّدة':'غير موحّدة'}</td>
+      <td>${portalDate(r.report_date)}</td>
+      <td style="text-align:end;"><button class="btn dark" onclick="portalOpenReport('${r.id}')">عرض</button></td></tr>`).join('')
+      : '<tr><td colspan="4" class="empty-hint">لا توجد تقارير معتمدة بعد</td></tr>';
+  }catch(e){ tb.innerHTML='<tr><td colspan="4" class="empty-hint">'+escapeHtml(e.message)+'</td></tr>'; }
+}
+async function portalOpenReport(id){
+  portalShowTab('reportview');
+  const box=document.getElementById('prv-body');
+  box.innerHTML='<div class="empty-hint" style="padding:40px;">جارٍ التحميل...</div>';
+  try{
+    const d=await apiFetch('/api/portal/reports/'+id);
+    const rep=d.report, co=d.company||{}, cfg=co.report_settings||{};
+    const title = rep.report_kind==='interim'
+      ? (cfg.title_interim||'تقرير فحص المعلومات المالية الأولية المستقل')
+      : (cfg.title_annual||'تقرير مراجع الحسابات');
+    const secs=(rep.sections||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+    const body=secs.map(sec=>{
+      const rows=(sec.rows||[]).filter(r=>(r.body||'').trim());
+      if(!rows.length) return '';
+      return `<h2>${escapeHtml(sec.title||sec.group_name)}</h2>`+
+        rows.map(r=>escapeHtml(r.body).split(/\n+/).filter(Boolean).map(p=>`<p>${p}</p>`).join('')).join('');
+    }).join('');
+    box.innerHTML=`
+      <div class="doc-meta">
+        <div>رقم التقرير <b>${escapeHtml(rep.report_no||'—')}</b></div>
+        <div>مكتب المراجعة <b>${escapeHtml(co.name_ar||'')}</b></div>
+        <div>تاريخ التقرير <b>${portalDate(rep.report_date)}</b></div>
+      </div>
+      <h1>${escapeHtml(title)}</h1>${body||'<p>لا توجد فقرات.</p>'}
+      <div class="doc-sig"><div class="who">
+        <div><b>${escapeHtml(co.name_ar||'')}</b></div>
+        ${co.license_no?`<div>ترخيص رقم (${escapeHtml(co.license_no)})</div>`:''}
+        <div>${escapeHtml(rep.place||co.city||'')}</div></div>
+        <div class="marks">
+          ${co.signature_url?`<img src="${co.signature_url}" alt="">`:''}
+          <div><b>${escapeHtml(rep.partner_name||co.signer_name||'')}</b></div>
+          ${co.stamp_url?`<img src="${co.stamp_url}" alt="">`:''}
+        </div></div>
+      ${rep.public_token?`<div style="text-align:center; margin-top:18px;"><a href="/r/${rep.public_token}" target="_blank" class="link" style="font-size:11.5px;">فتح صفحة التحقّق الرسمية ↗</a></div>`:''}`;
+  }catch(e){ box.innerHTML='<div class="empty-hint" style="padding:40px;">'+escapeHtml(e.message)+'</div>'; }
+}
+function portalCloseReportView(){ portalShowTab('reports'); }
+
+/* ---- الملاحظات ---- */
+async function loadPortalNotesList(){
+  const box=document.getElementById('portal-notes-list');
+  box.innerHTML='<div class="empty-hint">جارٍ التحميل...</div>';
+  try{
+    const rows=await apiFetch('/api/portal/notes');
+    box.innerHTML = rows.length ? rows.map(n=>`
+      <div style="border:1px solid var(--line); border-radius:9px; padding:13px 15px; margin-bottom:9px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          ${n.is_pinned?'<span class="badge ok">مثبّتة</span>':''}
+          <b style="flex:1; font-size:13px; color:var(--ink);">${escapeHtml(n.title||'ملاحظة')}</b>
+          <span style="font-size:10.5px; color:var(--muted);">${portalDate(n.created_at)}</span>
+        </div>
+        <div style="font-size:12.5px; line-height:1.9; white-space:pre-wrap;">${escapeHtml(n.body||'')}</div>
+      </div>`).join('') : '<div class="empty-hint">لا توجد ملاحظات حاليًا</div>';
+  }catch(e){ box.innerHTML='<div class="empty-hint">'+escapeHtml(e.message)+'</div>'; }
+}
+
+/* ---- النماذج الجاهزة ---- */
+async function loadPortalTemplatesList(){
+  const box=document.getElementById('portal-tpl-list');
+  box.innerHTML='<div class="empty-hint">جارٍ التحميل...</div>';
+  try{
+    const rows=await apiFetch('/api/portal/templates');
+    if(!rows.length){ box.innerHTML='<div class="empty-hint">لا توجد نماذج متاحة حاليًا</div>'; return; }
+    const byCat={}; rows.forEach(t=>{ const c=t.category||'نماذج عامة'; (byCat[c]=byCat[c]||[]).push(t); });
+    box.innerHTML=Object.keys(byCat).sort((a,b)=>a.localeCompare(b,'ar')).map(cat=>`
+      <details class="tpl-group" open style="border:1px solid var(--line); border-radius:10px; margin-bottom:10px;">
+        <summary style="cursor:pointer; padding:13px 16px; list-style:none; display:flex; align-items:center; gap:10px;">
+          <b style="flex:1; font-size:13px; color:var(--ink);">${escapeHtml(cat)}</b>
+          <span class="tag-lib">${byCat[cat].length}</span></summary>
+        <div class="tpl-grid">
+          ${byCat[cat].map(t=>`
+            <div class="tpl-card">
+              <div class="tpl-ico">${tplIcon(t.file_type)}</div>
+              <div class="tpl-name">${escapeHtml(t.name)}</div>
+              ${t.description?`<div class="tpl-desc">${escapeHtml(t.description)}</div>`:''}
+              <a class="btn dark" style="text-decoration:none; text-align:center; margin-top:auto;"
+                 href="${t.file_url}" download="${escapeHtml(t.name)}">تنزيل</a>
+            </div>`).join('')}
+        </div></details>`).join('');
+  }catch(e){ box.innerHTML='<div class="empty-hint">'+escapeHtml(e.message)+'</div>'; }
+}
+
+/* ---- بيانات المنشأة والموظفون ---- */
+async function loadPortalProfileInfo(){
+  const info=document.getElementById('portal-profile-info'), emps=document.getElementById('portal-emps-list');
+  info.innerHTML='<div class="empty-hint">جارٍ التحميل...</div>';
+  try{
+    const d=await apiFetch('/api/portal/profile'); const c=d.client||{};
+    const row=(l,v)=>v?`<div>${l} <b style="color:var(--ink);">${escapeHtml(String(v))}</b></div>`:'';
+    info.innerHTML = row('اسم المنشأة',c.name)+row('كود العميل',c.client_code)+row('نوع الكيان',c.entity_type)
+      +row('السجل التجاري',c.cr_number)+row('الرقم الضريبي',c.tax_number)+row('المدينة',c.city)
+      +row('البريد',c.email)+row('الجوال',c.phone) || '<div class="empty-hint">لا توجد بيانات</div>';
+    emps.innerHTML = (d.employees||[]).length ? d.employees.map(e=>`
+      <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:8px; margin-bottom:8px;">
+        <div style="flex:1;"><b style="font-size:12.5px;">${escapeHtml(e.full_name)}</b>
+          <div style="font-size:10.5px; color:var(--muted); margin-top:3px;">${escapeHtml(e.job_title||'—')}${e.email?' · '+escapeHtml(e.email):''}</div></div>
+        ${e.is_portal_enabled?'<span class="badge ok">لديه دخول</span>':'<span class="badge neutral">بلا دخول</span>'}
+      </div>`).join('') : '<div class="empty-hint">لا يوجد موظفون مسجّلون</div>';
+  }catch(e){ info.innerHTML='<div class="empty-hint">'+escapeHtml(e.message)+'</div>'; }
+}
+function portalOpenAddEmp(){
+  ['pemp-name','pemp-title','pemp-email','pemp-phone','pemp-username','pemp-password'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('pemp-portal').checked=false;
+  document.getElementById('pemp-creds').style.display='none';
+  document.getElementById('pemp-error').style.display='none';
+  openModal('modal-portal-addemp');
+}
+async function portalSaveEmp(){
+  const err=document.getElementById('pemp-error');
+  const payload={ full_name:document.getElementById('pemp-name').value.trim(),
+    job_title:document.getElementById('pemp-title').value.trim(),
+    email:document.getElementById('pemp-email').value.trim(),
+    phone:document.getElementById('pemp-phone').value.trim(),
+    is_portal_enabled:document.getElementById('pemp-portal').checked,
+    username:document.getElementById('pemp-username').value.trim(),
+    password:document.getElementById('pemp-password').value };
+  if(!payload.full_name){ err.textContent='اسم الموظف إلزامي'; err.style.display='block'; return; }
+  try{ await apiFetch('/api/portal/employees',{method:'POST',body:JSON.stringify(payload)});
+    closeModal('modal-portal-addemp'); showToast('تمت إضافة الموظف'); loadPortalProfileInfo();
+  }catch(e){ err.textContent=e.message; err.style.display='block'; }
 }
 
 function onPortalChatFileChange(){}
