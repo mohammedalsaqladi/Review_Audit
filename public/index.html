@@ -404,6 +404,16 @@
 
   .form-section{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px 22px; margin-bottom:16px;}
   .form-section-title{font-size:12.5px; font-weight:700; color:var(--brass); margin-bottom:16px; padding-bottom:10px; border-bottom:1px dashed var(--line);}
+  .form-section.acc{padding:0; overflow:hidden;}
+  .form-section.acc > summary{font-size:12.5px; font-weight:700; color:var(--brass); margin:0; padding:14px 18px; cursor:pointer; list-style:none; display:flex; align-items:center; border-bottom:1px dashed transparent;}
+  .form-section.acc > summary::-webkit-details-marker{display:none;}
+  .form-section.acc > summary::after{content:'▾'; margin-inline-start:auto; color:var(--muted); transition:transform .15s; font-size:11px;}
+  .form-section.acc[open] > summary{border-bottom-color:var(--line);}
+  .form-section.acc[open] > summary::after{transform:rotate(180deg);}
+  .form-section.acc > summary:hover{color:var(--ink);}
+  .form-section.acc > *:not(summary){padding-inline:18px;}
+  .form-section.acc > summary + *{padding-top:4px;}
+  .form-section.acc > *:last-child{padding-bottom:18px;}
   .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px 18px;}
   .form-grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
   .form-field.full{grid-column:1/-1;}
@@ -666,6 +676,9 @@
   .rc-grp.active .rc-count{background:rgba(255,255,255,.16); color:#F3EFE2;}
   .rc-grp span.t{flex:1;}
   .rc-count{background:var(--paper); border:1px solid var(--line); color:var(--muted); font-size:10.5px; padding:1px 7px; border-radius:20px; font-variant-numeric:tabular-nums;}
+  .rc-edit{opacity:.55; font-size:12px; padding:2px 5px; border-radius:5px; cursor:pointer;}
+  .rc-edit:hover{opacity:1; background:rgba(255,255,255,.12);}
+  .rc-grp:not(.active) .rc-edit:hover{background:var(--paper);}
   .rc-order{font-size:10px; color:var(--muted-2); font-variant-numeric:tabular-nums; min-width:20px;}
 
   .seg{display:inline-flex; background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:3px; gap:3px; flex-wrap:wrap;}
@@ -715,37 +728,58 @@
   #print-root.show{display:block;}
   .sheet{width:210mm; min-height:297mm; background:#fff; margin:0 auto 18px; position:relative;
          padding:26mm 20mm 24mm 20mm; box-sizing:border-box; box-shadow:0 6px 26px rgba(0,0,0,.28);
-         font-family:'IBM Plex Sans Arabic',system-ui,sans-serif; color:#14202a;}
-  .sheet .sh-head{position:absolute; top:0; inset-inline:0; height:24mm; padding:6mm 20mm 0; box-sizing:border-box; display:flex; align-items:center; gap:10px;}
-  .sheet .sh-head img{max-height:16mm; max-width:70mm; object-fit:contain;}
-  .sheet .sh-head .txt{flex:1; text-align:start;}
-  .sheet .sh-head .txt b{display:block; font-size:12pt; color:#12232E;}
-  .sheet .sh-head .txt span{font-size:8pt; color:#6C7A78;}
-  .sheet .sh-rule{position:absolute; top:24mm; inset-inline:20mm; height:1px; background:#D3C9AC;}
-  .sheet .sh-foot{position:absolute; bottom:0; inset-inline:0; height:20mm; padding:0 20mm 6mm; box-sizing:border-box;
-                  display:flex; align-items:flex-end; justify-content:space-between; gap:10px; font-size:7.6pt; color:#6C7A78;}
-  .sheet .sh-foot .qr{display:flex; align-items:center; gap:6px;}
-  .sheet .sh-foot .qr svg{width:13mm; height:13mm; display:block;}
-  .sheet .sh-foot .meta{line-height:1.7; text-align:start;}
-  .sheet .sh-foot .pg{font-variant-numeric:tabular-nums; white-space:nowrap;}
-  .sheet .sh-body{font-size:11pt; line-height:2.05; text-align:justify;}
+         font-family:'Dubai','IBM Plex Sans Arabic',system-ui,sans-serif; color:#14202a;
+         -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;}
+  .sheet .sh-bg{position:absolute; inset:0; z-index:0; overflow:hidden;
+         -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;}
+  .sheet .sh-bg img{width:100%; height:100%; object-fit:cover; object-position:top center; display:block;}
+  .sheet .sh-plainhead{position:absolute; z-index:1; height:18mm; box-sizing:border-box; display:flex; align-items:center; justify-content:center; gap:10px; text-align:center;}
+  .sheet .sh-plainhead img{max-height:100%; max-width:70mm; object-fit:contain;}
+  .sheet .sh-plainhead .txt{text-align:center;}
+  .sheet .sh-plainhead .txt b{display:block; font-size:14pt; font-weight:700; color:#12232E; letter-spacing:.2px;}
+  .sheet .sh-plainhead .txt span{display:block; font-size:8.5pt; color:#6C7A78; margin-top:2px;}
+  .sheet .sh-rule{position:absolute; height:1.4px; background:linear-gradient(90deg, transparent, #C9A968 15%, #C9A968 85%, transparent); z-index:1;}
+  .sheet .sh-foot3{position:absolute; z-index:1; bottom:0; inset-inline:0; height:20mm; padding:0 20mm 6mm; box-sizing:border-box;
+                  display:flex; align-items:flex-end; gap:10px; font-size:7.6pt; color:#6C7A78;}
+  .sheet .sh-foot3 .slot{flex:1; display:flex; align-items:flex-end; min-width:0;}
+  .sheet .sh-foot3 .slot.start{justify-content:flex-start;}
+  .sheet .sh-foot3 .slot.center{justify-content:center;}
+  .sheet .sh-foot3 .slot.end{justify-content:flex-end;}
+  .qr-block{display:flex; align-items:center; gap:6px;}
+  .qr-block .qr-img{display:block;}
+  .qr-block .qr-img svg{width:100%; height:100%; display:block;}
+  .qr-block .qr-no{font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:600;}
+  .sheet .sh-qr-top{position:absolute; display:flex; z-index:2;}
+  .sheet .sh-qr-top.slot-start{justify-content:flex-start;}
+  .sheet .sh-qr-top.slot-center{justify-content:center;}
+  .sheet .sh-qr-top.slot-end{justify-content:flex-end;}
+  .sheet .pg{font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .sheet .sh-body{position:relative; z-index:1; font-size:11pt; line-height:2.05; text-align:justify;}
   .sheet .sh-body h2{font-size:1.12em; margin:6mm 0 2mm; color:#12232E; font-weight:700;}
   .sheet .sh-body h1{font-size:1.3em; text-align:center; margin:0 0 5mm; color:#12232E; letter-spacing:.3px;}
   .sheet .sh-body p{margin:0 0 3mm; text-align:justify;}
   .sheet .sh-body .addr{margin-bottom:5mm; font-weight:600;}
-  .sheet .sh-body .sig{margin-top:8mm; display:flex; align-items:flex-end; justify-content:space-between; gap:12mm;}
-  .sheet .sh-body .sig .who{font-size:10pt; line-height:1.9;}
-  .sheet .sh-body .sig .marks{display:flex; align-items:flex-end; gap:8mm;}
-  .sheet .sh-body .sig .marks img{max-height:26mm; max-width:44mm; object-fit:contain;}
-  .sheet .draft-wm{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;}
+  .sheet .sh-body .addr-row{display:flex; align-items:baseline; justify-content:space-between; gap:10mm; margin-bottom:5mm; font-weight:600;}
+  .sheet .sh-body .addr-row .resp{white-space:nowrap;}
+  .sheet .sh-body p.num-row{margin-inline-start:2mm;}
+  .sheet .sh-body .sig{position:relative; z-index:1; margin-top:10mm; display:flex; align-items:flex-start; justify-content:space-between; gap:12mm;}
+  .sheet .sh-body .sig .sig-r{font-size:0.85em; line-height:1.9;}
+  .sheet .sh-body .sig .sig-l{display:flex; flex-direction:column; align-items:center; gap:1mm; text-align:center; min-width:38mm;}
+  .sheet .sh-body .sig .sig-l .mk{object-fit:contain; display:block;}
+  .sheet .sh-body .sig .sig-l .mk.stamp{opacity:.92;}
+  .sheet .sh-body .sig .sig-l .nm{font-weight:700; font-size:0.9em;}
+  .sheet .sh-body .sig .sig-l .ttl{font-size:0.75em; color:#6C7A78;}
+  .sheet .draft-wm{position:absolute; z-index:1; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;}
   .sheet .draft-wm span{font-size:64pt; color:rgba(166,67,46,.09); font-weight:800; transform:rotate(-32deg); letter-spacing:8px;}
 
   @media print{
     @page{size:A4; margin:0;}
+    html, body{-webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact;}
     body{background:#fff !important;}
     body > *{display:none !important;}
     body > #print-root{display:block !important; background:#fff !important; padding:0 !important;}
-    .sheet{box-shadow:none !important; margin:0 !important; page-break-after:always; break-after:page;}
+    .sheet{box-shadow:none !important; margin:0 !important; page-break-after:always; break-after:page;
+           -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;}
     .sheet:last-child{page-break-after:auto; break-after:auto;}
     #print-bar{display:none !important;}
   }
@@ -761,6 +795,8 @@
   .doc-view h2{font-size:13.5px; margin:18px 0 6px; color:var(--ink); font-weight:700;}
   .doc-view p{font-size:13px; line-height:2; text-align:justify; color:var(--text); margin:0 0 8px;}
   .doc-view .doc-addr{font-weight:600; margin-bottom:14px;}
+  .doc-view .addr-row{display:flex; align-items:baseline; justify-content:space-between; gap:16px;}
+  .doc-view .addr-row .resp{white-space:nowrap;}
   .doc-view .doc-meta{display:flex; gap:22px; flex-wrap:wrap; font-size:11.5px; color:var(--muted); margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--line);}
   .doc-view .doc-meta b{color:var(--ink);}
   .doc-view .doc-sig{margin-top:26px; display:flex; align-items:flex-start; justify-content:space-between; gap:16px;}
@@ -2138,8 +2174,8 @@
         </div>
 
         <div id="co-edit-mode">
-        <div class="form-section">
-          <div class="form-section-title">هوية المكتب</div>
+        <details class="form-section acc" open>
+          <summary class="form-section-title">هوية المكتب</summary>
           <div class="form-grid">
             <div class="form-field full"><label>اسم المكتب (عربي)</label><input id="co-name-ar" placeholder="مثال: شركة إتقان للاستشارات المهنية"></div>
             <div class="form-field full"><label>اسم المكتب (إنجليزي)</label><input id="co-name-en"></div>
@@ -2148,10 +2184,10 @@
             <div class="form-field"><label>اسم معتمِد التقرير (الشريك الموقّع)</label><input id="co-signer" placeholder="راشد الغامدي"></div>
             <div class="form-field"><label>صفة الموقّع</label><input id="co-signer-title" placeholder="محاسب قانوني مرخّص"></div>
           </div>
-        </div>
+        </details>
 
-        <div class="form-section">
-          <div class="form-section-title">الاكليشة والشعار والختم والتوقيع</div>
+        <details class="form-section acc">
+          <summary class="form-section-title">الاكليشة والشعار والختم والتوقيع</summary>
           <p style="font-size:11.5px; color:var(--muted); margin-bottom:12px; line-height:1.9;">
             الاكليشة هي خلفية ورقة A4 كاملة (بمقاس 210×297مم) وتُطبع خلف نص التقرير في كل صفحة تلقائيًا.
             استخدم صورة PNG/JPG بدقة 150 نقطة/بوصة على الأقل (1240×1754 بكسل) لضمان وضوح الطباعة.
@@ -2180,10 +2216,10 @@
             <button class="mini-btn danger" onclick="clearCompanyImage('stamp_url')">حذف الختم</button>
             <button class="mini-btn danger" onclick="clearCompanyImage('signature_url')">حذف التوقيع</button>
           </div>
-        </div>
+        </details>
 
-        <div class="form-section">
-          <div class="form-section-title">تنسيقات طباعة التقارير</div>
+        <details class="form-section acc">
+          <summary class="form-section-title">تنسيقات طباعة التقارير</summary>
           <div class="form-grid">
             <div class="form-field"><label>نوع الخط</label>
               <select id="rs-font">
@@ -2229,10 +2265,10 @@
             <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
               <input type="checkbox" id="rs-justify" checked style="accent-color:#AD8A3F;"> ضبط النص من الجهتين</label>
           </div>
-        </div>
+        </details>
 
-        <div class="form-section">
-          <div class="form-section-title">مقدمة التقرير (قابلة للتعديل)</div>
+        <details class="form-section acc">
+          <summary class="form-section-title">مقدمة التقرير (قابلة للتعديل)</summary>
           <div class="form-grid">
             <div class="form-field"><label>عنوان التقرير — سنوي</label><input id="rs-title-annual" placeholder="تقرير مراجع الحسابات"></div>
             <div class="form-field"><label>عنوان التقرير — مرحلي</label><input id="rs-title-interim" placeholder="تقرير فحص المعلومات المالية الأولية المستقل"></div>
@@ -2246,10 +2282,10 @@
           <div style="font-size:11px; color:var(--muted); line-height:1.9; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-top:10px;">
             المتغيّرات المتاحة: <b>#العميل#</b> · <b>#نوع الشركة#</b> · <b>#تاريخ أول الفترة#</b> · <b>#تاريخ أخرالفترة#</b> · <b>#السنة الحالية#</b> · <b>#المكتب#</b> · <b>#الترخيص#</b>
           </div>
-        </div>
+        </details>
 
-        <div class="form-section">
-          <div class="form-section-title">بيانات الاتصال والعنوان</div>
+        <details class="form-section acc">
+          <summary class="form-section-title">بيانات الاتصال والعنوان</summary>
           <div class="form-grid">
             <div class="form-field"><label>البريد الإلكتروني الرسمي</label><input id="co-email"></div>
             <div class="form-field"><label>الموقع الإلكتروني</label><input id="co-website"></div>
@@ -2259,15 +2295,15 @@
             <div class="form-field"><label>الرمز البريدي</label><input id="co-postal" placeholder="00000"></div>
             <div class="form-field"><label>رابط النظام (يُستخدم في الباركود)</label><input id="co-baseurl" placeholder="https://example.com"></div>
           </div>
-        </div>
+        </details>
 
-        <div class="form-section">
-          <div class="form-section-title">البيانات النظامية والضريبية</div>
+        <details class="form-section acc">
+          <summary class="form-section-title">البيانات النظامية والضريبية</summary>
           <div class="form-grid">
             <div class="form-field"><label>رقم السجل التجاري</label><input id="co-cr"></div>
             <div class="form-field"><label>الرقم الضريبي</label><input id="co-tax"></div>
           </div>
-        </div>
+        </details>
 
         </div>
 
@@ -6756,6 +6792,7 @@ async function rcSetKind(k){ RC.kind=k; RC.group=null; await syncRcSegs(); loadR
 async function rcSetOpinion(o){ RC.opinion=o; RC.group=null; renderSeg('rc-seg-opinion', REF.opinionsByKind[RC.kind]||[], o, 'rcSetOpinion'); loadRcSummary(); }
 function segOn(btn){ btn.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); }
 
+let RC_SHOW_ALL_GROUPS=false;
 async function loadRcSummary(){
   const box=document.getElementById('rc-groups');
   if(!box) return;
@@ -6768,7 +6805,7 @@ async function loadRcSummary(){
     const counts = {};
     all.filter(r=>r.report_kind===RC.kind && r.opinion_type===RC.opinion).forEach(r=>{ counts[r.group_name]=r; });
     RC.summary = groups.map(g=>({
-      report_kind: RC.kind, opinion_type: RC.opinion, group_name: g.group_name,
+      id: g.id, report_kind: RC.kind, opinion_type: RC.opinion, group_name: g.group_name,
       section_order: g.section_order, selection_mode: g.selection_mode, is_required: g.is_required,
       total: counts[g.group_name]?counts[g.group_name].total:0, active: counts[g.group_name]?counts[g.group_name].active:0,
       own: counts[g.group_name]?counts[g.group_name].own:0,
@@ -6778,13 +6815,20 @@ async function loadRcSummary(){
       document.getElementById('rc-items').innerHTML='<div class="panel"><div class="empty-hint" style="padding:60px 20px;">لا توجد بنود</div></div>';
       return;
     }
-    if(!RC.group || !RC.summary.find(g=>g.group_name===RC.group)) RC.group=RC.summary[0].group_name;
-    box.innerHTML=RC.summary.map(g=>`
+    // نعرض فقط المجموعات التي تحتوي نصوصًا لنوع الرأي الحالي، إلا إذا فُعِّل «إظهار الكل»
+    const visible = RC_SHOW_ALL_GROUPS ? RC.summary : RC.summary.filter(g=>g.total>0);
+    if(!RC.group || !visible.find(g=>g.group_name===RC.group)) RC.group = visible.length ? visible[0].group_name : (RC.summary[0]&&RC.summary[0].group_name);
+    const toggleBtn = `<div class="rc-grp" style="cursor:pointer; color:var(--brass); justify-content:center; font-size:11px;" onclick="RC_SHOW_ALL_GROUPS=!RC_SHOW_ALL_GROUPS; loadRcSummary();">
+        ${RC_SHOW_ALL_GROUPS?'إخفاء المجموعات الفارغة لهذا الرأي':'إظهار كل مجموعات هذا النوع ('+RC.summary.length+')'}
+      </div>`;
+    box.innerHTML = toggleBtn + (visible.length ? visible.map(g=>`
       <div class="rc-grp ${g.group_name===RC.group?'active':''}" onclick="rcPickGroup('${esc(g.group_name).replace(/'/g,"\\'")}')">
         <span class="rc-order">${g.section_order}</span>
         <span class="t">${esc(g.group_name)}${g.is_required?' *':''}</span>
         <span class="rc-count">${g.active}/${g.total}</span>
-      </div>`).join('');
+        <span class="rc-edit" title="تعديل المجموعة" onclick="event.stopPropagation(); openGroupsManager();">✎</span>
+      </div>`).join('')
+      : '<div class="empty-hint" style="padding:20px 10px; font-size:11.5px;">لا توجد مجموعات تحتوي نصوصًا لنوع الرأي هذا بعد</div>');
     loadRcItems();
   }catch(e){ box.innerHTML='<div class="empty-hint" style="padding:26px 10px;">'+esc(e.message)+'</div>'; }
 }
@@ -7284,7 +7328,16 @@ function repVars(){
     'تاريخ أخرالفترة':arDate(document.getElementById('repe-pend').value),
     'السنة الحالية':(document.getElementById('repe-pend').value||'').slice(0,4)};
 }
-function applyVars(t,v){ let o=String(t||''); Object.keys(v).forEach(k=>{ if(v[k]) o=o.split('#'+k+'#').join(v[k]); }); return o; }
+// يستبدل المتغيّرات المعروفة، ثم يزيل أي وسم #...# متبقٍّ لم يُملأ حتى لا يظهر خامًا في التقرير المطبوع
+function applyVars(t,v){
+  let o=String(t||'');
+  Object.keys(v).forEach(k=>{ if(v[k]) o=o.split('#'+k+'#').join(v[k]); });
+  o=o.replace(/#[^#\n]{1,40}#/g,'');
+  o=o.replace(/\)\s*\(/g,''); // يزيل زوج الأقواس الفارغ )( الناتج عن حذف متغيّر لم يُملأ (ترتيب الأقواس بالعربي RTL)
+  o=o.replace(/\(\s*\)/g,''); // ونفس الشيء بالترتيب المعاكس
+  o=o.replace(/[ \t]{2,}/g,' ');
+  return o;
+}
 function refillPlaceholders(){
   if(REP.status==='approved'){ showToast('التقرير معتمد'); return; }
   const v=repVars();
@@ -7635,9 +7688,15 @@ function buildBlocks() {
     const rows = (sec.rows || []).filter(r => (r.body || '').trim());
     if (!rows.length) return;
     blocks.push({ tag: 'h2', html: esc(sec.title || sec.group_name) });
-    rows.forEach(r => {
-      applyVars(r.body, v).split(/\n+/).forEach(par => {
-        if (par.trim()) blocks.push({ tag: 'p', html: esc(toArDigits(par.trim(), ar)) });
+    // ترقيم تلقائي للفقرات المتعددة داخل الفقرة الواحدة (مثل أساس الرأي المتحفظ) لتنسيق أوضح
+    const numbered = sec.selection_mode === 'multi' && rows.length > 1;
+    rows.forEach((r, ri) => {
+      const num = numbered ? toArDigits(ri + 1, ar) + ') ' : '';
+      const paras = applyVars(r.body, v).split(/\n+/).map(p => p.trim()).filter(Boolean);
+      paras.forEach((par, pi) => {
+        const clean = par.replace(/^[-–]\s*/, ''); // إزالة الشرطة اليدوية لتفادي ازدواج الترقيم
+        const prefix = (pi === 0) ? num : '';
+        blocks.push({ tag: 'p', cls: numbered ? 'num-row' : '', html: prefix + esc(toArDigits(clean, ar)) });
       });
     });
   });
@@ -7680,6 +7739,7 @@ function buildApprovedDocHtml(){
     if(b.tag==='h1') return `<h1>${b.html}</h1>`;
     if(b.tag==='h2') return `<h2>${b.html}</h2>`;
     if(b.cls==='addr') return `<p class="doc-addr">${b.html}</p>`;
+    if(b.cls==='addr-row') return `<div class="doc-addr addr-row">${b.html}</div>`;
     return `<p>${b.html}</p>`;
   }).join('');
   const s=rs(), ar=s.arabic_digits;
