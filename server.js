@@ -2920,6 +2920,15 @@ body{margin:0; padding:0; background:#8A9298; font-family:'${esc(cfg.font)}','Sa
 });
 
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
+
+// بوابة العميل: ملف portal.html في جذر المشروع (خارج مجلد public)، فنقدّمه صراحةً
+// قبل الـ catch-all حتى لا يُرجَع index.html بدلًا منه.
+const PORTAL_FILE = path.join(__dirname, 'portal.html');
+app.get(['/portal', '/portal.html', '/client', '/client-portal'], (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.sendFile(PORTAL_FILE);
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
