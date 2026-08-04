@@ -1,0 +1,20 @@
+{
+  "name": "tamam-audit-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "نظام تمام للمراجعة والتدقيق — خادم يخدم الواجهة ويحقن إعدادات Supabase من متغيرات البيئة",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "@supabase/supabase-js": "^2.45.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "exceljs": "^4.4.0"
+  }
+}
