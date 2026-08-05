@@ -2922,6 +2922,489 @@ body{margin:0; padding:0; background:#8A9298; font-family:'${esc(cfg.font)}','Sa
 </body></html>`);
 });
 
+
+// ============================================================================
+// وحدة العروض والعقود
+//   1) تهيئة العروض والعقود              — /api/engagement-config
+//   2) العروض والعقود المُنشأة            — /api/engagements
+//   3) تحويل العرض الموافق عليه إلى عقد   — /api/engagements/:id/convert
+// ============================================================================
+
+function normDocKind(v) { return v === 'contract' ? 'contract' : 'proposal'; }
+
+// ---------------------------------------------------------------------------
+// 1) تهيئة العروض والعقود
+// ---------------------------------------------------------------------------
+
+// قائمة أنواع العروض/العقود المتاحة (مستخلصة من المكتبة)
+app.get('/api/engagement-config/templates', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  let q = sb.from('engagement_config').select('doc_kind,template_name,company_id,is_active')
+    .or(`company_id.eq.${req.session.companyId},company_id.is.null`).eq('is_active', true);
+  if (req.query.kind) q = q.eq('doc_kind', normDocKind(req.query.kind));
+  const { data, error } = await q;
+  if (error) return res.status(500).json({ message: error.message });
+  const seen = {};
+  (data || []).forEach(r => {
+    const k = r.doc_kind + '|' + r.template_name;
+    if (!seen[k]) seen[k] = { doc_kind: r.doc_kind, template_name: r.template_name, items: 0, own: 0 };
+    seen[k].items++;
+    if (r.company_id) seen[k].own++;
+  });
+  res.json(Object.values(seen).sort((a, b) => a.template_name.localeCompare(b.template_name, 'ar')));
+});
+
+// بنود مكتبة التهيئة
+app.get('/api/engagement-config', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  let q = sb.from('engagement_config').select('*')
+    .or(`company_id.eq.${req.session.companyId},company_id.is.null`);
+  if (req.query.kind) q = q.eq('doc_kind', normDocKind(req.query.kind));
+  if (req.query.template) q = q.eq('template_name', req.query.template);
+  if (req.query.group) q = q.eq('group_name', req.query.group);
+  if (req.query.activeOnly === '1') q = q.eq('is_active', true);
+  const { data, error } = await q.order('section_order').order('item_name');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(mergeOverrides(data || []));
+});
+
+app.post('/api/engagement-config', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.template_name || !String(b.template_name).trim()) return res.status(400).json({ message: 'نوع العرض/العقد إلزامي' });
+  if (!b.group_name || !String(b.group_name).trim()) return res.status(400).json({ message: 'المجموعة إلزامية' });
+  const blockType = ['text', 'team_table', 'fee_table', 'toc', 'signature'].includes(b.block_type) ? b.block_type : 'text';
+  if (blockType === 'text' && !(b.body_ar || '').trim() && !(b.body_en || '').trim())
+    return res.status(400).json({ message: 'اكتب نص الفقرة بالعربي أو الإنجليزي على الأقل' });
+  const { data, error } = await sb.from('engagement_config').insert({
+    company_id: req.session.companyId,
+    doc_kind: normDocKind(b.doc_kind),
+    template_name: String(b.template_name).trim(),
+    group_name: String(b.group_name).trim(),
+    item_name: String(b.item_name || b.group_name).trim(),
+    body_ar: b.body_ar || null, body_en: b.body_en || null,
+    block_type: blockType,
+    section_order: Number(b.section_order) || 100,
+    selection_mode: b.selection_mode === 'multi' ? 'multi' : 'single',
+    is_required: !!b.is_required,
+    is_active: b.is_active !== false,
+    source_id: b.source_id || null,
+    created_by: req.session.userId,
+  }).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// تعديل: البند العام يُنسخ لمكتبة المكتب بدل تعديل العام
+app.put('/api/engagement-config/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const { data: row } = await sb.from('engagement_config').select('*').eq('id', req.params.id).maybeSingle();
+  if (!row) return res.status(404).json({ message: 'البند غير موجود' });
+  if (row.company_id && row.company_id !== req.session.companyId) return res.status(403).json({ message: 'غير مصرّح' });
+
+  const fields = {
+    doc_kind: b.doc_kind !== undefined ? normDocKind(b.doc_kind) : row.doc_kind,
+    template_name: b.template_name !== undefined ? String(b.template_name).trim() : row.template_name,
+    group_name: b.group_name !== undefined ? String(b.group_name).trim() : row.group_name,
+    item_name: b.item_name !== undefined ? String(b.item_name).trim() : row.item_name,
+    body_ar: b.body_ar !== undefined ? b.body_ar : row.body_ar,
+    body_en: b.body_en !== undefined ? b.body_en : row.body_en,
+    block_type: b.block_type !== undefined ? b.block_type : row.block_type,
+    section_order: b.section_order !== undefined ? (Number(b.section_order) || 100) : row.section_order,
+    selection_mode: b.selection_mode !== undefined ? (b.selection_mode === 'multi' ? 'multi' : 'single') : row.selection_mode,
+    is_required: b.is_required !== undefined ? !!b.is_required : row.is_required,
+    is_active: b.is_active !== undefined ? !!b.is_active : row.is_active,
+    code: row.code,
+  };
+  if (row.company_id === null) {
+    const { data, error } = await sb.from('engagement_config')
+      .insert(Object.assign({}, fields, { company_id: req.session.companyId, source_id: row.id, created_by: req.session.userId }))
+      .select().single();
+    if (error) return res.status(500).json({ message: error.message });
+    return res.json(data);
+  }
+  const { data, error } = await sb.from('engagement_config').update(fields)
+    .eq('id', row.id).eq('company_id', req.session.companyId).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.delete('/api/engagement-config/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: row } = await sb.from('engagement_config').select('*').eq('id', req.params.id).maybeSingle();
+  if (!row) return res.status(404).json({ message: 'البند غير موجود' });
+  if (row.company_id === null) {
+    const { error } = await sb.from('engagement_config').insert({
+      company_id: req.session.companyId, doc_kind: row.doc_kind, template_name: row.template_name,
+      group_name: row.group_name, item_name: row.item_name, body_ar: row.body_ar, body_en: row.body_en,
+      block_type: row.block_type, section_order: row.section_order, selection_mode: row.selection_mode,
+      is_required: row.is_required, is_active: false, source_id: row.id, created_by: req.session.userId,
+    });
+    if (error) return res.status(500).json({ message: error.message });
+    return res.json({ ok: true, hidden: true });
+  }
+  if (row.company_id !== req.session.companyId) return res.status(403).json({ message: 'غير مصرّح' });
+  const { error } = await sb.from('engagement_config').delete().eq('id', row.id).eq('company_id', req.session.companyId);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// 2) العروض والعقود
+// ---------------------------------------------------------------------------
+app.get('/api/engagements', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  let q = sb.from('engagements')
+    .select('id,doc_no,doc_kind,template_name,status,issue_date,period_end,amount,amount_total,proposal_id,created_at,client_id,clients(name)')
+    .eq('company_id', req.session.companyId);
+  if (req.query.kind) q = q.eq('doc_kind', normDocKind(req.query.kind));
+  if (req.query.status) q = q.eq('status', req.query.status);
+  if (req.query.clientId) q = q.eq('client_id', req.query.clientId);
+  const { data, error } = await q.order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+// يبني فقرات المستند من مكتبة التهيئة
+async function composeEngagementSections(sb, companyId, docKind, templateName, vars) {
+  const { data, error } = await sb.from('engagement_config').select('*')
+    .or(`company_id.eq.${companyId},company_id.is.null`)
+    .eq('doc_kind', docKind).eq('template_name', templateName).eq('is_active', true);
+  if (error) throw new Error(error.message);
+  const usable = mergeOverrides(data || []);
+
+  const byGroup = {};
+  usable.forEach(r => { (byGroup[r.group_name] = byGroup[r.group_name] || []).push(r); });
+
+  const sections = [];
+  Object.keys(byGroup).forEach(g => {
+    const list = byGroup[g].sort((a, b) => a.section_order - b.section_order || (a.code || '').localeCompare(b.code || ''));
+    const first = list[0];
+    // البنود الإلزامية تُدرج كلها، والاختيارية تُترك ليضيفها المستخدم
+    const chosen = list.filter(r => r.is_required);
+    sections.push({
+      key: g, group_name: g, title: g, order: first.section_order,
+      selection_mode: first.selection_mode, is_required: !!first.is_required,
+      library_count: list.length,
+      rows: chosen.map(r => ({
+        config_id: r.id, item_name: r.item_name, code: r.code, block_type: r.block_type,
+        body_ar: fillPlaceholders(r.body_ar, vars), body_en: fillPlaceholders(r.body_en, vars),
+      })),
+    });
+  });
+  sections.sort((a, b) => a.order - b.order || a.group_name.localeCompare(b.group_name, 'ar'));
+  return sections;
+}
+
+function buildEngagementVars(client, eng, company) {
+  const AR_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  const fmt = d => { if (!d) return ''; const t = new Date(d); if (isNaN(t)) return String(d);
+    return t.getDate() + ' ' + AR_MONTHS[t.getMonth()] + ' ' + t.getFullYear(); };
+  const money = v => (v === null || v === undefined || v === '') ? '' : Number(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return {
+    'العميل': (client && client.name) || '',
+    'نوع الشركة': (eng && eng.entity_type_text) || (client && client.entity_type) || '',
+    'السجل التجاري': (client && client.cr_number) || '',
+    'الرقم الضريبي': (client && client.tax_number) || '',
+    'تاريخ أول الفترة': fmt(eng && eng.period_start),
+    'تاريخ أخرالفترة': fmt(eng && eng.period_end),
+    'السنة الحالية': (eng && eng.period_end) ? String(new Date(eng.period_end).getFullYear()) : '',
+    'المبلغ': money(eng && eng.amount),
+    'الإجمالي': money(eng && eng.amount_total),
+    'المكتب': (company && company.name_ar) || '',
+    'الترخيص': (company && company.license_no) || '',
+  };
+}
+
+app.post('/api/engagements', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.client_id) return res.status(400).json({ message: 'اختر العميل أولًا' });
+  if (!b.template_name) return res.status(400).json({ message: 'اختر نوع العرض/العقد' });
+
+  const { data: client, error: ce } = await sb.from('clients').select('*')
+    .eq('id', b.client_id).eq('company_id', req.session.companyId).maybeSingle();
+  if (ce) return res.status(500).json({ message: ce.message });
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { data: company } = await sb.from('companies').select('*').eq('id', req.session.companyId).maybeSingle();
+
+  const docKind = normDocKind(b.doc_kind);
+  const amount = Number(b.amount) || 0;
+  const vat = b.vat_rate !== undefined ? Number(b.vat_rate) : 15;
+  const base = {
+    company_id: req.session.companyId, client_id: client.id,
+    client_file_id: b.client_file_id || null,
+    doc_kind: docKind, template_name: String(b.template_name),
+    proposal_id: b.proposal_id || null,
+    issue_date: b.issue_date || new Date().toISOString().slice(0, 10),
+    valid_until: b.valid_until || null,
+    period_start: b.period_start || null, period_end: b.period_end || null,
+    amount, vat_rate: vat, amount_total: Math.round(amount * (1 + vat / 100) * 100) / 100,
+    entity_type_text: b.entity_type_text || client.entity_type || null,
+    place: b.place || (company && company.city) || null,
+    addressee: b.addressee || null,
+    team: Array.isArray(b.team) ? b.team : [],
+    client_snapshot: { name: client.name, entity_type: client.entity_type, cr_number: client.cr_number, tax_number: client.tax_number },
+    public_token: randToken(),
+    created_by: req.session.userId,
+    status: 'draft',
+  };
+
+  let sections;
+  try { sections = await composeEngagementSections(sb, req.session.companyId, docKind, base.template_name, buildEngagementVars(client, base, company)); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
+
+  const { data, error } = await sb.from('engagements').insert(Object.assign({}, base, { sections })).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+
+  if (!data.doc_no) {
+    const prefix = docKind === 'contract' ? 'CT-' : 'PR-';
+    const no = prefix + new Date().getFullYear() + '-' + String(data.id).slice(0, 4).toUpperCase();
+    await sb.from('engagements').update({ doc_no: no }).eq('id', data.id);
+    data.doc_no = no;
+  }
+  res.json(data);
+});
+
+app.get('/api/engagements/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('engagements')
+    .select('*, clients(*), client_files(id,name,period_end)')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (error) return res.status(500).json({ message: error.message });
+  if (!data) return res.status(404).json({ message: 'المستند غير موجود' });
+  const { data: company } = await sb.from('companies').select('*').eq('id', req.session.companyId).maybeSingle();
+  let linked = null;
+  if (data.proposal_id) {
+    const { data: p } = await sb.from('engagements').select('id,doc_no,template_name,status').eq('id', data.proposal_id).maybeSingle();
+    linked = p || null;
+  }
+  res.json({ engagement: data, company: company || {}, linkedProposal: linked });
+});
+
+app.put('/api/engagements/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const { data: cur } = await sb.from('engagements').select('id,status,doc_kind')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!cur) return res.status(404).json({ message: 'المستند غير موجود' });
+  const locked = cur.status === 'approved' || cur.status === 'signed';
+  if (locked) return res.status(423).json({ message: 'المستند معتمد/موقّع — لا يمكن تعديله' });
+
+  const allowed = ['doc_no', 'issue_date', 'valid_until', 'period_start', 'period_end', 'place', 'addressee',
+    'entity_type_text', 'sections', 'team', 'signature_url', 'stamp_url', 'client_file_id'];
+  const payload = {};
+  allowed.forEach(k => { if (b[k] !== undefined) payload[k] = b[k]; });
+  if (b.amount !== undefined || b.vat_rate !== undefined) {
+    const amount = Number(b.amount) || 0;
+    const vat = b.vat_rate !== undefined ? Number(b.vat_rate) : 15;
+    payload.amount = amount; payload.vat_rate = vat;
+    payload.amount_total = Math.round(amount * (1 + vat / 100) * 100) / 100;
+  }
+  const { data, error } = await sb.from('engagements').update(payload)
+    .eq('id', cur.id).eq('company_id', req.session.companyId).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// تغيير حالة العرض/العقد
+app.post('/api/engagements/:id/status', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const { data: cur } = await sb.from('engagements').select('*')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!cur) return res.status(404).json({ message: 'المستند غير موجود' });
+
+  const allowedByKind = cur.doc_kind === 'contract'
+    ? ['draft', 'signed']
+    : ['draft', 'sent', 'approved', 'rejected'];
+  const next = String(b.status || '');
+  if (!allowedByKind.includes(next)) return res.status(400).json({ message: 'حالة غير صالحة لهذا المستند' });
+
+  const payload = { status: next };
+  if (next === 'approved') {
+    payload.approved_at = new Date().toISOString();
+    if (b.signed_by_name) payload.signed_by_name = b.signed_by_name;
+    if (b.signed_by_title) payload.signed_by_title = b.signed_by_title;
+  }
+  if (next === 'signed') {
+    payload.signed_at = new Date().toISOString();
+    if (b.signed_by_name) payload.signed_by_name = b.signed_by_name;
+    if (b.signed_by_title) payload.signed_by_title = b.signed_by_title;
+  }
+  if (next === 'rejected') payload.rejected_reason = b.rejected_reason || null;
+  if (next === 'draft') { payload.approved_at = null; payload.signed_at = null; payload.rejected_reason = null; }
+
+  const { data, error } = await sb.from('engagements').update(payload)
+    .eq('id', cur.id).eq('company_id', req.session.companyId).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// تحويل العرض الموافق عليه إلى عقد ارتباط
+app.post('/api/engagements/:id/convert', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const { data: prop } = await sb.from('engagements').select('*, clients(*)')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!prop) return res.status(404).json({ message: 'العرض غير موجود' });
+  if (prop.doc_kind !== 'proposal') return res.status(400).json({ message: 'هذا المستند ليس عرضًا' });
+  if (prop.status !== 'approved') return res.status(400).json({ message: 'لا يمكن التحويل إلا بعد موافقة العميل على العرض' });
+
+  const { data: exists } = await sb.from('engagements').select('id,doc_no')
+    .eq('proposal_id', prop.id).eq('doc_kind', 'contract').maybeSingle();
+  if (exists) return res.status(409).json({ message: 'يوجد عقد مرتبط بهذا العرض بالفعل (' + (exists.doc_no || '') + ')' });
+
+  const templateName = b.template_name;
+  if (!templateName) return res.status(400).json({ message: 'اختر نوع عقد الارتباط' });
+  const { data: company } = await sb.from('companies').select('*').eq('id', req.session.companyId).maybeSingle();
+
+  const base = {
+    company_id: req.session.companyId, client_id: prop.client_id, client_file_id: prop.client_file_id,
+    doc_kind: 'contract', template_name: String(templateName), proposal_id: prop.id,
+    issue_date: new Date().toISOString().slice(0, 10),
+    period_start: prop.period_start, period_end: prop.period_end,
+    amount: prop.amount, vat_rate: prop.vat_rate, amount_total: prop.amount_total,
+    entity_type_text: prop.entity_type_text, place: prop.place,
+    team: prop.team || [], client_snapshot: prop.client_snapshot || {},
+    public_token: randToken(), created_by: req.session.userId, status: 'draft',
+  };
+
+  let sections;
+  try { sections = await composeEngagementSections(sb, req.session.companyId, 'contract', base.template_name, buildEngagementVars(prop.clients, base, company)); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
+
+  const { data, error } = await sb.from('engagements').insert(Object.assign({}, base, { sections })).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  const no = 'CT-' + new Date().getFullYear() + '-' + String(data.id).slice(0, 4).toUpperCase();
+  await sb.from('engagements').update({ doc_no: no }).eq('id', data.id);
+  data.doc_no = no;
+  res.json(data);
+});
+
+app.delete('/api/engagements/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: cur } = await sb.from('engagements').select('id,status')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!cur) return res.status(404).json({ message: 'المستند غير موجود' });
+  if (cur.status === 'approved' || cur.status === 'signed')
+    return res.status(423).json({ message: 'لا يمكن حذف مستند معتمد أو موقّع' });
+  const { error } = await sb.from('engagements').delete().eq('id', cur.id).eq('company_id', req.session.companyId);
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ ok: true });
+});
+
+// مكتبة النصوص المتاحة لمجموعة معيّنة داخل مستند (لإضافة فقرة)
+app.get('/api/engagements/:id/library', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: eng } = await sb.from('engagements').select('*, clients(*)')
+    .eq('id', req.params.id).eq('company_id', req.session.companyId).maybeSingle();
+  if (!eng) return res.status(404).json({ message: 'المستند غير موجود' });
+  const { data: company } = await sb.from('companies').select('*').eq('id', req.session.companyId).maybeSingle();
+  let q = sb.from('engagement_config').select('*')
+    .or(`company_id.eq.${req.session.companyId},company_id.is.null`)
+    .eq('doc_kind', eng.doc_kind).eq('template_name', eng.template_name).eq('is_active', true);
+  if (req.query.group) q = q.eq('group_name', req.query.group);
+  const { data, error } = await q.order('code');
+  if (error) return res.status(500).json({ message: error.message });
+  const vars = buildEngagementVars(eng.clients, eng, company);
+  res.json(mergeOverrides(data || []).map(r => ({
+    id: r.id, group_name: r.group_name, item_name: r.item_name, code: r.code, block_type: r.block_type,
+    body_ar: fillPlaceholders(r.body_ar, vars), body_en: fillPlaceholders(r.body_en, vars),
+  })));
+});
+
+// أعضاء الفريق المتاحون لإضافتهم لجدول فريق العمل
+app.get('/api/engagement-team-pool', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('users')
+    .select('id,first_name_ar,last_name_ar,job_title_ar,qualifications')
+    .eq('company_id', req.session.companyId).eq('is_active', true).order('first_name_ar');
+  if (error) return res.status(500).json({ message: error.message });
+  res.json((data || []).map(u => ({
+    id: u.id,
+    full_name: [u.first_name_ar, u.last_name_ar].filter(Boolean).join(' '),
+    job_title_ar: u.job_title_ar || '',
+    qualifications: u.qualifications || '',
+  })));
+});
+
+app.put('/api/engagement-team-pool/:id', requireAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const payload = {};
+  if (b.qualifications !== undefined) payload.qualifications = b.qualifications;
+  if (b.job_title_ar !== undefined) payload.job_title_ar = b.job_title_ar;
+  if (!Object.keys(payload).length) return res.json({ ok: true });
+  const { data, error } = await sb.from('users').update(payload)
+    .eq('id', req.params.id).eq('company_id', req.session.companyId)
+    .select('id,first_name_ar,last_name_ar,job_title_ar,qualifications').single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json({ id: data.id, full_name: [data.first_name_ar, data.last_name_ar].filter(Boolean).join(' '),
+             job_title_ar: data.job_title_ar || '', qualifications: data.qualifications || '' });
+});
+
+
+// صفحة عامة لعرض العرض/العقد عبر الباركود (قراءة فقط)
+app.get('/e/:token', async (req, res) => {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  if (!supabaseAdmin) return res.status(503).send('الخدمة غير متاحة حاليًا');
+  const { data } = await supabaseAdmin.from('engagements')
+    .select('*, clients(name), companies(name_ar,name_en,license_no,city,signer_name)')
+    .eq('public_token', req.params.token).maybeSingle();
+  if (!data) return res.status(404).send('<html dir="rtl"><body style="font-family:system-ui;padding:40px;text-align:center;color:#666;"><h2>مستند غير معروف</h2></body></html>');
+  const co = data.companies || {};
+  const ST = { draft:'مسودة', sent:'مُرسل', approved:'تمت الموافقة', rejected:'مرفوض', signed:'موقّع' };
+  const money = v => Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const secs = (data.sections||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+  const body = secs.map(s2 => {
+    const rows = (s2.rows||[]).filter(r => (r.body_ar||'').trim() || (r.body_en||'').trim());
+    if (!rows.length) return '';
+    return `<h2>${esc(s2.title||s2.group_name)}</h2>` +
+      rows.map(r => `<p>${esc(r.body_ar||r.body_en||'')}</p>`).join('');
+  }).join('');
+  const teamRows = (data.team||[]).map((m,i)=>`<tr><td>${i+1}</td><td>${esc(m.name||'')}</td><td style="text-align:start;">${esc(m.qualifications||'')}</td></tr>`).join('');
+  res.set('Content-Type','text/html; charset=utf-8').send(`<!DOCTYPE html><html lang="ar" dir="rtl"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(data.doc_kind==='contract'?'عقد ارتباط':'عرض سعر')} — ${esc(data.doc_no||'')}</title>
+<link href="https://fonts.cdnfonts.com/css/dubai" rel="stylesheet">
+<style>body{font-family:'Sakkal Majalla','Dubai',system-ui,Tahoma;background:#8A9298;margin:0;padding:0;}
+.bar{position:sticky;top:0;background:rgba(18,35,46,.94);padding:11px 16px;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;}
+.bar .st{font-size:12.5px;font-weight:700;padding:5px 14px;border-radius:20px;background:#E4F0EA;color:#2F6F4E;}
+.bar button{font-family:inherit;font-size:12.5px;padding:8px 18px;border-radius:8px;border:0;cursor:pointer;background:#C9A968;color:#12232E;font-weight:700;}
+.wrap{padding:24px 16px;max-width:900px;margin:0 auto;}
+.card{background:#FFFDF8;border:1px solid #E4DDC9;border-radius:14px;padding:34px 40px;color:#14202a;}
+h1{font-size:17px;text-align:center;margin:0 0 16px;} h2{font-size:13.5px;margin:16px 0 6px;}
+p{font-size:13px;line-height:2;text-align:justify;margin:0 0 8px;}
+.meta{display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#6C7A78;padding-bottom:16px;margin-bottom:18px;border-bottom:1px solid #E4DDC9;}
+.meta b{color:#12232E;}
+table{width:100%;border-collapse:collapse;margin:10px 0 16px;font-size:12.5px;}
+th{background:#F1EADA;border:1px solid #D3C9AC;padding:7px;font-weight:700;}
+td{border:1px solid #D3C9AC;padding:7px;text-align:center;vertical-align:top;}
+@media print{@page{size:A4;margin:12mm;} body{background:#fff;} .bar{display:none!important;} .wrap{padding:0;max-width:none;} .card{border:0;border-radius:0;padding:0;}}
+</style></head><body>
+<div class="bar"><span class="st">${esc(ST[data.status]||data.status)}</span>
+<span style="color:#D8D2C4;font-size:12px;">${esc(data.doc_no||'')}</span>
+<button onclick="window.print()">طباعة</button></div>
+<div class="wrap"><div class="card">
+<div class="meta">
+  <div>العميل <b>${esc((data.clients&&data.clients.name)||'')}</b></div>
+  <div>المكتب <b>${esc(co.name_ar||'')}</b></div>
+  <div>التاريخ <b>${esc(data.issue_date||'')}</b></div>
+  <div>الإجمالي <b>${money(data.amount_total)} ريال</b></div>
+</div>
+<h1>${esc(data.template_name||'')}</h1>
+${body||'<p>لا توجد فقرات.</p>'}
+${teamRows?`<h2>فريق العمل</h2><table><thead><tr><th style="width:40px;">م</th><th style="width:28%;">الاسم</th><th>المؤهل العلمي والخبرات</th></tr></thead><tbody>${teamRows}</tbody></table>`:''}
+<h2>الأتعاب</h2><table><thead><tr><th>البيان</th><th style="width:32%;">المبلغ (ريال)</th></tr></thead><tbody>
+<tr><td style="text-align:start;">الأتعاب (غير شامل الضريبة)</td><td>${money(data.amount)}</td></tr>
+<tr><td style="text-align:start;">ضريبة القيمة المضافة (${data.vat_rate}%)</td><td>${money((Number(data.amount)||0)*(Number(data.vat_rate)||0)/100)}</td></tr>
+<tr style="font-weight:700;background:#F6F2E8;"><td style="text-align:start;">الإجمالي</td><td>${money(data.amount_total)}</td></tr>
+</tbody></table>
+</div></div></body></html>`);
+});
+
 app.get('/healthz', (req, res) => res.status(200).send('ok'));
 
 // نقطة تشخيص: تُظهر رقم الإصدار المرفوع فعليًا على الخادم وحالة ملف البوابة
