@@ -237,3 +237,41 @@ values
 
 (null,'contract','عقد ارتباط مراجعة قوائم مالية','الإقرار والتوقيع','كتلة التوقيع',
  null,null,'signature',71,'single',true,true);
+
+
+-- ============================================================================
+-- تحديث: مجموعات ثنائية اللغة + طلبات العروض من بوابة العميل + تتبّع من حوّل العرض
+-- (نفّذ هذا الجزء أيضًا إن كنت قد شغّلت الملف قبل التحديث)
+-- ============================================================================
+
+-- اسم المجموعة بالإنجليزي (يظهر بجانب العربي عند الطباعة)
+alter table engagement_config add column if not exists group_name_en varchar(200);
+
+-- مصدر المستند: office (المكتب) / client (طلب من العميل عبر البوابة)
+alter table engagements add column if not exists origin varchar(20) not null default 'office';
+
+-- من قام بالتحويل إلى عقد ولماذا نميّزه: office / client
+alter table engagements add column if not exists converted_by_type varchar(20);
+alter table engagements add column if not exists converted_by_name varchar(150);
+alter table engagements add column if not exists converted_at timestamptz;
+
+-- ملاحظة: تُضاف حالة 'requested' لطلبات العروض القادمة من بوابة العميل،
+-- ويحوّلها موظف المكتب لاحقًا إلى 'draft' (عرض فعلي) ثم يكمل عليه.
+
+-- تعبئة أسماء المجموعات بالإنجليزي للمكتبة العامة
+update engagement_config set group_name_en = case group_name
+  when 'أولاً: المقدمة' then 'First: Introduction'
+  when 'ثانياً: خدمات مراجعة الحسابات' then 'Second: Audit Services'
+  when 'ثالثاً: أسلوب تقديم الخدمات المهنية' then 'Third: Professional Service Approach'
+  when 'رابعاً: فريق العمل' then 'Fourth: Engagement Team'
+  when 'خامساً: أسلوب أداء المراجعة' then 'Fifth: Audit Approach'
+  when 'سادساً: الأتعاب المقدرة' then 'Sixth: Estimated Fees'
+  when 'أغراض ونطاق المراجعة' then 'Objective and Scope of the Audit'
+  when 'مسؤوليات وحدود المراجعة' then 'Audit Responsibilities and Limitations'
+  when 'مسؤوليات الإدارة والتمثيل' then 'Management Responsibilities and Representations'
+  when 'مدة الاتفاقية' then 'Term'
+  when 'الجدول الزمني' then 'Timetable'
+  when 'الأتعاب وإجراءات الفواتير' then 'Fees and Billing Arrangements'
+  when 'الإقرار والتوقيع' then 'Acknowledgement and Signature'
+  else group_name_en end
+where company_id is null;

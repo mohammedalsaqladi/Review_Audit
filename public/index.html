@@ -811,11 +811,17 @@
   .sheet .sh-body .bi-row .bi-ar{display:table-cell; width:50%; vertical-align:top; padding-inline-end:5mm; text-align:justify;}
   .sheet .sh-body .bi-row .bi-en{display:table-cell; width:50%; vertical-align:top; padding-inline-start:5mm;
                                  text-align:left; direction:ltr; font-size:.92em;}
+  .sheet .sh-body .bi-head{display:table; width:100%; table-layout:fixed; margin:6mm 0 2mm; font-weight:700; font-size:1.12em; color:#12232E;}
+  .sheet .sh-body .bi-head .bi-ar{display:table-cell; width:50%; padding-inline-end:5mm;}
+  .sheet .sh-body .bi-head .bi-en{display:table-cell; width:50%; padding-inline-start:5mm; text-align:left; direction:ltr; font-size:.92em;}
   .sheet .sh-body .doc-table{width:100%; border-collapse:collapse; margin:3mm 0 4mm; font-size:.92em;}
   .sheet .sh-body .doc-table th{background:#F1EADA; border:1px solid #D3C9AC; padding:2mm 2.5mm; font-weight:700; text-align:center;}
   .sheet .sh-body .doc-table td{border:1px solid #D3C9AC; padding:2mm 2.5mm; text-align:center; vertical-align:top; line-height:1.8;}
   .sheet .sh-body .sig-table{width:100%; border-collapse:collapse; margin-top:8mm; font-size:.9em;}
   .sheet .sh-body .sig-table td{padding:3mm 4mm; vertical-align:top; border:1px solid #D3C9AC;}
+  .ec-tpl summary::-webkit-details-marker{display:none;}
+  .ec-tpl summary{cursor:pointer;}
+  .ec-tpl .ec-chev{font-size:11px; color:var(--muted); min-width:12px;}
   .badge.warn{background:var(--amber-bg); color:#8A6520; border:1px solid #E4C77F;}
   .badge.danger{background:var(--red-bg); color:var(--red); border:1px solid #E8C7BC;}
 
@@ -995,6 +1001,7 @@
   <div class="tab-strip" style="padding:10px 22px 0; background:var(--card); border-bottom:1px solid var(--line); margin:0;">
     <div class="tab active" onclick="switchPortalMainTab(this,'home')">الرئيسية</div>
     <div class="tab" onclick="switchPortalMainTab(this,'reports')">تقارير المراجعة</div>
+    <div class="tab" onclick="switchPortalMainTab(this,'engagements')">العروض والعقود</div>
     <div class="tab" onclick="switchPortalMainTab(this,'notes')">الملاحظات</div>
     <div class="tab" onclick="switchPortalMainTab(this,'templates')">النماذج</div>
     <div class="tab" onclick="switchPortalMainTab(this,'profile')">بيانات المنشأة</div>
@@ -1046,6 +1053,25 @@
     <div class="ptab" id="portal-tab-reportview">
       <span class="link" style="cursor:pointer; display:inline-block; margin-bottom:12px;" onclick="portalCloseReportView()">← رجوع إلى التقارير</span>
       <div id="prv-body" class="doc-view"></div>
+    </div>
+
+    <div class="ptab" id="portal-tab-engagements">
+      <div class="panel">
+        <div class="panel-head" style="display:flex; align-items:center; justify-content:space-between;">
+          <h3>العروض والعقود</h3>
+          <button class="btn dark" onclick="portalOpenRequestModal()">+ طلب عرض سعر</button>
+        </div>
+        <table>
+          <thead><tr><th>الرقم</th><th>النوع</th><th>الخدمة</th><th>الإجمالي</th><th>الحالة</th><th></th></tr></thead>
+          <tbody id="portal-eng-tbody"><tr><td colspan="6" class="empty-hint">جارٍ التحميل...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="ptab" id="portal-tab-engview">
+      <span class="link" style="cursor:pointer; display:inline-block; margin-bottom:12px;" onclick="portalShowTab('engagements')">← رجوع</span>
+      <div class="rep-toolbar" id="portal-eng-actions"></div>
+      <div id="portal-eng-body" class="doc-view"></div>
     </div>
 
     <div class="ptab" id="portal-tab-notes">
@@ -2129,6 +2155,7 @@
           <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
             <div class="seg" id="prop-filter-status">
               <button class="on" onclick="engSetFilter('proposal','',this)">الكل</button>
+              <button onclick="engSetFilter('proposal','requested',this)">طلبات العملاء</button>
               <button onclick="engSetFilter('proposal','draft',this)">مسودة</button>
               <button onclick="engSetFilter('proposal','sent',this)">مُرسل</button>
               <button onclick="engSetFilter('proposal','approved',this)">تمت الموافقة</button>
@@ -2960,6 +2987,10 @@
           <div class="form-field"><label>الفروع <span class="req">*</span></label><select id="u-branch"><option value="">— اختر —</option></select></div>
           <div class="form-field"><label>المسمى الوظيفي (عربي)</label><input id="u-title-ar" placeholder="مثال: مراجع حسابات"></div>
           <div class="form-field"><label>المسمى الوظيفي (إنجليزي)</label><input id="u-title-en" placeholder="e.g. Auditor"></div>
+          <div class="form-field full"><label>المؤهل العلمي والخبرات المهنية</label>
+            <textarea id="u-qualifications" placeholder="بكالوريوس محاسبة.&#10;محاسب قانوني.&#10;خبرة أكثر من 12 سنة."
+              style="width:100%; min-height:110px; border:1px solid var(--line); border-radius:8px; padding:11px; font-family:inherit; font-size:12.5px; line-height:1.9; background:var(--card); color:var(--text); resize:vertical;"></textarea>
+            <div style="font-size:10.5px; color:var(--muted); margin-top:4px;">تظهر تلقائيًا في جدول فريق العمل داخل عروض الأسعار — كل سطر في صف</div></div>
           <div class="form-field full">
             <label>دور المستخدم <span class="req">*</span></label>
             <select id="u-role"><option value="">— حدد دور —</option></select>
@@ -3396,6 +3427,23 @@
   </div>
 </div>
 
+<!-- ===== تفاصيل المستخدم ===== -->
+<div class="modal-overlay" id="modal-userdetails">
+  <div class="modal-box" style="max-width:640px;">
+    <div class="modal-head">
+      <div><h3 id="ud-name">تفاصيل المستخدم</h3><span id="ud-role">—</span></div>
+      <div class="modal-close" onclick="closeModal('modal-userdetails')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </div>
+    </div>
+    <div class="modal-body"><div id="ud-body"></div></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal('modal-userdetails')">إغلاق</button>
+      <button class="btn dark" id="ud-edit-btn">تعديل البيانات</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== إنشاء عرض / عقد جديد ===== -->
 <div class="modal-overlay" id="modal-neweng">
   <div class="modal-box">
@@ -3480,9 +3528,12 @@
         <div class="form-field"><label>النوع <span class="req">*</span></label>
           <input id="ecedit-template" list="ecedit-templatelist" placeholder="عرض سعر مراجعة قوائم سنوية">
           <datalist id="ecedit-templatelist"></datalist></div>
-        <div class="form-field"><label>المجموعة <span class="req">*</span></label>
+        <div class="form-field"><label>المجموعة (عربي) <span class="req">*</span></label>
           <input id="ecedit-group" list="ecedit-grouplist" placeholder="أولاً: المقدمة">
           <datalist id="ecedit-grouplist"></datalist></div>
+        <div class="form-field full"><label>المجموعة (إنجليزي)</label>
+          <input id="ecedit-group-en" dir="ltr" placeholder="First: Introduction">
+          <div style="font-size:10.5px; color:var(--muted); margin-top:4px;">يظهر بجانب العنوان العربي عند الطباعة</div></div>
         <div class="form-field full"><label>اسم البند <span class="req">*</span></label><input id="ecedit-item"></div>
         <div class="form-field"><label>شكل الفقرة</label>
           <select id="ecedit-block" onchange="ecBlockChanged()">
@@ -5345,7 +5396,7 @@ function openAddUserModal(){
   document.getElementById('adduser-modal-title').textContent = 'إضافة مستخدم';
   document.getElementById('adduser-submit-btn').textContent = 'حفظ المستخدم';
   document.getElementById('adduser-error').style.display = 'none';
-  ['u-first-ar','u-last-ar','u-first-en','u-last-en','u-phone','u-title-ar','u-title-en','u-username','u-email']
+  ['u-first-ar','u-last-ar','u-first-en','u-last-en','u-phone','u-title-ar','u-title-en','u-username','u-email','u-qualifications']
     .forEach(id=>document.getElementById(id).value = '');
   document.getElementById('u-employment').value = '';
   document.getElementById('u-branch').value = '';
@@ -5368,9 +5419,48 @@ async function loadUsersLive(){
         <td>${u.email||'—'}</td><td>${u.phone||'—'}</td>
         <td><span class="badge ${u.is_sales_agent?'ok':'neutral'}">${u.is_sales_agent?'نعم':'لا'}</span></td>
         <td><span class="badge ${u.is_active?'ok':'neutral'}">${u.is_active?'نشط':'معطّل'}</span></td>
-        <td><div class="row-actions">${btnEdit(`openEditUserModal('${u.id}')`)}</div></td></tr>`).join('')
+        <td><div class="row-actions">
+          <span class="row-icon-btn" title="عرض التفاصيل" onclick="openUserDetails('${u.id}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </span>
+          ${btnEdit(`openEditUserModal('${u.id}')`)}</div></td></tr>`).join('')
       : '<tr><td colspan="8" class="empty-hint">لا يوجد مستخدمون بعد</td></tr>';
   }catch(e){ tbody.innerHTML = `<tr><td colspan="8" class="empty-hint">تعذّر التحميل: ${e.message}</td></tr>`; }
+}
+
+/* ---- تفاصيل المستخدم ---- */
+function openUserDetails(userId){
+  const u=(USERS_CACHE||[]).find(x=>x.id===userId); if(!u) return;
+  const full=[u.first_name_ar,u.last_name_ar].filter(Boolean).join(' ');
+  const fullEn=[u.first_name_en,u.last_name_en].filter(Boolean).join(' ');
+  document.getElementById('ud-name').textContent=full||'—';
+  document.getElementById('ud-role').textContent=(u.roles?u.roles.name_ar:'—')+(u.job_title_ar?' · '+u.job_title_ar:'');
+  const row=(l,v)=>v?`<tr><th style="text-align:start; color:var(--muted); font-weight:600; padding:8px 0; width:38%;">${l}</th><td style="padding:8px 0; border-bottom:1px solid var(--line);">${escapeHtml(String(v))}</td></tr>`:'';
+  document.getElementById('ud-body').innerHTML=`
+    <table style="width:100%; border-collapse:collapse; font-size:12.5px;">
+      ${row('الاسم بالعربي',full)}
+      ${row('الاسم بالإنجليزي',fullEn)}
+      ${row('الدور',u.roles?u.roles.name_ar:'')}
+      ${row('المسمى الوظيفي',u.job_title_ar)}
+      ${row('المسمى (إنجليزي)',u.job_title_en)}
+      ${row('الفرع',u.branches?u.branches.name:'')}
+      ${row('نوع التوظيف',u.employment_type)}
+      ${row('الجنس',u.gender==='female'?'أنثى':(u.gender==='male'?'ذكر':''))}
+      ${row('اسم المستخدم',u.username)}
+      ${row('البريد الإلكتروني',u.email)}
+      ${row('الجوال',u.phone)}
+      ${row('مندوب مبيعات',u.is_sales_agent?'نعم':'لا')}
+      ${row('الحالة',u.is_active?'نشط':'معطّل')}
+      ${row('آخر دخول',u.last_login_at?new Date(u.last_login_at).toLocaleString('ar-SA'):'—')}
+    </table>
+    <div style="margin-top:16px;">
+      <div style="font-size:12px; font-weight:700; color:var(--ink); margin-bottom:6px;">المؤهل العلمي والخبرات المهنية</div>
+      <div style="font-size:12.5px; line-height:1.95; white-space:pre-wrap; background:var(--paper); border:1px solid var(--line); border-radius:8px; padding:12px;">${
+        u.qualifications ? escapeHtml(u.qualifications)
+        : '<span style="color:var(--muted-2);">لم تُسجَّل بعد — أضِفها من «تعديل البيانات» لتظهر تلقائيًا في جدول فريق العمل بعروض الأسعار</span>'}</div>
+    </div>`;
+  document.getElementById('ud-edit-btn').onclick=()=>{ closeModal('modal-userdetails'); openEditUserModal(userId); };
+  openModal('modal-userdetails');
 }
 
 let editingUserId = null;
@@ -5389,6 +5479,7 @@ function openEditUserModal(userId){
   document.getElementById('u-branch').value = u.branch_id || '';
   document.getElementById('u-title-ar').value = u.job_title_ar || '';
   document.getElementById('u-title-en').value = u.job_title_en || '';
+  document.getElementById('u-qualifications').value = u.qualifications || '';
   document.getElementById('u-role').value = u.role_id || '';
   document.getElementById(u.is_sales_agent ? 'u-agent-yes' : 'u-agent-no').checked = true;
   document.getElementById('u-username').value = u.username || '';
@@ -5414,6 +5505,7 @@ async function saveUserFromForm(){
     branch_id: document.getElementById('u-branch').value || null,
     job_title_ar: document.getElementById('u-title-ar').value.trim() || null,
     job_title_en: document.getElementById('u-title-en').value.trim() || null,
+    qualifications: document.getElementById('u-qualifications').value.trim() || null,
     role_id: document.getElementById('u-role').value,
     is_sales_agent: document.getElementById('u-agent-yes').checked,
     username: document.getElementById('u-username').value.trim(),
@@ -6846,6 +6938,7 @@ function switchPortalMainTab(el, key){
   if(key==='requirements') loadPortalRequirementsList();
   if(key==='reports') loadPortalReportsList();
   if(key==='notes') loadPortalNotesList();
+  if(key==='engagements') loadPortalEngagements();
   if(key==='templates') loadPortalTemplatesList();
   if(key==='profile') loadPortalProfileInfo();
 }
@@ -6980,6 +7073,129 @@ async function portalOpenReport(id){
   }catch(e){ box.innerHTML='<div class="empty-hint" style="padding:40px;">'+escapeHtml(e.message)+'</div>'; }
 }
 function portalCloseReportView(){ portalShowTab('reports'); }
+
+/* ---- بوابة العميل: العروض والعقود ---- */
+const PENG_STATUS={requested:'طلب جديد', draft:'مسودة', sent:'بانتظار موافقتكم', approved:'تمت الموافقة', rejected:'مرفوض', signed:'موقّع'};
+const PENG_CLS={requested:'warn', draft:'neutral', sent:'warn', approved:'ok', signed:'ok', rejected:'danger'};
+let PENG_LIST=[], PENG_CUR=null;
+
+async function loadPortalEngagements(){
+  const tb=document.getElementById('portal-eng-tbody');
+  tb.innerHTML='<tr><td colspan="6" class="empty-hint">جارٍ التحميل...</td></tr>';
+  try{
+    PENG_LIST=await apiFetch('/api/portal/engagements');
+    tb.innerHTML = PENG_LIST.length ? PENG_LIST.map(r=>`
+      <tr style="cursor:pointer;" onclick="portalOpenEng('${r.id}')">
+        <td style="font-variant-numeric:tabular-nums;">${escapeHtml(r.doc_no||'—')}</td>
+        <td>${r.doc_kind==='contract'?'عقد ارتباط':'عرض سعر'}${r.origin==='client'?' <span class="tag-lib">من طلبكم</span>':''}</td>
+        <td>${escapeHtml(r.template_name||'—')}</td>
+        <td style="font-variant-numeric:tabular-nums;">${r.amount_total?Number(r.amount_total).toLocaleString('en-US',{minimumFractionDigits:2}):'—'}</td>
+        <td><span class="badge ${PENG_CLS[r.status]||'neutral'}">${PENG_STATUS[r.status]||r.status}</span></td>
+        <td style="text-align:end;"><span class="link">عرض ←</span></td></tr>`).join('')
+      : '<tr><td colspan="6" class="empty-hint">لا توجد عروض أو عقود — يمكنكم طلب عرض سعر</td></tr>';
+  }catch(e){ tb.innerHTML='<tr><td colspan="6" class="empty-hint">'+escapeHtml(e.message)+'</td></tr>'; }
+}
+
+async function portalOpenEng(id){
+  portalShowTab('engview');
+  const box=document.getElementById('portal-eng-body');
+  box.innerHTML='<div class="empty-hint" style="padding:40px;">جارٍ التحميل...</div>';
+  document.getElementById('portal-eng-actions').innerHTML='';
+  try{
+    const d=await apiFetch('/api/portal/engagements/'+id);
+    PENG_CUR=d.engagement; const co=d.company||{};
+    const e=PENG_CUR;
+    const money=v=>Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const secs=(e.sections||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0));
+    const body=secs.map(sec=>{
+      const rows=(sec.rows||[]).filter(r=>(r.body_ar||'').trim()||(r.body_en||'').trim());
+      if(!rows.length && !(sec.rows||[]).some(r=>r.block_type!=='text')) return '';
+      let h=`<h2>${escapeHtml(sec.title||sec.group_name)}${sec.group_name_en?` <span style="font-size:11px;color:var(--muted);direction:ltr;">${escapeHtml(sec.group_name_en)}</span>`:''}</h2>`;
+      (sec.rows||[]).forEach(r=>{
+        if(r.block_type==='team_table'){
+          const t=e.team||[];
+          if(t.length) h+=`<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px;">
+            <thead><tr><th style="border:1px solid var(--line);padding:6px;">م</th><th style="border:1px solid var(--line);padding:6px;">الاسم</th><th style="border:1px solid var(--line);padding:6px;">المؤهل والخبرات</th></tr></thead>
+            <tbody>${t.map((m,i)=>`<tr><td style="border:1px solid var(--line);padding:6px;text-align:center;">${i+1}</td><td style="border:1px solid var(--line);padding:6px;">${escapeHtml(m.name||'')}</td><td style="border:1px solid var(--line);padding:6px;white-space:pre-wrap;">${escapeHtml(m.qualifications||'')}</td></tr>`).join('')}</tbody></table>`;
+          return; }
+        if(r.block_type==='fee_table'){
+          h+=`<table style="width:100%;border-collapse:collapse;margin:8px 0;font-size:12px;">
+            <tr><td style="border:1px solid var(--line);padding:6px;">الأتعاب (غير شامل الضريبة)</td><td style="border:1px solid var(--line);padding:6px;text-align:center;">${money(e.amount)}</td></tr>
+            <tr><td style="border:1px solid var(--line);padding:6px;">ضريبة القيمة المضافة (${e.vat_rate}%)</td><td style="border:1px solid var(--line);padding:6px;text-align:center;">${money((Number(e.amount)||0)*(Number(e.vat_rate)||0)/100)}</td></tr>
+            <tr style="font-weight:700;"><td style="border:1px solid var(--line);padding:6px;">الإجمالي</td><td style="border:1px solid var(--line);padding:6px;text-align:center;">${money(e.amount_total)}</td></tr></table>`;
+          return; }
+        if(r.block_type==='signature') return;
+        const ar=(r.body_ar||'').trim(), en=(r.body_en||'').trim();
+        if(ar&&en) h+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:8px;">
+          <div style="font-size:12.5px;line-height:1.95;">${escapeHtml(ar)}</div>
+          <div dir="ltr" style="font-size:12px;line-height:1.95;color:var(--muted);">${escapeHtml(en)}</div></div>`;
+        else if(ar||en) h+=`<p>${escapeHtml(ar||en)}</p>`;
+      });
+      return h;
+    }).join('');
+    box.innerHTML=`
+      <div class="doc-meta">
+        <div>الرقم <b>${escapeHtml(e.doc_no||'—')}</b></div>
+        <div>الحالة <b>${PENG_STATUS[e.status]||e.status}</b></div>
+        <div>الإجمالي <b>${money(e.amount_total)} ريال</b></div>
+        ${e.converted_by_name?`<div>حُوِّل بواسطة <b>${escapeHtml(e.converted_by_name)} (${e.converted_by_type==='client'?'العميل':'المكتب'})</b></div>`:''}
+      </div>
+      <h1>${escapeHtml(e.template_name||'')}</h1>${body||'<p>لا توجد فقرات بعد.</p>'}`;
+
+    // أزرار الإجراءات المتاحة للعميل
+    let acts='';
+    if(e.doc_kind==='proposal'){
+      if(e.status==='sent'||e.status==='draft'){
+        acts+=`<button class="btn dark" onclick="portalApproveEng()">الموافقة والتوقيع</button>`;
+        acts+=`<button class="btn" onclick="portalRejectEng()">رفض العرض</button>`;
+      }
+      if(e.status==='approved') acts+=`<button class="btn dark" onclick="portalConvertEng()">تحويل إلى عقد ارتباط</button>`;
+      if(e.status==='requested') acts+=`<span style="font-size:12px;color:var(--muted);">تم إرسال طلبكم — بانتظار تسعير المكتب</span>`;
+    }
+    document.getElementById('portal-eng-actions').innerHTML=acts;
+  }catch(e){ box.innerHTML='<div class="empty-hint" style="padding:40px;">'+escapeHtml(e.message)+'</div>'; }
+}
+
+async function portalApproveEng(){
+  if(!confirm('بالموافقة تُعدّ موقّعًا على هذا العرض. متابعة؟')) return;
+  try{ await apiFetch('/api/portal/engagements/'+PENG_CUR.id+'/approve',{method:'POST',body:JSON.stringify({})});
+    showToast('تمت الموافقة على العرض'); portalOpenEng(PENG_CUR.id); }
+  catch(e){ showToast(e.message); }
+}
+async function portalRejectEng(){
+  const r=prompt('سبب الرفض (اختياري):'); if(r===null) return;
+  try{ await apiFetch('/api/portal/engagements/'+PENG_CUR.id+'/reject',{method:'POST',body:JSON.stringify({reason:r})});
+    showToast('تم تسجيل الرفض'); portalOpenEng(PENG_CUR.id); }
+  catch(e){ showToast(e.message); }
+}
+async function portalConvertEng(){
+  try{
+    const tpls=await apiFetch('/api/portal/engagement-templates?kind=contract');
+    if(!tpls.length){ showToast('لا توجد أنواع عقود متاحة — تواصل مع المكتب'); return; }
+    const names=tpls.map((t,i)=>(i+1)+') '+t.template_name).join('\n');
+    const pick=prompt('اختر رقم نوع العقد:\n'+names,'1');
+    const idx=Number(pick)-1;
+    if(isNaN(idx)||!tpls[idx]) return;
+    await apiFetch('/api/portal/engagements/'+PENG_CUR.id+'/convert',{method:'POST',
+      body:JSON.stringify({template_name:tpls[idx].template_name})});
+    showToast('أُنشئ عقد الارتباط'); portalShowTab('engagements'); loadPortalEngagements();
+  }catch(e){ showToast(e.message); }
+}
+
+async function portalOpenRequestModal(){
+  try{
+    const tpls=await apiFetch('/api/portal/engagement-templates?kind=proposal');
+    if(!tpls.length){ showToast('لا توجد خدمات متاحة للطلب حاليًا'); return; }
+    const names=tpls.map((t,i)=>(i+1)+') '+t.template_name).join('\n');
+    const pick=prompt('اختر رقم الخدمة المطلوبة:\n'+names,'1');
+    const idx=Number(pick)-1;
+    if(isNaN(idx)||!tpls[idx]) return;
+    const notes=prompt('ملاحظات إضافية (اختياري):')||'';
+    await apiFetch('/api/portal/engagements/request',{method:'POST',
+      body:JSON.stringify({template_name:tpls[idx].template_name, notes})});
+    showToast('أُرسل طلب العرض للمكتب'); loadPortalEngagements();
+  }catch(e){ showToast(e.message); }
+}
 
 /* ---- الملاحظات ---- */
 async function loadPortalNotesList(){
@@ -8534,9 +8750,9 @@ function printReport() { collectReport(); renderSheets(); setTimeout(() => windo
    وحدة العروض والعقود
    ========================================================================== */
 const ENG_STATUS = {
-  draft:'مسودة', sent:'مُرسل للعميل', approved:'تمت الموافقة', rejected:'مرفوض', signed:'موقّع'
+  requested:'طلب من العميل', draft:'مسودة', sent:'مُرسل للعميل', approved:'تمت الموافقة', rejected:'مرفوض', signed:'موقّع'
 };
-const ENG_STATUS_CLS = { draft:'neutral', sent:'warn', approved:'ok', signed:'ok', rejected:'danger' };
+const ENG_STATUS_CLS = { requested:'warn', draft:'neutral', sent:'warn', approved:'ok', signed:'ok', rejected:'danger' };
 function engStatusLabel(s){ return ENG_STATUS[s] || s || '—'; }
 function engMoney(v){ if(v===null||v===undefined||v==='') return '—';
   return Number(v).toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}); }
@@ -8571,7 +8787,9 @@ function renderEngList(kind){
       <td style="font-variant-numeric:tabular-nums;">${engMoney(r.amount_total)}</td>
       <td>${r.issue_date?arDate(r.issue_date):'—'}</td>
       <td><span class="badge ${ENG_STATUS_CLS[r.status]||'neutral'}">${engStatusLabel(r.status)}</span>
-        ${r.proposal_id?'<span class="tag-lib" style="margin-inline-start:5px;">من عرض</span>':''}</td>
+        ${r.origin==='client'?'<span class="tag-own" style="margin-inline-start:5px;">طلب عميل</span>':''}
+        ${r.proposal_id?'<span class="tag-lib" style="margin-inline-start:5px;">من عرض</span>':''}
+        ${r.converted_by_name?`<span class="tag-lib" style="margin-inline-start:5px;">حوّله: ${esc(r.converted_by_name)} (${r.converted_by_type==='client'?'العميل':'المكتب'})</span>`:''}</td>
       <td style="text-align:end;"><span class="link">فتح ←</span></td>
     </tr>`).join('');
 }
@@ -8659,6 +8877,7 @@ function renderEngEditor(){
   // أزرار الحالة حسب النوع
   let acts='';
   if(!isC){
+    if(ENG.status==='requested') acts += `<button class="btn dark" onclick="setEngStatus('draft')">تحويل الطلب إلى عرض</button>`;
     if(ENG.status==='draft') acts += `<button class="btn" onclick="setEngStatus('sent')">تعليم كمُرسل</button>`;
     if(ENG.status==='draft'||ENG.status==='sent'){
       acts += `<button class="btn dark" onclick="setEngStatus('approved')">وقّع العميل — موافقة</button>`;
@@ -8914,23 +9133,35 @@ async function loadEcTree(kind){
     const all=await apiFetch('/api/engagement-config?kind='+kind+'&template='+encodeURIComponent(EC[kind].template));
     EC[kind].items=all;
     const groups={};
-    all.forEach(r=>{ if(!groups[r.group_name]) groups[r.group_name]={order:r.section_order,total:0,active:0};
+    all.forEach(r=>{ if(!groups[r.group_name]) groups[r.group_name]={order:r.section_order,total:0,active:0,en:r.group_name_en||''};
+      if(!groups[r.group_name].en && r.group_name_en) groups[r.group_name].en=r.group_name_en;
       groups[r.group_name].total++; if(r.is_active) groups[r.group_name].active++; });
     const gnames=Object.keys(groups).sort((a,b)=>groups[a].order-groups[b].order);
     if(!EC[kind].group || !groups[EC[kind].group]) EC[kind].group=gnames[0]||null;
 
-    box.innerHTML = templates.map(t=>`
-      <div class="rc-grp ${t.template_name===EC[kind].template?'active':''}" style="font-weight:700;"
-           onclick="ecPickTemplate('${kind}','${esc(t.template_name).replace(/'/g,"\\'")}')">
-        <span class="t">${esc(t.template_name)}</span><span class="rc-count">${t.items}</span>
-      </div>` + (t.template_name===EC[kind].template ? gnames.map(g=>`
-        <div class="rc-grp ${g===EC[kind].group?'active':''}" style="padding-inline-start:22px; font-size:11.5px;"
-             onclick="event.stopPropagation(); ecPickGroup('${kind}','${esc(g).replace(/'/g,"\\'")}')">
-          <span class="rc-order">${groups[g].order}</span>
-          <span class="t">${esc(g)}</span><span class="rc-count">${groups[g].active}/${groups[g].total}</span>
-        </div>`).join('') : '')).join('');
+    box.innerHTML = templates.map(t=>{
+      const isOpen = t.template_name===EC[kind].template;
+      return `<details class="ec-tpl" ${isOpen?'open':''}>
+        <summary class="rc-grp ${isOpen?'active':''}" style="font-weight:700; list-style:none;"
+                 onclick="event.preventDefault(); ecPickTemplate('${kind}','${esc(t.template_name).replace(/'/g,"\\'")}')">
+          <span class="ec-chev">${isOpen?'▾':'▸'}</span>
+          <span class="t">${esc(t.template_name)}</span><span class="rc-count">${t.items}</span>
+        </summary>
+        ${isOpen ? gnames.map(g=>`
+          <div class="rc-grp ${g===EC[kind].group?'active':''}" style="padding-inline-start:26px; font-size:11.5px;"
+               onclick="event.stopPropagation(); ecPickGroup('${kind}','${esc(g).replace(/'/g,"\\'")}')">
+            <span class="rc-order">${groups[g].order}</span>
+            <span class="t">${esc(g)}${groups[g].en?`<span style="display:block; font-size:9.5px; color:var(--muted-2); direction:ltr; text-align:start;">${esc(groups[g].en)}</span>`:''}</span>
+            <span class="rc-count">${groups[g].active}/${groups[g].total}</span>
+          </div>`).join('') : ''}
+      </details>`;
+    }).join('');
     renderEcItems(kind);
   }catch(e){ box.innerHTML='<div class="empty-hint" style="padding:26px 10px;">'+esc(e.message)+'</div>'; }
+}
+function ecGroupEn(kind, group){
+  const r=(EC[kind].items||[]).find(x=>x.group_name===group && x.group_name_en);
+  return r?r.group_name_en:'';
 }
 function ecPickTemplate(kind,t){ EC[kind].template=t; EC[kind].group=null; loadEcTree(kind); }
 function ecPickGroup(kind,g){ EC[kind].group=g; loadEcTree(kind); }
@@ -8981,6 +9212,7 @@ function openEcEditor(kind,id){
   document.getElementById('ecedit-title').textContent=id?'تعديل بند':'إضافة بند';
   document.getElementById('ecedit-template').value = r?r.template_name:(EC[kind].template||'');
   document.getElementById('ecedit-group').value = r?r.group_name:(EC[kind].group||'');
+  document.getElementById('ecedit-group-en').value = r?(r.group_name_en||''):(ecGroupEn(kind, EC[kind].group)||'');
   document.getElementById('ecedit-item').value = r?(r.item_name||''):'';
   document.getElementById('ecedit-block').value = r?r.block_type:'text';
   document.getElementById('ecedit-order').value = r?r.section_order:100;
@@ -9004,6 +9236,7 @@ async function saveEcItem(){
     doc_kind:kind,
     template_name:document.getElementById('ecedit-template').value.trim(),
     group_name:document.getElementById('ecedit-group').value.trim(),
+    group_name_en:document.getElementById('ecedit-group-en').value.trim()||null,
     item_name:document.getElementById('ecedit-item').value.trim(),
     block_type:document.getElementById('ecedit-block').value,
     section_order:Number(document.getElementById('ecedit-order').value)||100,
@@ -9062,7 +9295,11 @@ function engBuildBlocks(){
   (ENG.sections||[]).slice().sort((a,b)=>(a.order||0)-(b.order||0)).forEach(sec=>{
     const rows=(sec.rows||[]).filter(r=>r.block_type!=='text' || (r.body_ar||'').trim() || (r.body_en||'').trim());
     if(!rows.length) return;
-    blocks.push({tag:'h2', html:esc(sec.title||sec.group_name)});
+    if(sec.group_name_en){
+      blocks.push({tag:'div', raw:`<div class="bi-head"><span class="bi-ar">${esc(sec.title||sec.group_name)}</span><span class="bi-en" dir="ltr">${esc(sec.group_name_en)}</span></div>`});
+    } else {
+      blocks.push({tag:'h2', html:esc(sec.title||sec.group_name)});
+    }
     rows.forEach(r=>{
       if(r.block_type==='team_table'){ blocks.push({tag:'div', raw:engTeamTableHtml(ar)}); return; }
       if(r.block_type==='fee_table'){ blocks.push({tag:'div', raw:engFeeTableHtml(ar)}); return; }

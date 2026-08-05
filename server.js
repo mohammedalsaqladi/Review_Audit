@@ -114,7 +114,8 @@ app.post('/api/login', async (req, res) => {
       if (!empPasswordOk) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
       await sb.from('client_employees').update({ last_login_at: new Date().toISOString() }).eq('id', emp.id);
       const portalToken = jwt.sign(
-        { type: 'client_portal', employeeId: emp.id, clientId: emp.client_id, companyId: company.id },
+        { type: 'client_portal', employeeId: emp.id, clientId: emp.client_id, companyId: company.id,
+          fullName: emp.full_name, jobTitle: emp.job_title },
         SESSION_SECRET || 'dev-insecure-secret-change-me', { expiresIn: '12h' }
       );
       return res.json({
@@ -179,7 +180,8 @@ app.post('/api/portal/login', async (req, res) => {
   if (!ok) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
   await sb.from('client_employees').update({ last_login_at: new Date().toISOString() }).eq('id', emp.id);
   const token = jwt.sign(
-    { type: 'client_portal', employeeId: emp.id, clientId: emp.client_id, companyId: emp.clients.company_id },
+    { type: 'client_portal', employeeId: emp.id, clientId: emp.client_id, companyId: emp.clients.company_id,
+      fullName: emp.full_name, jobTitle: emp.job_title },
     SESSION_SECRET || 'dev-insecure-secret-change-me', { expiresIn: '12h' }
   );
   res.json({ token, employeeId: emp.id, fullName: emp.full_name, jobTitle: emp.job_title, clientId: emp.client_id, clientName: emp.clients.name });
@@ -382,6 +384,152 @@ app.post('/api/portal/employees', requirePortalAuth, async (req, res) => {
   }).select('id,full_name,job_title,email,phone,username,is_portal_enabled,created_at').single();
   if (error) return res.status(500).json({ message: error.message });
   res.json(data);
+});
+
+// ---------------------------------------------------------------------------
+// بوابة العميل: العروض والعقود
+// ---------------------------------------------------------------------------
+app.get('/api/portal/engagements', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  let q = sb.from('engagements')
+    .select('id,doc_no,doc_kind,template_name,status,issue_date,period_end,amount,amount_total,proposal_id,origin,converted_by_type,converted_by_name,created_at')
+    .eq('client_id', req.portal.clientId);
+  if (req.query.kind) q = q.eq('doc_kind', normDocKind(req.query.kind));
+  const { data, error } = await q.order('created_at', { ascending: false });
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data || []);
+});
+
+app.get('/api/portal/engagements/:id', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data, error } = await sb.from('engagements').select('*')
+    .eq('id', req.params.id).eq('client_id', req.portal.clientId).maybeSingle();
+  if (error) return res.status(500).json({ message: error.message });
+  if (!data) return res.status(404).json({ message: 'المستند غير موجود' });
+  const { data: company } = await sb.from('companies')
+    .select('name_ar,name_en,license_no,city,logo_url,letterhead_url,stamp_url,signature_url,report_settings,signer_name,signer_title')
+    .eq('id', req.portal.companyId).maybeSingle();
+  res.json({ engagement: data, company: company || {} });
+});
+
+// العميل يقدّم "طلب عرض سعر" — تُركّب بنوده تلقائيًا من التهيئة
+app.post('/api/portal/engagements/request', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  if (!b.template_name) return res.status(400).json({ message: 'اختر نوع الخدمة المطلوبة' });
+  const { data: client } = await sb.from('clients').select('*').eq('id', req.portal.clientId).maybeSingle();
+  if (!client) return res.status(404).json({ message: 'العميل غير موجود' });
+  const { data: company } = await sb.from('companies').select('*').eq('id', req.portal.companyId).maybeSingle();
+
+  const base = {
+    company_id: req.portal.companyId, client_id: client.id,
+    doc_kind: 'proposal', template_name: String(b.template_name),
+    origin: 'client', status: 'requested',
+    issue_date: new Date().toISOString().slice(0, 10),
+    period_start: b.period_start || null, period_end: b.period_end || null,
+    entity_type_text: client.entity_type || null,
+    addressee: b.notes ? String(b.notes).slice(0, 1000) : null,
+    client_snapshot: { name: client.name, entity_type: client.entity_type, cr_number: client.cr_number },
+    public_token: randToken(),
+    amount: 0, vat_rate: 15, amount_total: 0,
+  };
+  let sections;
+  try { sections = await composeEngagementSections(sb, req.portal.companyId, 'proposal', base.template_name, buildEngagementVars(client, base, company)); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
+
+  const { data, error } = await sb.from('engagements').insert(Object.assign({}, base, { sections })).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  const no = 'RQ-' + new Date().getFullYear() + '-' + String(data.id).slice(0, 4).toUpperCase();
+  await sb.from('engagements').update({ doc_no: no }).eq('id', data.id);
+  data.doc_no = no;
+  res.json(data);
+});
+
+// العميل يوقّع/يوافق على العرض المُرسل إليه
+app.post('/api/portal/engagements/:id/approve', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const { data: cur } = await sb.from('engagements').select('*')
+    .eq('id', req.params.id).eq('client_id', req.portal.clientId).maybeSingle();
+  if (!cur) return res.status(404).json({ message: 'المستند غير موجود' });
+  if (cur.doc_kind !== 'proposal') return res.status(400).json({ message: 'هذا المستند ليس عرضًا' });
+  if (!['sent', 'draft'].includes(cur.status)) return res.status(400).json({ message: 'لا يمكن الموافقة على هذا العرض في حالته الحالية' });
+
+  const { data, error } = await sb.from('engagements').update({
+    status: 'approved', approved_at: new Date().toISOString(),
+    signed_by_name: b.signed_by_name || req.portal.fullName || null,
+    signed_by_title: b.signed_by_title || req.portal.jobTitle || null,
+  }).eq('id', cur.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+app.post('/api/portal/engagements/:id/reject', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const { data: cur } = await sb.from('engagements').select('id,doc_kind,status')
+    .eq('id', req.params.id).eq('client_id', req.portal.clientId).maybeSingle();
+  if (!cur) return res.status(404).json({ message: 'المستند غير موجود' });
+  const { data, error } = await sb.from('engagements')
+    .update({ status: 'rejected', rejected_reason: (req.body || {}).reason || null })
+    .eq('id', cur.id).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  res.json(data);
+});
+
+// العميل يحوّل عرضه المعتمد إلى عقد ارتباط
+app.post('/api/portal/engagements/:id/convert', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const b = req.body || {};
+  const { data: prop } = await sb.from('engagements').select('*, clients(*)')
+    .eq('id', req.params.id).eq('client_id', req.portal.clientId).maybeSingle();
+  if (!prop) return res.status(404).json({ message: 'العرض غير موجود' });
+  if (prop.doc_kind !== 'proposal') return res.status(400).json({ message: 'هذا المستند ليس عرضًا' });
+  if (prop.status !== 'approved') return res.status(400).json({ message: 'يجب الموافقة على العرض أولًا' });
+
+  const { data: exists } = await sb.from('engagements').select('id,doc_no')
+    .eq('proposal_id', prop.id).eq('doc_kind', 'contract').maybeSingle();
+  if (exists) return res.status(409).json({ message: 'يوجد عقد مرتبط بهذا العرض بالفعل' });
+
+  const templateName = b.template_name;
+  if (!templateName) return res.status(400).json({ message: 'اختر نوع عقد الارتباط' });
+  const { data: company } = await sb.from('companies').select('*').eq('id', req.portal.companyId).maybeSingle();
+  const who = req.portal.fullName || 'العميل';
+
+  const base = {
+    company_id: req.portal.companyId, client_id: prop.client_id, client_file_id: prop.client_file_id,
+    doc_kind: 'contract', template_name: String(templateName), proposal_id: prop.id,
+    issue_date: new Date().toISOString().slice(0, 10),
+    period_start: prop.period_start, period_end: prop.period_end,
+    amount: prop.amount, vat_rate: prop.vat_rate, amount_total: prop.amount_total,
+    entity_type_text: prop.entity_type_text, place: prop.place,
+    team: prop.team || [], client_snapshot: prop.client_snapshot || {},
+    public_token: randToken(), status: 'draft', origin: 'client',
+    converted_by_type: 'client', converted_by_name: who, converted_at: new Date().toISOString(),
+  };
+  let sections;
+  try { sections = await composeEngagementSections(sb, req.portal.companyId, 'contract', base.template_name, buildEngagementVars(prop.clients, base, company)); }
+  catch (e) { return res.status(500).json({ message: e.message }); }
+  const { data, error } = await sb.from('engagements').insert(Object.assign({}, base, { sections })).select().single();
+  if (error) return res.status(500).json({ message: error.message });
+  const no = 'CT-' + new Date().getFullYear() + '-' + String(data.id).slice(0, 4).toUpperCase();
+  await sb.from('engagements').update({ doc_no: no }).eq('id', data.id);
+  await sb.from('engagements').update({ converted_by_type: 'client', converted_by_name: who, converted_at: base.converted_at }).eq('id', prop.id);
+  data.doc_no = no;
+  res.json(data);
+});
+
+// أنواع العروض/العقود المتاحة للعميل عند تقديم الطلب
+app.get('/api/portal/engagement-templates', requirePortalAuth, async (req, res) => {
+  const sb = requireSupabase(res); if (!sb) return;
+  const kind = normDocKind(req.query.kind || 'proposal');
+  const { data, error } = await sb.from('engagement_config')
+    .select('doc_kind,template_name,company_id,is_active')
+    .or(`company_id.eq.${req.portal.companyId},company_id.is.null`)
+    .eq('doc_kind', kind).eq('is_active', true);
+  if (error) return res.status(500).json({ message: error.message });
+  const seen = {};
+  (data || []).forEach(r => { seen[r.template_name] = true; });
+  res.json(Object.keys(seen).sort((a, b) => a.localeCompare(b, 'ar')).map(t => ({ template_name: t })));
 });
 
 // ---------------------------------------------------------------------------
@@ -1891,7 +2039,7 @@ app.get('/api/client-files/:id/progress', requireAuth, async (req, res) => {
 app.get('/api/users', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   const { data, error } = await sb.from('users')
-    .select('id, first_name_ar, last_name_ar, phone, email, job_title_ar, is_sales_agent, is_active, username, branch_id, role_id, roles(code, name_ar), branches(name)')
+    .select('id, first_name_ar, last_name_ar, first_name_en, last_name_en, gender, employment_type, phone, email, job_title_ar, job_title_en, qualifications, is_sales_agent, is_active, username, branch_id, role_id, created_at, last_login_at, roles(code, name_ar), branches(name)')
     .eq('company_id', req.session.companyId)
     .order('created_at', { ascending: false });
   if (error) return res.status(500).json({ message: error.message });
@@ -1945,6 +2093,7 @@ app.put('/api/users/:id', requireAuth, async (req, res) => {
     employment_type: body.employment_type || null, is_sales_agent: !!body.is_sales_agent,
     email: body.email || null, is_active: body.is_active !== false,
   };
+  if (body.qualifications !== undefined) payload.qualifications = body.qualifications || null;
   if (body.password) payload.password_hash = await bcrypt.hash(body.password, 10);
   const { data, error } = await sb.from('users').update(payload).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ message: error.message });
@@ -2403,6 +2552,7 @@ app.put('/api/report-config/:id', requireAuth, async (req, res) => {
     opinion_type: normOpinion(b.opinion_type || row.opinion_type),
     consolidation: ['consolidated', 'standalone', 'both'].includes(b.consolidation) ? b.consolidation : row.consolidation,
     group_name: b.group_name !== undefined ? String(b.group_name).trim() : row.group_name,
+    group_name_en: b.group_name_en !== undefined ? (b.group_name_en ? String(b.group_name_en).trim() : null) : row.group_name_en,
     item_name: b.item_name !== undefined ? String(b.item_name).trim() : row.item_name,
     body: b.body !== undefined ? String(b.body) : row.body,
     code: row.code, // الكود غير قابل للتعديل من الواجهة أبدًا
@@ -2981,6 +3131,7 @@ app.post('/api/engagement-config', requireAuth, async (req, res) => {
     doc_kind: normDocKind(b.doc_kind),
     template_name: String(b.template_name).trim(),
     group_name: String(b.group_name).trim(),
+    group_name_en: b.group_name_en ? String(b.group_name_en).trim() : null,
     item_name: String(b.item_name || b.group_name).trim(),
     body_ar: b.body_ar || null, body_en: b.body_en || null,
     block_type: blockType,
@@ -3007,6 +3158,7 @@ app.put('/api/engagement-config/:id', requireAuth, async (req, res) => {
     doc_kind: b.doc_kind !== undefined ? normDocKind(b.doc_kind) : row.doc_kind,
     template_name: b.template_name !== undefined ? String(b.template_name).trim() : row.template_name,
     group_name: b.group_name !== undefined ? String(b.group_name).trim() : row.group_name,
+    group_name_en: b.group_name_en !== undefined ? (b.group_name_en ? String(b.group_name_en).trim() : null) : row.group_name_en,
     item_name: b.item_name !== undefined ? String(b.item_name).trim() : row.item_name,
     body_ar: b.body_ar !== undefined ? b.body_ar : row.body_ar,
     body_en: b.body_en !== undefined ? b.body_en : row.body_en,
@@ -3037,7 +3189,8 @@ app.delete('/api/engagement-config/:id', requireAuth, async (req, res) => {
   if (row.company_id === null) {
     const { error } = await sb.from('engagement_config').insert({
       company_id: req.session.companyId, doc_kind: row.doc_kind, template_name: row.template_name,
-      group_name: row.group_name, item_name: row.item_name, body_ar: row.body_ar, body_en: row.body_en,
+      group_name: row.group_name, group_name_en: row.group_name_en,
+      item_name: row.item_name, body_ar: row.body_ar, body_en: row.body_en,
       block_type: row.block_type, section_order: row.section_order, selection_mode: row.selection_mode,
       is_required: row.is_required, is_active: false, source_id: row.id, created_by: req.session.userId,
     });
@@ -3056,7 +3209,7 @@ app.delete('/api/engagement-config/:id', requireAuth, async (req, res) => {
 app.get('/api/engagements', requireAuth, async (req, res) => {
   const sb = requireSupabase(res); if (!sb) return;
   let q = sb.from('engagements')
-    .select('id,doc_no,doc_kind,template_name,status,issue_date,period_end,amount,amount_total,proposal_id,created_at,client_id,clients(name)')
+    .select('id,doc_no,doc_kind,template_name,status,issue_date,period_end,amount,amount_total,proposal_id,origin,converted_by_type,converted_by_name,created_at,client_id,clients(name)')
     .eq('company_id', req.session.companyId);
   if (req.query.kind) q = q.eq('doc_kind', normDocKind(req.query.kind));
   if (req.query.status) q = q.eq('status', req.query.status);
@@ -3084,7 +3237,7 @@ async function composeEngagementSections(sb, companyId, docKind, templateName, v
     // البنود الإلزامية تُدرج كلها، والاختيارية تُترك ليضيفها المستخدم
     const chosen = list.filter(r => r.is_required);
     sections.push({
-      key: g, group_name: g, title: g, order: first.section_order,
+      key: g, group_name: g, group_name_en: first.group_name_en || null, title: g, order: first.section_order,
       selection_mode: first.selection_mode, is_required: !!first.is_required,
       library_count: list.length,
       rows: chosen.map(r => ({
@@ -3218,7 +3371,7 @@ app.post('/api/engagements/:id/status', requireAuth, async (req, res) => {
 
   const allowedByKind = cur.doc_kind === 'contract'
     ? ['draft', 'signed']
-    : ['draft', 'sent', 'approved', 'rejected'];
+    : ['requested', 'draft', 'sent', 'approved', 'rejected'];
   const next = String(b.status || '');
   if (!allowedByKind.includes(next)) return res.status(400).json({ message: 'حالة غير صالحة لهذا المستند' });
 
@@ -3275,11 +3428,15 @@ app.post('/api/engagements/:id/convert', requireAuth, async (req, res) => {
   try { sections = await composeEngagementSections(sb, req.session.companyId, 'contract', base.template_name, buildEngagementVars(prop.clients, base, company)); }
   catch (e) { return res.status(500).json({ message: e.message }); }
 
+  base.converted_by_type = 'office';
+  base.converted_by_name = req.session.fullName || 'موظف المكتب';
+  base.converted_at = new Date().toISOString();
   const { data, error } = await sb.from('engagements').insert(Object.assign({}, base, { sections })).select().single();
   if (error) return res.status(500).json({ message: error.message });
   const no = 'CT-' + new Date().getFullYear() + '-' + String(data.id).slice(0, 4).toUpperCase();
   await sb.from('engagements').update({ doc_no: no }).eq('id', data.id);
   data.doc_no = no;
+  await sb.from('engagements').update({ converted_by_type: 'office', converted_by_name: base.converted_by_name, converted_at: base.converted_at }).eq('id', prop.id);
   res.json(data);
 });
 
